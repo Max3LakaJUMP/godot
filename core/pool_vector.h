@@ -77,10 +77,6 @@ struct MemoryPool {
 	static void cleanup();
 };
 
-/**
-	@author Juan Linietsky <reduzio@gmail.com>
-*/
-
 template <class T>
 class PoolVector {
 
@@ -102,8 +98,7 @@ class PoolVector {
 		MemoryPool::alloc_mutex->lock();
 		if (MemoryPool::allocs_used == MemoryPool::alloc_count) {
 			MemoryPool::alloc_mutex->unlock();
-			ERR_EXPLAINC("All memory pool allocations are in use, can't COW.");
-			ERR_FAIL();
+			ERR_FAIL_MSG("All memory pool allocations are in use, can't COW.");
 		}
 
 		MemoryPool::Alloc *old_alloc = alloc;
@@ -458,7 +453,7 @@ public:
 
 	bool is_locked() const { return alloc && alloc->lock > 0; }
 
-	inline const T operator[](int p_index) const;
+	inline T operator[](int p_index) const;
 
 	Error resize(int p_size);
 
@@ -502,7 +497,7 @@ void PoolVector<T>::push_back(const T &p_val) {
 }
 
 template <class T>
-const T PoolVector<T>::operator[](int p_index) const {
+T PoolVector<T>::operator[](int p_index) const {
 
 	CRASH_BAD_INDEX(p_index, size());
 
@@ -524,8 +519,7 @@ Error PoolVector<T>::resize(int p_size) {
 		MemoryPool::alloc_mutex->lock();
 		if (MemoryPool::allocs_used == MemoryPool::alloc_count) {
 			MemoryPool::alloc_mutex->unlock();
-			ERR_EXPLAINC("All memory pool allocations are in use.");
-			ERR_FAIL_V(ERR_OUT_OF_MEMORY);
+			ERR_FAIL_V_MSG(ERR_OUT_OF_MEMORY, "All memory pool allocations are in use.");
 		}
 
 		//take one from the free list

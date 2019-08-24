@@ -68,6 +68,7 @@ const char *Expression::func_name[Expression::FUNC_MAX] = {
 	"step_decimals",
 	"stepify",
 	"lerp",
+	"lerp_angle",
 	"inverse_lerp",
 	"range_lerp",
 	"smoothstep",
@@ -190,6 +191,7 @@ int Expression::get_func_argument_count(BuiltinFunc p_func) {
 		case COLORN:
 			return 2;
 		case MATH_LERP:
+		case MATH_LERP_ANGLE:
 		case MATH_INVERSE_LERP:
 		case MATH_SMOOTHSTEP:
 		case MATH_MOVE_TOWARD:
@@ -394,6 +396,13 @@ void Expression::exec_func(BuiltinFunc p_func, const Variant **p_inputs, Variant
 			VALIDATE_ARG_NUM(1);
 			VALIDATE_ARG_NUM(2);
 			*r_return = Math::lerp((double)*p_inputs[0], (double)*p_inputs[1], (double)*p_inputs[2]);
+		} break;
+		case MATH_LERP_ANGLE: {
+
+			VALIDATE_ARG_NUM(0);
+			VALIDATE_ARG_NUM(1);
+			VALIDATE_ARG_NUM(2);
+			*r_return = Math::lerp_angle((double)*p_inputs[0], (double)*p_inputs[1], (double)*p_inputs[2]);
 		} break;
 		case MATH_INVERSE_LERP: {
 
@@ -801,17 +810,13 @@ Error Expression::_get_token(Token &r_token) {
 #define GET_CHAR() (str_ofs >= expression.length() ? 0 : expression[str_ofs++])
 
 		CharType cchar = GET_CHAR();
-		if (cchar == 0) {
-			r_token.type = TK_EOF;
-			return OK;
-		}
 
 		switch (cchar) {
 
 			case 0: {
 				r_token.type = TK_EOF;
 				return OK;
-			} break;
+			};
 			case '{': {
 
 				r_token.type = TK_CURLY_BRACKET_OPEN;
@@ -2156,10 +2161,8 @@ Error Expression::parse(const String &p_expression, const Vector<String> &p_inpu
 }
 
 Variant Expression::execute(Array p_inputs, Object *p_base, bool p_show_error) {
-	if (error_set) {
-		ERR_EXPLAIN("There was previously a parse error: " + error_str);
-		ERR_FAIL_V(Variant());
-	}
+
+	ERR_FAIL_COND_V_MSG(error_set, Variant(), "There was previously a parse error: " + error_str + ".");
 
 	execution_error = false;
 	Variant output;
@@ -2168,10 +2171,7 @@ Variant Expression::execute(Array p_inputs, Object *p_base, bool p_show_error) {
 	if (err) {
 		execution_error = true;
 		error_str = error_txt;
-		if (p_show_error) {
-			ERR_EXPLAIN(error_str);
-			ERR_FAIL_V(Variant());
-		}
+		ERR_FAIL_COND_V_MSG(p_show_error, Variant(), error_str);
 	}
 
 	return output;

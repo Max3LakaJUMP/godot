@@ -1740,10 +1740,7 @@ Variant::operator RID() const {
 	} else if (type == OBJECT && _get_obj().obj) {
 #ifdef DEBUG_ENABLED
 		if (ScriptDebugger::get_singleton()) {
-			if (!ObjectDB::instance_validate(_get_obj().obj)) {
-				ERR_EXPLAIN("Invalid pointer (object was deleted)");
-				ERR_FAIL_V(RID());
-			};
+			ERR_FAIL_COND_V_MSG(!ObjectDB::instance_validate(_get_obj().obj), RID(), "Invalid pointer (object was deleted).");
 		};
 #endif
 		Variant::CallError ce;
@@ -1834,8 +1831,6 @@ inline DA _convert_array_from_variant(const Variant &p_variant) {
 			return DA();
 		}
 	}
-
-	return DA();
 }
 
 Variant::operator Array() const {
@@ -2299,7 +2294,7 @@ Variant::Variant(const Object *p_object) {
 Variant::Variant(const Dictionary &p_dictionary) {
 
 	type = DICTIONARY;
-	memnew_placement(_data._mem, (Dictionary)(p_dictionary));
+	memnew_placement(_data._mem, Dictionary(p_dictionary));
 }
 
 Variant::Variant(const Array &p_array) {

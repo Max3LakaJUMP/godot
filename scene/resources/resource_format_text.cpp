@@ -1366,13 +1366,10 @@ String ResourceFormatSaverTextInstance::_write_resource(const RES &res) {
 			String path = relative_paths ? local_path.path_to_file(res->get_path()) : res->get_path();
 			return "Resource( \"" + path + "\" )";
 		} else {
-			ERR_EXPLAIN("Resource was not pre cached for the resource section, bug?");
-			ERR_FAIL_V("null");
+			ERR_FAIL_V_MSG("null", "Resource was not pre cached for the resource section, bug?");
 			//internal resource
 		}
 	}
-
-	return "null";
 }
 
 void ResourceFormatSaverTextInstance::_find_resources(const Variant &p_variant, bool p_main) {
@@ -1513,8 +1510,6 @@ Error ResourceFormatSaverTextInstance::save(const String &p_path, const RES &p_r
 			}
 		}
 	}
-
-	ERR_FAIL_COND_V(err != OK, err);
 
 	{
 		String title = packed_scene.is_valid() ? "[gd_scene " : "[gd_resource ";

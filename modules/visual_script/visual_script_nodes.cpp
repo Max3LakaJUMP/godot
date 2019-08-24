@@ -197,7 +197,6 @@ String VisualScriptFunction::get_output_sequence_port_text(int p_port) const {
 PropertyInfo VisualScriptFunction::get_input_value_port_info(int p_idx) const {
 
 	ERR_FAIL_V(PropertyInfo());
-	return PropertyInfo();
 }
 PropertyInfo VisualScriptFunction::get_output_value_port_info(int p_idx) const {
 
@@ -418,7 +417,7 @@ PropertyInfo VisualScriptOperator::get_input_value_port_info(int p_idx) const {
 		{ Variant::NIL, Variant::NIL } //OP_IN,
 	};
 
-	ERR_FAIL_INDEX_V(p_idx, Variant::OP_MAX, PropertyInfo());
+	ERR_FAIL_INDEX_V(p_idx, 2, PropertyInfo());
 
 	PropertyInfo pinfo;
 	pinfo.name = p_idx == 0 ? "A" : "B";
@@ -2531,7 +2530,7 @@ String VisualScriptCustomNode::get_category() const {
 	if (get_script_instance() && get_script_instance()->has_method("_get_category")) {
 		return get_script_instance()->call("_get_category");
 	}
-	return "custom";
+	return "Custom";
 }
 
 class VisualScriptNodeInstanceCustomNode : public VisualScriptNodeInstance {

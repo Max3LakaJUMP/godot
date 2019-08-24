@@ -86,10 +86,6 @@
 #include "scene/gui/tree.h"
 #include "scene/gui/viewport_container.h"
 
-/**
-	@author Juan Linietsky <reduzio@gmail.com>
-*/
-
 typedef void (*EditorNodeInitCallback)();
 typedef void (*EditorPluginInitializeCallback)();
 typedef bool (*EditorBuildCallback)();
@@ -431,6 +427,7 @@ private:
 	HBoxContainer *bottom_panel_hb;
 	HBoxContainer *bottom_panel_hb_editors;
 	VBoxContainer *bottom_panel_vb;
+	Label *version_label;
 	ToolButton *bottom_panel_raise;
 
 	void _bottom_panel_raise_toggled(bool);
@@ -460,6 +457,8 @@ private:
 
 	void _tool_menu_option(int p_idx);
 	void _update_debug_options();
+	void _update_file_menu_opened();
+	void _update_file_menu_closed();
 
 	void _on_plugin_ready(Object *p_script, const String &p_activate_name);
 
@@ -729,6 +728,8 @@ public:
 	bool item_has_editor(Object *p_object);
 	void hide_top_editors();
 
+	void select_editor_by_name(const String &p_name);
+
 	void open_request(const String &p_path);
 
 	bool is_changing_scene() const;
@@ -744,6 +745,7 @@ public:
 
 	void fix_dependencies(const String &p_for_file);
 	void clear_scene() { _cleanup_scene(); }
+	int new_scene();
 	Error load_scene(const String &p_scene, bool p_ignore_broken_deps = false, bool p_set_inherited = false, bool p_clear_errors = true, bool p_force_open_imported = false);
 	Error load_resource(const String &p_resource, bool p_ignore_broken_deps = false);
 
@@ -776,6 +778,8 @@ public:
 	void stop_child_process();
 
 	Ref<Theme> get_editor_theme() const { return theme; }
+	Ref<Script> get_object_custom_type_base(const Object *p_object) const;
+	StringName get_object_custom_type_name(const Object *p_object) const;
 	Ref<Texture> get_object_icon(const Object *p_object, const String &p_fallback = "Object") const;
 	Ref<Texture> get_class_icon(const String &p_class, const String &p_fallback = "Object") const;
 
@@ -862,6 +866,9 @@ public:
 	static void add_build_callback(EditorBuildCallback p_callback);
 
 	bool ensure_main_scene(bool p_from_native);
+
+	void run_play();
+	void run_stop();
 };
 
 struct EditorProgress {

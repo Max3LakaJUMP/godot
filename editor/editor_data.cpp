@@ -499,7 +499,6 @@ Object *EditorData::instance_custom_type(const String &p_type, const String &p_i
 
 		for (int i = 0; i < get_custom_types()[p_inherits].size(); i++) {
 			if (get_custom_types()[p_inherits][i].name == p_type) {
-				Ref<Texture> icon = get_custom_types()[p_inherits][i].icon;
 				Ref<Script> script = get_custom_types()[p_inherits][i].script;
 
 				Object *ob = ClassDB::instance(p_inherits);
@@ -508,8 +507,6 @@ Object *EditorData::instance_custom_type(const String &p_type, const String &p_i
 					ob->call("set_name", p_type);
 				}
 				ob->set_script(script.get_ref_ptr());
-				if (icon.is_valid())
-					ob->set_meta("_editor_icon", icon);
 				return ob;
 			}
 		}
@@ -540,6 +537,7 @@ int EditorData::add_edited_scene(int p_at_pos) {
 		p_at_pos = edited_scene.size();
 	EditedScene es;
 	es.root = NULL;
+	es.path = String();
 	es.history_current = -1;
 	es.version = 0;
 	es.live_edit_root = NodePath(String("/root"));
@@ -656,6 +654,8 @@ bool EditorData::check_and_update_scene(int p_idx) {
 
 		memdelete(edited_scene[p_idx].root);
 		edited_scene.write[p_idx].root = new_scene;
+		if (new_scene->get_filename() != "")
+			edited_scene.write[p_idx].path = new_scene->get_filename();
 		edited_scene.write[p_idx].selection = new_selection;
 
 		return true;
@@ -687,6 +687,12 @@ void EditorData::set_edited_scene_root(Node *p_root) {
 
 	ERR_FAIL_INDEX(current_edited_scene, edited_scene.size());
 	edited_scene.write[current_edited_scene].root = p_root;
+	if (p_root) {
+		if (p_root->get_filename() != "")
+			edited_scene.write[current_edited_scene].path = p_root->get_filename();
+		else
+			p_root->set_filename(edited_scene[current_edited_scene].path);
+	}
 }
 
 int EditorData::get_edited_scene_count() const {
@@ -776,6 +782,7 @@ String EditorData::get_scene_title(int p_idx) const {
 void EditorData::set_scene_path(int p_idx, const String &p_path) {
 
 	ERR_FAIL_INDEX(p_idx, edited_scene.size());
+	edited_scene.write[p_idx].path = p_path;
 
 	if (!edited_scene[p_idx].root)
 		return;
@@ -786,9 +793,14 @@ String EditorData::get_scene_path(int p_idx) const {
 
 	ERR_FAIL_INDEX_V(p_idx, edited_scene.size(), String());
 
-	if (!edited_scene[p_idx].root)
-		return "";
-	return edited_scene[p_idx].root->get_filename();
+	if (edited_scene[p_idx].root) {
+		if (edited_scene[p_idx].root->get_filename() == "")
+			edited_scene[p_idx].root->set_filename(edited_scene[p_idx].path);
+		else
+			return edited_scene[p_idx].root->get_filename();
+	}
+
+	return edited_scene[p_idx].path;
 }
 
 void EditorData::set_edited_scene_live_edit_root(const NodePath &p_root) {

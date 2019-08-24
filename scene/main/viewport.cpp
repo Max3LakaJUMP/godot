@@ -65,13 +65,11 @@ void ViewportTexture::setup_local_to_scene() {
 	}
 
 	Node *vpn = local_scene->get_node(path);
-	ERR_EXPLAIN("ViewportTexture: Path to node is invalid");
-	ERR_FAIL_COND(!vpn);
+	ERR_FAIL_COND_MSG(!vpn, "ViewportTexture: Path to node is invalid.");
 
 	vp = Object::cast_to<Viewport>(vpn);
 
-	ERR_EXPLAIN("ViewportTexture: Path to node does not point to a viewport");
-	ERR_FAIL_COND(!vp);
+	ERR_FAIL_COND_MSG(!vp, "ViewportTexture: Path to node does not point to a viewport.");
 
 	vp->viewport_textures.insert(this);
 
@@ -581,7 +579,7 @@ void Viewport::_notification(int p_what) {
 					if (physics_object_capture != 0) {
 
 						CollisionObject *co = Object::cast_to<CollisionObject>(ObjectDB::get_instance(physics_object_capture));
-						if (co) {
+						if (co && camera) {
 							_collision_object_input_event(co, camera, ev, Vector3(), Vector3(), 0);
 							captured = true;
 							if (mb.is_valid() && mb->get_button_index() == 1 && !mb->is_pressed()) {
@@ -2393,8 +2391,7 @@ void Viewport::_gui_remove_from_modal_stack(List<Control *>::Element *MI, Object
 
 void Viewport::_gui_force_drag(Control *p_base, const Variant &p_data, Control *p_control) {
 
-	ERR_EXPLAIN("Drag data must be a value");
-	ERR_FAIL_COND(p_data.get_type() == Variant::NIL);
+	ERR_FAIL_COND_MSG(p_data.get_type() == Variant::NIL, "Drag data must be a value.");
 
 	gui.dragging = true;
 	gui.drag_data = p_data;

@@ -196,16 +196,14 @@ bool GridMap::get_collision_layer_bit(int p_bit) const {
 #ifndef DISABLE_DEPRECATED
 void GridMap::set_theme(const Ref<MeshLibrary> &p_theme) {
 
-	ERR_EXPLAIN("GridMap.theme/set_theme() is deprecated and will be removed in a future version. Use GridMap.mesh_library/set_mesh_library() instead.");
-	WARN_DEPRECATED;
+	WARN_DEPRECATED_MSG("GridMap.theme/set_theme() is deprecated and will be removed in a future version. Use GridMap.mesh_library/set_mesh_library() instead.");
 
 	set_mesh_library(p_theme);
 }
 
 Ref<MeshLibrary> GridMap::get_theme() const {
 
-	ERR_EXPLAIN("GridMap.theme/get_theme() is deprecated and will be removed in a future version. Use GridMap.mesh_library/get_mesh_library() instead.");
-	WARN_DEPRECATED;
+	WARN_DEPRECATED_MSG("GridMap.theme/get_theme() is deprecated and will be removed in a future version. Use GridMap.mesh_library/get_mesh_library() instead.");
 
 	return get_mesh_library();
 }
@@ -480,11 +478,6 @@ bool GridMap::_octant_update(const OctantKey &p_key) {
 		Vector3 ofs = _get_offset();
 
 		Transform xform;
-
-		if (clip && ((clip_above && cellpos[clip_axis] > clip_floor) || (!clip_above && cellpos[clip_axis] < clip_floor))) {
-
-		} else {
-		}
 
 		xform.basis.set_orthogonal_index(c.rot);
 		xform.set_origin(cellpos * cell_size + ofs);
