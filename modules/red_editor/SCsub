@@ -1,0 +1,33 @@
+# SCsub
+Import('env')
+import os
+from compat import isbasestring
+module_env = env.Clone()
+
+libpsd_sources = []
+for file in os.listdir(os.path.join(Dir('.').abspath, "libpsd", "src")):
+    if file.endswith(".c"):
+        libpsd_sources.append(os.path.join("libpsd", "src", file))
+
+for path in ["libpsd/include"]:
+    module_env.Prepend(CPPPATH=[path])
+    env.Prepend(CPPPATH=[path])
+
+env_thirdparty = module_env.Clone()
+env_thirdparty.disable_warnings()
+# lib = env_thirdparty.add_library("psd", libpsd_sources)
+env_thirdparty.add_source_files(env.modules_sources, libpsd_sources)
+# inserted = False
+# for idx, linklib in enumerate(env["LIBS"]):
+#   if isbasestring(linklib): # first system lib such as "X11", otherwise SCons lib object
+#         env["LIBS"].insert(idx, lib)
+#         inserted = True
+#         break
+# if not inserted:
+#     env.Append(LIBS=[lib])
+
+
+module_env.add_source_files(env.modules_sources, "*.cpp")
+
+
+
