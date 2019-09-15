@@ -185,10 +185,31 @@ _ResourceSaver::_ResourceSaver() {
 
 /////////////////OS
 
+void _OS::global_menu_add_item(const String &p_menu, const String &p_label, const Variant &p_signal, const Variant &p_meta) {
+
+	OS::get_singleton()->global_menu_add_item(p_menu, p_label, p_signal, p_meta);
+}
+
+void _OS::global_menu_add_separator(const String &p_menu) {
+
+	OS::get_singleton()->global_menu_add_separator(p_menu);
+}
+
+void _OS::global_menu_remove_item(const String &p_menu, int p_idx) {
+
+	OS::get_singleton()->global_menu_remove_item(p_menu, p_idx);
+}
+
+void _OS::global_menu_clear(const String &p_menu) {
+
+	OS::get_singleton()->global_menu_clear(p_menu);
+}
+
 Point2 _OS::get_mouse_position() const {
 
 	return OS::get_singleton()->get_mouse_position();
 }
+
 void _OS::set_window_title(const String &p_title) {
 
 	OS::get_singleton()->set_window_title(p_title);
@@ -202,6 +223,7 @@ int _OS::get_mouse_button_state() const {
 String _OS::get_unique_id() const {
 	return OS::get_singleton()->get_unique_id();
 }
+
 bool _OS::has_touchscreen_ui_hint() const {
 
 	return OS::get_singleton()->has_touchscreen_ui_hint();
@@ -211,6 +233,7 @@ void _OS::set_clipboard(const String &p_text) {
 
 	OS::get_singleton()->set_clipboard(p_text);
 }
+
 String _OS::get_clipboard() const {
 
 	return OS::get_singleton()->get_clipboard();
@@ -257,12 +280,14 @@ void _OS::set_video_mode(const Size2 &p_size, bool p_fullscreen, bool p_resizeab
 	vm.resizable = p_resizeable;
 	OS::get_singleton()->set_video_mode(vm, p_screen);
 }
+
 Size2 _OS::get_video_mode(int p_screen) const {
 
 	OS::VideoMode vm;
 	vm = OS::get_singleton()->get_video_mode(p_screen);
 	return Size2(vm.width, vm.height);
 }
+
 bool _OS::is_video_mode_fullscreen(int p_screen) const {
 
 	OS::VideoMode vm;
@@ -1125,6 +1150,11 @@ void _OS::_bind_methods() {
 	//ClassDB::bind_method(D_METHOD("is_video_mode_resizable","screen"),&_OS::is_video_mode_resizable,DEFVAL(0));
 	//ClassDB::bind_method(D_METHOD("get_fullscreen_mode_list","screen"),&_OS::get_fullscreen_mode_list,DEFVAL(0));
 
+	ClassDB::bind_method(D_METHOD("global_menu_add_item", "menu", "label", "id", "meta"), &_OS::global_menu_add_item);
+	ClassDB::bind_method(D_METHOD("global_menu_add_separator", "menu"), &_OS::global_menu_add_separator);
+	ClassDB::bind_method(D_METHOD("global_menu_remove_item", "menu", "idx"), &_OS::global_menu_remove_item);
+	ClassDB::bind_method(D_METHOD("global_menu_clear", "menu"), &_OS::global_menu_clear);
+
 	ClassDB::bind_method(D_METHOD("get_video_driver_count"), &_OS::get_video_driver_count);
 	ClassDB::bind_method(D_METHOD("get_video_driver_name", "driver"), &_OS::get_video_driver_name);
 	ClassDB::bind_method(D_METHOD("get_current_video_driver"), &_OS::get_current_video_driver);
@@ -1402,6 +1432,11 @@ PoolVector<Plane> _Geometry::build_capsule_planes(float p_radius, float p_height
 	return Geometry::build_capsule_planes(p_radius, p_height, p_sides, p_lats, p_axis);
 }
 
+bool _Geometry::is_point_in_circle(const Vector2 &p_point, const Vector2 &p_circle_pos, real_t p_circle_radius) {
+
+	return Geometry::is_point_in_circle(p_point, p_circle_pos, p_circle_radius);
+}
+
 real_t _Geometry::segment_intersects_circle(const Vector2 &p_from, const Vector2 &p_to, const Vector2 &p_circle_pos, real_t p_circle_radius) {
 
 	return Geometry::segment_intersects_circle(p_from, p_to, p_circle_pos, p_circle_radius);
@@ -1654,11 +1689,6 @@ Array _Geometry::offset_polyline_2d(const Vector<Vector2> &p_polygon, real_t p_d
 	return ret;
 }
 
-Vector<Point2> _Geometry::transform_points_2d(const Vector<Point2> &p_points, const Transform2D &p_mat) {
-
-	return Geometry::transform_points_2d(p_points, p_mat);
-}
-
 Dictionary _Geometry::make_atlas(const Vector<Size2> &p_rects) {
 
 	Dictionary ret;
@@ -1697,6 +1727,7 @@ void _Geometry::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("build_box_planes", "extents"), &_Geometry::build_box_planes);
 	ClassDB::bind_method(D_METHOD("build_cylinder_planes", "radius", "height", "sides", "axis"), &_Geometry::build_cylinder_planes, DEFVAL(Vector3::AXIS_Z));
 	ClassDB::bind_method(D_METHOD("build_capsule_planes", "radius", "height", "sides", "lats", "axis"), &_Geometry::build_capsule_planes, DEFVAL(Vector3::AXIS_Z));
+	ClassDB::bind_method(D_METHOD("is_point_in_circle", "point", "circle_position", "circle_radius"), &_Geometry::is_point_in_circle);
 	ClassDB::bind_method(D_METHOD("segment_intersects_circle", "segment_from", "segment_to", "circle_position", "circle_radius"), &_Geometry::segment_intersects_circle);
 	ClassDB::bind_method(D_METHOD("segment_intersects_segment_2d", "from_a", "to_a", "from_b", "to_b"), &_Geometry::segment_intersects_segment_2d);
 	ClassDB::bind_method(D_METHOD("line_intersects_line_2d", "from_a", "dir_a", "from_b", "dir_b"), &_Geometry::line_intersects_line_2d);
@@ -1736,8 +1767,6 @@ void _Geometry::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("offset_polygon_2d", "polygon", "delta", "join_type"), &_Geometry::offset_polygon_2d, DEFVAL(JOIN_SQUARE));
 	ClassDB::bind_method(D_METHOD("offset_polyline_2d", "polyline", "delta", "join_type", "end_type"), &_Geometry::offset_polyline_2d, DEFVAL(JOIN_SQUARE), DEFVAL(END_SQUARE));
-
-	ClassDB::bind_method(D_METHOD("transform_points_2d", "points", "transform"), &_Geometry::transform_points_2d);
 
 	ClassDB::bind_method(D_METHOD("make_atlas", "sizes"), &_Geometry::make_atlas);
 
