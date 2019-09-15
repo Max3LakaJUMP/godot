@@ -120,6 +120,7 @@ void RasterizerCanvasGLES3::light_internal_update(RID p_rid, Light *p_light) {
 	li->ubo_data.shadowpixel_size = (1.0 / p_light->shadow_buffer_size) * (1.0 + p_light->shadow_smooth);
 	li->ubo_data.light_outside_alpha = p_light->mode == VS::CANVAS_LIGHT_MODE_MASK ? 1.0 : 0.0;
 	li->ubo_data.light_height = p_light->height;
+	li->ubo_data.light_dominant = p_light->dominant;
 	if (p_light->radius_cache == 0)
 		li->ubo_data.shadow_gradient = 0;
 	else
@@ -177,6 +178,8 @@ void RasterizerCanvasGLES3::canvas_begin() {
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE, Color(1, 1, 1, 1));
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX, Transform2D());
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX, Transform2D());
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, Transform2D());
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, Transform2D());
 	if (storage->frame.current_rt) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0 / storage->frame.current_rt->width, 1.0 / storage->frame.current_rt->height));
 	} else {
@@ -308,9 +311,13 @@ void RasterizerCanvasGLES3::_set_texture_rect_mode(bool p_enable, bool p_ninepat
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE, state.canvas_item_modulate);
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX, state.final_transform);
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX, state.extra_matrix);
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_matrix);
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_matrix);
 	if (state.using_skeleton) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM, state.skeleton_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM_INVERSE, state.skeleton_transform_inverse);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM_GLOBAL, state.skeleton_transform_global);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM_GLOBAL_INVERSE, state.skeleton_transform_global_inverse);
 	}
 	if (storage->frame.current_rt) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0 / storage->frame.current_rt->width, 1.0 / storage->frame.current_rt->height));
@@ -1308,6 +1315,8 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 				} else {
 					state.skeleton_transform = p_transform * skeleton->base_transform_2d;
 					state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
+					state.skeleton_transform_global = skeleton->base_transform_2d;
+					state.skeleton_transform_global_inverse = state.skeleton_transform_global.affine_inverse();
 				}
 			}
 
@@ -1509,10 +1518,14 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 
 		state.final_transform = ci->final_transform;
 		state.extra_matrix = Transform2D();
+		state.world_matrix = p_transform.affine_inverse() * ci->final_transform;
+		state.inv_world_matrix = state.world_matrix.affine_inverse();
 
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE, state.canvas_item_modulate);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX, state.final_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX, state.extra_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_matrix);
 		if (storage->frame.current_rt) {
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0 / storage->frame.current_rt->width, 1.0 / storage->frame.current_rt->height));
 		} else {
@@ -1584,6 +1597,8 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE, state.canvas_item_modulate);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX, state.final_transform);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX, Transform2D());
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_matrix);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_matrix);
 						if (storage->frame.current_rt) {
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0 / storage->frame.current_rt->width, 1.0 / storage->frame.current_rt->height));
 						} else {

@@ -53,24 +53,24 @@ float REDBubble::get_width() const {
 	return _width;
 }
 
-void REDBubble::set_curve(const Ref<Curve> &p_curve) {
+void REDBubble::set_width_curve(const Ref<Curve> &p_width_curve) {
 	// Cleanup previous connection if any
-	if (_curve.is_valid()) {
-		_curve->disconnect(CoreStringNames::get_singleton()->changed, this, "_curve_changed");
+	if (_width_curve.is_valid()) {
+		_width_curve->disconnect(CoreStringNames::get_singleton()->changed, this, "_width_curve_changed");
 	}
 
-	_curve = p_curve;
+	_width_curve = p_width_curve;
 
-	// Connect to the curve so the line will update when it is changed
-	if (_curve.is_valid()) {
-		_curve->connect(CoreStringNames::get_singleton()->changed, this, "_curve_changed");
+	// Connect to the width_curve so the line will update when it is changed
+	if (_width_curve.is_valid()) {
+		_width_curve->connect(CoreStringNames::get_singleton()->changed, this, "_width_curve_changed");
 	}
 
 	update();
 }
 
-Ref<Curve> REDBubble::get_curve() const {
-	return _curve;
+Ref<Curve> REDBubble::get_width_curve() const {
+	return _width_curve;
 }
 
 void REDBubble::set_default_color(Color p_color) {
@@ -159,11 +159,11 @@ void REDBubble::_draw_outline(Vector<Vector2> &p_points) {
 	
 	int len = p_points.size();
 	{
-        int oldSize = MIN(thickness_list.size(), len);
+        int oldSize = MIN(width_list.size(), len);
         t_l.resize(len);
-        PoolVector<float>::Read thickness_list_read = thickness_list.read();
+        PoolVector<float>::Read width_list_read = width_list.read();
         for (int i = 0; i < oldSize; i++) {
-            t_l.write[i] = thickness_list_read[i];
+            t_l.write[i] = width_list_read[i];
         }
         for (int i = oldSize; i < len; i++) {
             t_l.write[i] = 1.f;
@@ -175,11 +175,11 @@ void REDBubble::_draw_outline(Vector<Vector2> &p_points) {
 		int pre_a;
 		int b;
 		int post_b;
-		int end=thickness_list.size()-1;
-		float smooth_thickness_iter = len*1.0f/thickness_list.size()-1;
+		int end=width_list.size()-1;
+		float smooth_thickness_iter = len*1.0f/width_list.size()-1;
 
-		PoolVector<float>::Read thickness_list_read = thickness_list.read();
-		for(int i=0; i<thickness_list.size(); ++i){
+		PoolVector<float>::Read width_list_read = width_list.read();
+		for(int i=0; i<width_list.size(); ++i){
 			if (i==end)
 				b = 0;
 			else
@@ -194,9 +194,9 @@ void REDBubble::_draw_outline(Vector<Vector2> &p_points) {
 				post_b = 0;
 			else
 				post_b = b + 1;
-			new_thickness.push_back(thickness_list_read[i]);
+			new_thickness.push_back(width_list_read[i]);
 			for(int j=0; j<smooth_thickness_iter; ++j){
-				new_thickness.push_back(thickness_list_read[i]+(j+1)*1.0/(smooth_thickness_iter+1)*(thickness_list_read[b]-thickness_list_read[i]));
+				new_thickness.push_back(width_list_read[i]+(j+1)*1.0/(smooth_thickness_iter+1)*(width_list_read[b]-width_list_read[i]));
 			}
 		}
 	}
@@ -209,14 +209,12 @@ void REDBubble::_draw_outline(Vector<Vector2> &p_points) {
 	lb.gradient = *_gradient;
 	lb.texture_mode = static_cast<REDLine::LineTextureMode>(_texture_mode);
 	lb.joint_mode = static_cast<REDLine::LineJointMode>(_joint_mode);
-	lb.begin_cap_mode = static_cast<REDLine::LineCapMode>(_begin_cap_mode);
-	lb.end_cap_mode = static_cast<REDLine::LineCapMode>(_end_cap_mode);
 	lb.round_precision = _round_precision;
 	lb.sharp_limit = _sharp_limit;
 	lb.width = _width;
-	lb.curve = *_curve;
+	lb.width_curve = *_width_curve;
     lb.is_closed = true;
-    lb.thickness_list = new_thickness;
+    lb.width_list = new_thickness;
 
 	RID texture_rid;
 	if (_texture.is_valid()) {
@@ -259,17 +257,17 @@ void REDBubble::_gradient_changed() {
 	update();
 }
 
-void REDBubble::_curve_changed() {
+void REDBubble::_width_curve_changed() {
 	update();
 }
 
-void REDBubble::set_thickness_list(const PoolVector<float> &p_thickness_list) {
-    thickness_list = p_thickness_list;
+void REDBubble::set_width_list(const PoolVector<float> &p_width_list) {
+    width_list = p_width_list;
     update();
 }
 
-PoolVector<float> REDBubble::get_thickness_list() const {
-    return thickness_list;
+PoolVector<float> REDBubble::get_width_list() const {
+    return width_list;
 }
 
 Dictionary REDBubble::_edit_get_state() const {
@@ -340,10 +338,20 @@ void REDBubble::set_smooth(const int p_detail) {
 int REDBubble::get_smooth() const{
     return smooth;
 }
+
+void REDBubble::set_tale_smooth(const int p_detail) {
+    tale_smooth = p_detail;
+    update();
+}
+
+int REDBubble::get_tale_smooth() const{
+    return tale_smooth;
+}
+
 void REDBubble::set_interpolation(REDBubble::Interpolation p_interpolation){
     interpolation = p_interpolation;
 
-    if (smooth>0) {
+    if (smooth>1) {
 		update();
     }
 }
@@ -355,7 +363,7 @@ REDBubble::Interpolation REDBubble::get_interpolation() const{
 void REDBubble::set_tail_interpolation(REDBubble::Interpolation p_tale_interpolation){
     tale_interpolation = p_tale_interpolation;
 
-    if (smooth>0) {
+    if (tale_smooth>1) {
 		update();
     }
 }
@@ -419,7 +427,7 @@ Vector2 _quadratic_bezier(Vector2 p0, Vector2 p1, Vector2 p2, float t){
     return r;
 }
 
-Vector<Vector2> REDBubble::_tesselate(Vector<Vector2> &low_res, const REDBubble::Interpolation &p_interpolation) const{
+Vector<Vector2> REDBubble::_tesselate(Vector<Vector2> &low_res, const REDBubble::Interpolation &p_interpolation, int smooth_factor) const{
 	int pre_a;
 	int b;
 	int post_b;
@@ -427,6 +435,7 @@ Vector<Vector2> REDBubble::_tesselate(Vector<Vector2> &low_res, const REDBubble:
 	Vector<Vector2> new_points;
 	switch(p_interpolation){
 		case(CUBIC): {
+			
 			for(int i=0; i<low_res.size(); ++i){
 				if (i==end)
 					b = 0;
@@ -443,8 +452,8 @@ Vector<Vector2> REDBubble::_tesselate(Vector<Vector2> &low_res, const REDBubble:
 				else
 					post_b = b + 1;
 				new_points.push_back(low_res[i]);
-				for(int j=0; j<smooth; ++j){
-					new_points.push_back(low_res[i].cubic_interpolate(low_res[b], low_res[pre_a], low_res[post_b], (j+1)*1.0/(smooth+1)));
+				for(int j=0; j<smooth_factor; ++j){
+					new_points.push_back(low_res[i].cubic_interpolate(low_res[b], low_res[pre_a], low_res[post_b], (j+1)*1.0/(smooth_factor+1)));
 				}
 			}
 		} break;
@@ -463,8 +472,8 @@ Vector<Vector2> REDBubble::_tesselate(Vector<Vector2> &low_res, const REDBubble:
 				else
 					post_b = b + 1;
 				new_points.push_back(low_res[i]);
-				for(int j=0; j<smooth; ++j){
-					new_points.push_back(_quadratic_bezier(low_res[i], low_res[b], low_res[post_b], (j+1)*1.0/(smooth+1)));
+				for(int j=0; j<smooth_factor; ++j){
+					new_points.push_back(_quadratic_bezier(low_res[i], low_res[b], low_res[post_b], (j+1)*1.0/(smooth_factor+1)));
 				}
 			}
 		} break;
@@ -483,8 +492,8 @@ Vector<Vector2> REDBubble::_tesselate(Vector<Vector2> &low_res, const REDBubble:
 				else
 					post_b = b + 1;
 				new_points.push_back(low_res[pre_a]);
-				for(int j=0; j<smooth; ++j){
-					new_points.push_back(_cubic_bezier(low_res[pre_a], low_res[i], low_res[b], low_res[post_b], (j+1)*1.0/(smooth+1)));
+				for(int j=0; j<smooth_factor; ++j){
+					new_points.push_back(_cubic_bezier(low_res[pre_a], low_res[i], low_res[b], low_res[post_b], (j+1)*1.0/(smooth_factor+1)));
 				}
 			}
 		} break;
@@ -560,8 +569,8 @@ void REDBubble::_notification(int p_what) {
 			} else {
 				colors.push_back(color);
 			}
-			if (smooth>0)
-				points = _tesselate(points, interpolation);
+			if (smooth > 1)
+				points = _tesselate(points, interpolation, smooth-1);
 				_add_spikes(points);
 			if (polygon_tail.size()>0){
 				Vector<Vector2>points_tail;
@@ -571,8 +580,8 @@ void REDBubble::_notification(int p_what) {
 				for (int i = 0; i < len_tail; i++) {
 					points_tail.write[i] = polyr[i] + offset;
 				}
-				if (smooth>0)
-					points_tail = _tesselate(points_tail, tale_interpolation);
+				if (tale_smooth > 1)
+					points_tail = _tesselate(points_tail, tale_interpolation, tale_smooth-1);
 				Vector<Vector<Vector2> > merged_points = Geometry::merge_polygons_2d(points, points_tail);
 				int merged_points_len = merged_points[0].size();
 				if (merged_points_len>0){
@@ -723,14 +732,14 @@ Vector2 REDBubble::get_offset() const {
 void REDBubble::_bind_methods() {
 	//Line
 
-	ClassDB::bind_method(D_METHOD("set_thickness_list", "thickness_list"), &REDBubble::set_thickness_list);
-    ClassDB::bind_method(D_METHOD("get_thickness_list"), &REDBubble::get_thickness_list);
+	ClassDB::bind_method(D_METHOD("set_width_list", "width_list"), &REDBubble::set_width_list);
+    ClassDB::bind_method(D_METHOD("get_width_list"), &REDBubble::get_width_list);
 
 	ClassDB::bind_method(D_METHOD("set_width", "width"), &REDBubble::set_width);
 	ClassDB::bind_method(D_METHOD("get_width"), &REDBubble::get_width);
 
-	ClassDB::bind_method(D_METHOD("set_curve", "curve"), &REDBubble::set_curve);
-	ClassDB::bind_method(D_METHOD("get_curve"), &REDBubble::get_curve);
+	ClassDB::bind_method(D_METHOD("set_width_curve", "width_curve"), &REDBubble::set_width_curve);
+	ClassDB::bind_method(D_METHOD("get_width_curve"), &REDBubble::get_width_curve);
 
 	ClassDB::bind_method(D_METHOD("set_default_color", "color"), &REDBubble::set_default_color);
 	ClassDB::bind_method(D_METHOD("get_default_color"), &REDBubble::get_default_color);
@@ -764,6 +773,8 @@ void REDBubble::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_polygon_tail"), &REDBubble::get_polygon_tail);
 	ClassDB::bind_method(D_METHOD("set_edit_tail", "edit_tail"), &REDBubble::set_edit_tail);
     ClassDB::bind_method(D_METHOD("get_edit_tail"), &REDBubble::get_edit_tail);
+    ClassDB::bind_method(D_METHOD("set_tale_smooth", "tale_smooth"), &REDBubble::set_tale_smooth);
+    ClassDB::bind_method(D_METHOD("get_tale_smooth"), &REDBubble::get_tale_smooth);
     ClassDB::bind_method(D_METHOD("set_smooth", "smooth"), &REDBubble::set_smooth);
     ClassDB::bind_method(D_METHOD("get_smooth"), &REDBubble::get_smooth);
     ClassDB::bind_method(D_METHOD("set_interpolation", "interpolation"), &REDBubble::set_interpolation);
@@ -823,7 +834,8 @@ void REDBubble::_bind_methods() {
 	
 	//Red
 	ADD_GROUP("Balloon", "");
-    ADD_PROPERTY(PropertyInfo(Variant::INT, "smooth"), "set_smooth", "get_smooth");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "smooth"), "set_smooth", "get_smooth");
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "tale_smooth"), "set_tale_smooth", "get_tale_smooth");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "interpolation", PROPERTY_HINT_ENUM, "Cubic, Quadratic Bezier, Cubic Bezier"), "set_interpolation", "get_interpolation");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "tail_interpolation", PROPERTY_HINT_ENUM, "Cubic, Quadratic Bezier, Cubic Bezier"), "set_tail_interpolation", "get_tail_interpolation");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "spikes"), "set_spikes", "get_spikes");
@@ -836,8 +848,8 @@ void REDBubble::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_outline"), "set_use_outline", "get_use_outline");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "default_color"), "set_default_color", "get_default_color");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "width"), "set_width", "get_width");
-    ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "thickness_list"), "set_thickness_list", "get_thickness_list");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "width_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_curve", "get_curve");
+    ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "width_list"), "set_width_list", "get_width_list");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "width_width_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_width_curve", "get_width_curve");
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "joint_mode", PROPERTY_HINT_ENUM, "Sharp,Bevel,Round"), "set_joint_mode", "get_joint_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "sharp_limit"), "set_sharp_limit", "get_sharp_limit");
@@ -855,34 +867,30 @@ void REDBubble::_bind_methods() {
 	BIND_ENUM_CONSTANT(LINE_JOINT_BEVEL);
 	BIND_ENUM_CONSTANT(LINE_JOINT_ROUND);
 
-	BIND_ENUM_CONSTANT(LINE_CAP_NONE);
-	BIND_ENUM_CONSTANT(LINE_CAP_BOX);
-	BIND_ENUM_CONSTANT(LINE_CAP_ROUND);
-
 	BIND_ENUM_CONSTANT(LINE_TEXTURE_NONE);
 	BIND_ENUM_CONSTANT(LINE_TEXTURE_TILE);
 	BIND_ENUM_CONSTANT(LINE_TEXTURE_STRETCH);
 
 	
 	ClassDB::bind_method(D_METHOD("_gradient_changed"), &REDBubble::_gradient_changed);
-	ClassDB::bind_method(D_METHOD("_curve_changed"), &REDBubble::_curve_changed);
+	ClassDB::bind_method(D_METHOD("_width_curve_changed"), &REDBubble::_width_curve_changed);
 }
 
 REDBubble::REDBubble() {
 	spikes = 0;
 	_joint_mode = LINE_JOINT_SHARP;
-	_begin_cap_mode = LINE_CAP_NONE;
-	_end_cap_mode = LINE_CAP_NONE;
-	_width = 10;
-	_default_color = Color(0.4, 0.5, 1);
-	_texture_mode = LINE_TEXTURE_NONE;
-	_sharp_limit = 2.f;
+	_width = 4;
+	_default_color = Color(0.0, 0.0, 1);
+	_texture_mode = LINE_TEXTURE_STRETCH;
+	_texture = ResourceLoader::load("res://redot/textures/outline.png", "Texture");
+	_sharp_limit = 100.f;
 	_round_precision = 8;
 	
 	reorient = false;
 	use_outline = false;
 	edit_tail = false;
-	smooth = 0;
+	smooth = 8;
+	tale_smooth = 8;
 	interpolation = CUBIC;
 	tale_interpolation = QUADRATIC_BEZIER;
 	

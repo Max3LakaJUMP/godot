@@ -34,25 +34,37 @@
 #include "core/image.h"
 #include "core/io/resource_importer.h"
 
-
-#include "editor/editor_atlas_packer.h"
 #include "scene/resources/mesh.h"
 #include "scene/resources/texture.h"
+#include "modules/red/red_clipper.h"
 
 struct _psd_layer_record;
 class Polygon2D;
 class Node2D;
 class ShaderMaterial;
-class REDFrame;
+class REDClipper;
 struct _psd_context;
 struct _psd_layer_mask_info;
+
+struct Materials{
+	Ref<ShaderMaterial> outline_material;
+	Ref<ShaderMaterial> material;
+	Ref<ShaderMaterial> material_mul;
+	Ref<ShaderMaterial> material_add;
+	Ref<ShaderMaterial> material_sub;
+
+	Ref<ShaderMaterial> masked_material;
+	Ref<ShaderMaterial> masked_material_mul;
+	Ref<ShaderMaterial> masked_material_add;
+	Ref<ShaderMaterial> masked_material_sub;
+	void init(const Map<StringName, Variant> &p_options, Node *node);
+};
 
 class ResourceImporterPSD : public ResourceImporter {
 	GDCLASS(ResourceImporterPSD, ResourceImporter);
 
 public:
 	enum LayerType {
-		LAYER_NODE2D,
 		LAYER_POLYGON2D,
 		LAYER_POLYGON,
 	};
@@ -83,10 +95,10 @@ public:
 	void save_png(_psd_layer_record *layer, String png_path);
 	void create_polygon(_psd_layer_record *layer, Ref<ShaderMaterial> material, Vector2 polygon_size, String png_path, Node2D *parent);
 
-	int load_folder(_psd_context *context, String target_dir, int start, Ref<ShaderMaterial> material, Node *parent, Vector2 parent_pos,
-									const Map<StringName, Variant> &p_options, int counter=0);
+	int load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 
+					Node *parent, Vector2 parent_pos, const Map<StringName, Variant> &p_options, int counter=0, int folder_level=-1, REDClipper *parent_clipper=nullptr);
 	
-	void _mask_to_node(_psd_layer_record *layer, float target_width, int psd_width, REDFrame *frame);
+	void _mask_to_node(_psd_layer_record *layer, float target_width, int psd_width, REDClipper *clipper, _psd_context *context);
 	Node *_get_root(_psd_context *context, const String &target_dir) const;
 	ResourceImporterPSD();
 };

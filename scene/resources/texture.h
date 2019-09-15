@@ -614,7 +614,7 @@ private:
 	bool update_pending;
 	RID texture;
 	int width;
-
+	bool use_height;
 	void _queue_update();
 	void _update();
 
@@ -624,7 +624,8 @@ protected:
 public:
 	void set_gradient(Ref<Gradient> p_gradient);
 	Ref<Gradient> get_gradient() const;
-
+	void GradientTexture::set_use_height(bool p_use_height);
+	bool GradientTexture::get_use_height() const;
 	void set_width(int p_width);
 	int get_width() const;
 

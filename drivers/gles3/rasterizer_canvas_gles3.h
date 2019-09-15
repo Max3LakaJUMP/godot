@@ -86,10 +86,14 @@ public:
 
 		Color canvas_item_modulate;
 		Transform2D extra_matrix;
+		Transform2D world_matrix;
+		Transform2D inv_world_matrix;
 		Transform2D final_transform;
 		bool using_skeleton;
 		Transform2D skeleton_transform;
 		Transform2D skeleton_transform_inverse;
+		Transform2D skeleton_transform_global;
+		Transform2D skeleton_transform_global_inverse;
 
 	} state;
 
@@ -108,6 +112,7 @@ public:
 			float shadowpixel_size;
 			float shadow_gradient;
 			float light_height;
+			bool light_dominant;
 			float light_outside_alpha;
 			float shadow_distance_mult;
 			uint8_t padding[4];

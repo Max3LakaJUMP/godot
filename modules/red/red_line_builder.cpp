@@ -69,11 +69,13 @@ static inline void swap(T &a, T &b) {
     b = tmp;
 }
 
-static float calculate_total_distance(const Vector<Vector2> &points) {
+static float calculate_total_distance(const Vector<Vector2> &points, bool is_closed) {
     float d = 0.f;
     for (int i = 1; i < points.size(); ++i) {
         d += points[i].distance_to(points[i - 1]);
     }
+	if(is_closed)
+		d += points[0].distance_to(points[points.size()-1]);
     return d;
 }
 
@@ -95,7 +97,7 @@ static inline Vector2 interpolate(const Rect2 &r, const Vector2 &v) {
 REDLineBuilder::REDLineBuilder() {
     joint_mode = REDLine::LINE_JOINT_SHARP;
     width = 10;
-    curve = NULL;
+    width_curve = NULL;
     default_color = Color(0.4, 0.5, 1);
     gradient = NULL;
     sharp_limit = 2.f;
@@ -151,15 +153,15 @@ void REDLineBuilder::build() {
     float total_distance = 0.f;
     float width_factor = 1.f;
     _interpolate_color = gradient != NULL;
-    bool retrieve_curve = curve != NULL;
+    bool retrieve_width_curve = width_curve != NULL;
     bool distance_required = _interpolate_color ||
-                             retrieve_curve ||
+                             retrieve_width_curve ||
                              texture_mode == REDLine::LINE_TEXTURE_TILE ||
                              texture_mode == REDLine::LINE_TEXTURE_STRETCH;
-    if (retrieve_curve)
-        width_factor = curve->interpolate_baked(0.f) * thickness_list[0];
+    if (retrieve_width_curve)
+        width_factor = width_curve->interpolate_baked(0.f) * width_list[0];
     else
-        width_factor = thickness_list[0];
+        width_factor = width_list[0];
 
     Vector2 pos_up_start;
     Vector2 pos_down_start;
@@ -292,19 +294,19 @@ void REDLineBuilder::build() {
     }
 
     if (distance_required) {
-        total_distance = calculate_total_distance(points);
+		total_distance = calculate_total_distance(points, is_closed);
 
         //Ajust totalDistance.
         // The line's outer length will be a little higher due to begin and end caps
         if (begin_cap_mode == REDLine::LINE_CAP_BOX || begin_cap_mode == REDLine::LINE_CAP_ROUND) {
-            if (retrieve_curve)
-                total_distance += width * curve->interpolate_baked(0.f)* 0.5f * thickness_list[0];
+            if (retrieve_width_curve)
+                total_distance += width * width_curve->interpolate_baked(0.f)* 0.5f * width_list[0];
             else
                 total_distance += width * 0.5f;
         }
         if (end_cap_mode == REDLine::LINE_CAP_BOX || end_cap_mode == REDLine::LINE_CAP_ROUND) {
-            if (retrieve_curve)
-                total_distance += width * curve->interpolate_baked(1.f) * 0.5f * thickness_list[thickness_list.size()];
+            if (retrieve_width_curve)
+                total_distance += width * width_curve->interpolate_baked(1.f) * 0.5f * width_list[width_list.size()];
             else
                 total_distance += width * 0.5f;
         }
@@ -374,10 +376,10 @@ void REDLineBuilder::build() {
         if (_interpolate_color) {
             color1 = gradient->get_color_at_offset(current_distance1 / total_distance);
         }
-        if (retrieve_curve) {
-            width_factor = curve->interpolate_baked(current_distance1 / total_distance)*thickness_list[i];
+        if (retrieve_width_curve) {
+            width_factor = width_curve->interpolate_baked(current_distance1 / total_distance)*width_list[i];
         } else
-            width_factor = thickness_list[i];
+            width_factor = width_list[i];
 
         Vector2 inner_normal0, inner_normal1;
         if (orientation == UP) {
@@ -539,11 +541,11 @@ void REDLineBuilder::build() {
     if (_interpolate_color) {
         color1 = gradient->get_color(gradient->get_points_count() - 1);
     }
-    if (retrieve_curve) {
-        width_factor = curve->interpolate_baked(1.f)*thickness_list[thickness_list.size() - 1];
+    if (retrieve_width_curve) {
+        width_factor = width_curve->interpolate_baked(1.f)*width_list[width_list.size() - 1];
     }
     else{
-        width_factor = thickness_list[0];
+        width_factor = width_list[0];
     }
 
     if(is_closed){
@@ -726,11 +728,11 @@ void REDLineBuilder::build() {
         if (_interpolate_color)
             color0 = gradient->get_color(0);
 
-        if (retrieve_curve) {
-            width_factor = curve->interpolate_baked(0.f)*thickness_list[0];
+        if (retrieve_width_curve) {
+            width_factor = width_curve->interpolate_baked(0.f)*width_list[0];
         }
         else{
-            width_factor = thickness_list[0];
+            width_factor = width_list[0];
         }
 
         Vector2 inner_normal0, inner_normal1;

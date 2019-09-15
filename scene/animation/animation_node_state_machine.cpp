@@ -28,7 +28,9 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
+#include "core/engine.h"
 #include "animation_node_state_machine.h"
+#include "scene/scene_string_names.h"
 
 /////////////////////////////////////////////////
 
@@ -144,7 +146,10 @@ AnimationNodeStateMachineTransition::AnimationNodeStateMachineTransition() {
 ////////////////////////////////////////////////////////
 
 void AnimationNodeStateMachinePlayback::travel(const StringName &p_state) {
-
+	print_line("lltravelllllllllllllllllllllllllllllllllllllllll");
+	print_line(current);
+	print_line(p_state);
+	print_line("lltravelllllllllllllllllllllllllllllllllllllllllend");
 	start_request_travel = true;
 	start_request = p_state;
 	stop_request = false;
@@ -294,10 +299,12 @@ bool AnimationNodeStateMachinePlayback::_travel(AnimationNodeStateMachine *p_sta
 
 float AnimationNodeStateMachinePlayback::process(AnimationNodeStateMachine *p_state_machine, float p_time, bool p_seek) {
 
+	
 	//if not playing and it can restart, then restart
 	if (!playing && start_request == StringName()) {
 		if (!stop_request && p_state_machine->start_node) {
 			start(p_state_machine->start_node);
+			end_reached = false;
 		} else {
 			return 0;
 		}
@@ -306,11 +313,13 @@ float AnimationNodeStateMachinePlayback::process(AnimationNodeStateMachine *p_st
 	if (playing && stop_request) {
 		stop_request = false;
 		playing = false;
+		end_reached = false;
 		return 0;
 	}
 
 	bool play_start = false;
-
+	StringName old_fading_from = fading_from;
+	StringName old_current = current;
 	if (start_request != StringName()) {
 
 		if (start_request_travel) {
@@ -329,6 +338,7 @@ float AnimationNodeStateMachinePlayback::process(AnimationNodeStateMachine *p_st
 			path.clear();
 			current = start_request;
 			playing = true;
+			end_reached = false;
 			play_start = true;
 		}
 
@@ -350,6 +360,7 @@ float AnimationNodeStateMachinePlayback::process(AnimationNodeStateMachine *p_st
 
 	if (!p_state_machine->states.has(current)) {
 		playing = false; //current does not exist
+		end_reached = false;
 		current = StringName();
 		return 0;
 	}
@@ -483,10 +494,36 @@ float AnimationNodeStateMachinePlayback::process(AnimationNodeStateMachine *p_st
 
 	//compute time left for transitions by using the end node
 	if (p_state_machine->end_node != StringName() && p_state_machine->end_node != current) {
-
+		
 		rem = p_state_machine->blend_node(p_state_machine->end_node, p_state_machine->states[p_state_machine->end_node].node, 0, true, 0, AnimationNode::FILTER_IGNORE, false);
 	}
+	
+	if (old_current != current){
+		if (!end_reached && !Engine::get_singleton()->is_editor_hint()){
+			emit_signal("animation_started", old_current, current);
+		}
+	}else{
+		end_reached = false;
+	}
+	
+	if (pos_current == len_current){
+		if (!end_reached && !Engine::get_singleton()->is_editor_hint()){
+			emit_signal("animation_changed", old_current, current);
+			end_reached = true;
+			print_line("states ended");
+			print_line(old_current);
+			print_line(current);
+		}
+	}else{
+		end_reached = false;
+	}
+	
+	if (fading_from!=old_fading_from){
+		emit_signal(SceneStringNames::get_singleton()->animation_finished, old_current, current);
+		//end_reached = true;
 
+	}
+	
 	return rem;
 }
 
@@ -498,12 +535,16 @@ void AnimationNodeStateMachinePlayback::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_playing"), &AnimationNodeStateMachinePlayback::is_playing);
 	ClassDB::bind_method(D_METHOD("get_current_node"), &AnimationNodeStateMachinePlayback::get_current_node);
 	ClassDB::bind_method(D_METHOD("get_travel_path"), &AnimationNodeStateMachinePlayback::get_travel_path);
+	
+	ADD_SIGNAL(MethodInfo("animation_changed", PropertyInfo(Variant::STRING, "old_name"), PropertyInfo(Variant::STRING, "new_name")));
+	ADD_SIGNAL(MethodInfo("animation_started", PropertyInfo(Variant::STRING, "old_name"), PropertyInfo(Variant::STRING, "new_name")));
 }
 
 AnimationNodeStateMachinePlayback::AnimationNodeStateMachinePlayback() {
 	set_local_to_scene(true); //only one per instanced scene
 
 	playing = false;
+	end_reached = false;
 	len_current = 0;
 	fading_time = 0;
 	stop_request = false;

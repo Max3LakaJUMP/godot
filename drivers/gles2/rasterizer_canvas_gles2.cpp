@@ -54,6 +54,8 @@ void RasterizerCanvasGLES2::_set_uniforms() {
 
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::PROJECTION_MATRIX, state.uniforms.projection_matrix);
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::MODELVIEW_MATRIX, state.uniforms.modelview_matrix);
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::WORLD_MATRIX, state.uniforms.world_matrix);
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::INV_WORLD_MATRIX, state.uniforms.inv_world_matrix);
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::EXTRA_MATRIX, state.uniforms.extra_matrix);
 
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::FINAL_MODULATE, state.uniforms.final_modulate);
@@ -72,6 +74,8 @@ void RasterizerCanvasGLES2::_set_uniforms() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM, state.skeleton_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM_INVERSE, state.skeleton_transform_inverse);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TEXTURE_SIZE, state.skeleton_texture_size);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM_GLOBAL, state.skeleton_transform_global);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM_GLOBAL_INVERSE, state.skeleton_transform_global_inverse);
 	}
 
 	if (state.using_light) {
@@ -85,6 +89,7 @@ void RasterizerCanvasGLES2::_set_uniforms() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_COLOR, light->color * light->energy);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_POS, light->light_shader_pos);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_HEIGHT, light->height);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_DOMINANT, light->dominant);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_OUTSIDE_ALPHA, light->mode == VS::CANVAS_LIGHT_MODE_MASK ? 1.0 : 0.0);
 
 		if (state.using_shadow) {
@@ -179,6 +184,9 @@ void RasterizerCanvasGLES2::canvas_begin() {
 
 	state.uniforms.modelview_matrix = Transform2D();
 	state.uniforms.extra_matrix = Transform2D();
+
+	state.uniforms.world_matrix = Transform2D();
+	state.uniforms.inv_world_matrix = Transform2D();
 
 	_set_uniforms();
 	_bind_quad_buffer();
@@ -1394,6 +1402,9 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 					state.skeleton_transform = p_base_transform * skeleton->base_transform_2d;
 					state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 					state.skeleton_texture_size = Vector2(skeleton->size * 2, 0);
+					
+					state.skeleton_transform_global = skeleton->base_transform_2d;
+					state.skeleton_transform_global_inverse = state.skeleton_transform_global.affine_inverse();
 				}
 			}
 
@@ -1576,6 +1587,8 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 		state.uniforms.final_modulate = unshaded ? ci->final_modulate : Color(ci->final_modulate.r * p_modulate.r, ci->final_modulate.g * p_modulate.g, ci->final_modulate.b * p_modulate.b, ci->final_modulate.a * p_modulate.a);
 
 		state.uniforms.modelview_matrix = ci->final_transform;
+		state.uniforms.world_matrix = p_base_transform.affine_inverse() * ci->final_transform;
+		state.uniforms.inv_world_matrix = state.uniforms.world_matrix.affine_inverse();
 		state.uniforms.extra_matrix = Transform2D();
 
 		_set_uniforms();

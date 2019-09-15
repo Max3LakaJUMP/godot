@@ -48,7 +48,7 @@
 #include "scene/main/node.h"
 #include "editor/editor_plugin.h" 
 #include "modules/red/red_frame.h" 
-#include "modules/red/redpage.h" 
+#include "modules/red/red_page.h" 
 #include "scene/resources/bit_map.h"
 #include "core/math/math_funcs.h"
 #include <string>

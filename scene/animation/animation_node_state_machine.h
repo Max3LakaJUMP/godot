@@ -115,6 +115,7 @@ class AnimationNodeStateMachinePlayback : public Resource {
 	bool _travel(AnimationNodeStateMachine *p_state_machine, const StringName &p_travel);
 
 	float process(AnimationNodeStateMachine *p_state_machine, float p_time, bool p_seek);
+	bool end_reached;
 
 protected:
 	static void _bind_methods();

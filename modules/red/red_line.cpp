@@ -65,24 +65,24 @@ float REDLine::get_width() const {
 	return _width;
 }
 
-void REDLine::set_curve(const Ref<Curve> &p_curve) {
+void REDLine::set_width_curve(const Ref<Curve> &p_width_curve) {
 	// Cleanup previous connection if any
-	if (_curve.is_valid()) {
-		_curve->disconnect(CoreStringNames::get_singleton()->changed, this, "_curve_changed");
+	if (_width_curve.is_valid()) {
+		_width_curve->disconnect(CoreStringNames::get_singleton()->changed, this, "_width_curve_changed");
 	}
 
-	_curve = p_curve;
+	_width_curve = p_width_curve;
 
-	// Connect to the curve so the line will update when it is changed
-	if (_curve.is_valid()) {
-		_curve->connect(CoreStringNames::get_singleton()->changed, this, "_curve_changed");
+	// Connect to the width_curve so the line will update when it is changed
+	if (_width_curve.is_valid()) {
+		_width_curve->connect(CoreStringNames::get_singleton()->changed, this, "_width_curve_changed");
 	}
 
 	update();
 }
 
-Ref<Curve> REDLine::get_curve() const {
-	return _curve;
+Ref<Curve> REDLine::get_width_curve() const {
+	return _width_curve;
 }
 
 PoolVector<Vector2> REDLine::get_points() const {
@@ -112,20 +112,20 @@ void REDLine::clear_points() {
 }
 
 void REDLine::add_point(Vector2 p_pos, int p_atpos) {
-    thickness_list.resize(_points.size());
+    width_list.resize(_points.size());
 	if (p_atpos < 0 || _points.size() < p_atpos) {
 		_points.append(p_pos);
-        thickness_list.append(1.0f);
+        width_list.append(1.0f);
 	} else {
 		_points.insert(p_atpos, p_pos);
-        thickness_list.insert(p_atpos, 1.0f);
+        width_list.insert(p_atpos, 1.0f);
 	}
 	update();
 }
 
 void REDLine::remove_point(int i) {
 	_points.remove(i);
-    thickness_list.remove(i);
+    width_list.remove(i);
 	update();
 }
 
@@ -251,11 +251,11 @@ void REDLine::_draw() {
 		}
 
 
-        int oldSize = MIN(thickness_list.size(), len);
+        int oldSize = MIN(width_list.size(), len);
         t_l.resize(len);
-        PoolVector<float>::Read thickness_list_read = thickness_list.read();
+        PoolVector<float>::Read width_list_read = width_list.read();
         for (int i = 0; i < oldSize; i++) {
-            t_l.write[i] = thickness_list_read[i];
+            t_l.write[i] = width_list_read[i];
         }
         for (int i = oldSize; i < len; i++) {
             t_l.write[i] = 1.f;
@@ -274,9 +274,9 @@ void REDLine::_draw() {
 	lb.round_precision = _round_precision;
 	lb.sharp_limit = _sharp_limit;
 	lb.width = _width;
-	lb.curve = *_curve;
+	lb.width_curve = *_width_curve;
     lb.is_closed = is_closed;
-    lb.thickness_list = t_l;
+    lb.width_list = t_l;
 
 	RID texture_rid;
 	if (_texture.is_valid()) {
@@ -321,7 +321,7 @@ void REDLine::_gradient_changed() {
 	update();
 }
 
-void REDLine::_curve_changed() {
+void REDLine::_width_curve_changed() {
 	update();
 }
 
@@ -334,19 +334,19 @@ bool REDLine::get_is_closed() const{
     return is_closed;
 }
 
-void REDLine::set_thickness_list(const PoolVector<float> &p_thickness_list) {
-    thickness_list = p_thickness_list;
+void REDLine::set_width_list(const PoolVector<float> &p_width_list) {
+    width_list = p_width_list;
     update();
 }
 
-PoolVector<float> REDLine::get_thickness_list() const {
-    return thickness_list;
+PoolVector<float> REDLine::get_width_list() const {
+    return width_list;
 }
 
 // static
 void REDLine::_bind_methods() {
-    ClassDB::bind_method(D_METHOD("set_thickness_list", "thickness_list"), &REDLine::set_thickness_list);
-    ClassDB::bind_method(D_METHOD("get_thickness_list"), &REDLine::get_thickness_list);
+    ClassDB::bind_method(D_METHOD("set_width_list", "width_list"), &REDLine::set_width_list);
+    ClassDB::bind_method(D_METHOD("get_width_list"), &REDLine::get_width_list);
 
     ClassDB::bind_method(D_METHOD("set_is_closed", "is_closed"), &REDLine::set_is_closed);
     ClassDB::bind_method(D_METHOD("get_is_closed"), &REDLine::get_is_closed);
@@ -367,8 +367,8 @@ void REDLine::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_width", "width"), &REDLine::set_width);
 	ClassDB::bind_method(D_METHOD("get_width"), &REDLine::get_width);
 
-	ClassDB::bind_method(D_METHOD("set_curve", "curve"), &REDLine::set_curve);
-	ClassDB::bind_method(D_METHOD("get_curve"), &REDLine::get_curve);
+	ClassDB::bind_method(D_METHOD("set_width_curve", "width_curve"), &REDLine::set_width_curve);
+	ClassDB::bind_method(D_METHOD("get_width_curve"), &REDLine::get_width_curve);
 
 	ClassDB::bind_method(D_METHOD("set_default_color", "color"), &REDLine::set_default_color);
 	ClassDB::bind_method(D_METHOD("get_default_color"), &REDLine::get_default_color);
@@ -400,8 +400,8 @@ void REDLine::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR2_ARRAY, "points"), "set_points", "get_points");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "width"), "set_width", "get_width");
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "is_closed"), "set_is_closed", "get_is_closed");
-    ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "thickness_list"), "set_thickness_list", "get_thickness_list");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "width_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_curve", "get_curve");
+    ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "width_list"), "set_width_list", "get_width_list");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "width_width_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_width_curve", "get_width_curve");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "default_color"), "set_default_color", "get_default_color");
 	ADD_GROUP("Fill", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "gradient", PROPERTY_HINT_RESOURCE_TYPE, "Gradient"), "set_gradient", "get_gradient");
@@ -428,5 +428,5 @@ void REDLine::_bind_methods() {
 	BIND_ENUM_CONSTANT(LINE_TEXTURE_STRETCH);
 
 	ClassDB::bind_method(D_METHOD("_gradient_changed"), &REDLine::_gradient_changed);
-	ClassDB::bind_method(D_METHOD("_curve_changed"), &REDLine::_curve_changed);
+	ClassDB::bind_method(D_METHOD("_width_curve_changed"), &REDLine::_width_curve_changed);
 }

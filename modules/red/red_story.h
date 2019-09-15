@@ -2,7 +2,7 @@
 #define RED_STORY_H
 
 #include "scene/2d/node_2d.h"
-#include "redfolder.h"
+#include "red_folder.h"
 
 class REDStory : public REDFolder {
 	GDCLASS(REDStory, REDFolder);

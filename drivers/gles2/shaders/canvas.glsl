@@ -16,6 +16,8 @@ uniform highp mat4 projection_matrix;
 #include "stdlib.glsl"
 
 uniform highp mat4 modelview_matrix;
+uniform highp mat4 world_matrix;
+uniform highp mat4 inv_world_matrix;
 uniform highp mat4 extra_matrix;
 attribute highp vec2 vertex; // attrib:0
 attribute vec4 color_attrib; // attrib:3
@@ -44,6 +46,8 @@ uniform highp sampler2D skeleton_texture; // texunit:-3
 uniform highp ivec2 skeleton_texture_size;
 uniform highp mat4 skeleton_transform;
 uniform highp mat4 skeleton_transform_inverse;
+uniform highp mat4 skeleton_transform_global;
+uniform highp mat4 skeleton_transform_global_inverse;
 #endif
 
 varying vec2 uv_interp;
@@ -73,6 +77,7 @@ uniform highp vec2 light_pos;
 uniform highp float shadowpixel_size;
 uniform highp float shadow_gradient;
 uniform highp float light_height;
+uniform highp bool light_dominant;
 uniform highp float light_outside_alpha;
 uniform highp float shadow_distance_mult;
 
@@ -89,6 +94,9 @@ const bool at_light_pass = true;
 const bool at_light_pass = false;
 #endif
 
+#if defined(WORLD_POS_USED)
+	varying vec4 world_pos_out;
+#endif
 /* clang-format off */
 
 VERTEX_SHADER_GLOBALS
@@ -149,6 +157,13 @@ void main() {
 	uv = uv_attrib;
 #endif
 
+#if !defined(SKIP_TRANSFORM_USED) && defined(VERTEX_WORLD_COORDS_USED)
+	outvec = world_matrix * extra_matrix_instance * outvec;
+#endif
+
+#define extra_matrix extra_matrix_instance
+
+
 	{
 		vec2 src_vtx = outvec.xy;
 		/* clang-format off */
@@ -160,6 +175,11 @@ VERTEX_SHADER_CODE
 
 #if !defined(SKIP_TRANSFORM_USED)
 	outvec = extra_matrix_instance * outvec;
+
+	#if defined(WORLD_POS_USED)
+		world_pos_out = outvec;
+		world_pos_out = world_matrix * world_pos_out;
+	#endif
 	outvec = modelview_matrix * outvec;
 #endif
 
@@ -194,6 +214,12 @@ VERTEX_SHADER_CODE
 		mat4 bone_matrix = skeleton_transform * transpose(bone_transform) * skeleton_transform_inverse;
 
 		outvec = bone_matrix * outvec;
+
+		
+		#if defined(WORLD_POS_USED)
+			bone_matrix = skeleton_transform_global * transpose(bone_transform) * skeleton_transform_global_inverse;
+			world_pos_out = bone_matrix * world_pos_out;
+		#endif
 	}
 
 #endif
@@ -295,6 +321,7 @@ uniform highp vec2 light_pos;
 uniform highp float shadowpixel_size;
 uniform highp float shadow_gradient;
 uniform highp float light_height;
+uniform highp bool light_dominant;
 uniform highp float light_outside_alpha;
 uniform highp float shadow_distance_mult;
 
@@ -311,12 +338,14 @@ varying highp vec2 pos;
 
 #endif
 
+
 const bool at_light_pass = true;
 #else
 const bool at_light_pass = false;
 #endif
 
 uniform bool use_default_normal;
+
 
 /* clang-format off */
 
@@ -336,7 +365,8 @@ void light_compute(
 #if defined(SCREEN_UV_USED)
 		vec2 screen_uv,
 #endif
-		vec4 color) {
+		vec4 color, 
+		bool light_dominant) {
 
 #if defined(USE_LIGHT_SHADER_CODE)
 
@@ -348,9 +378,70 @@ LIGHT_SHADER_CODE
 
 #endif
 }
+#if defined(WORLD_POS_USED)
+varying vec4 world_pos_out;
+#endif
+
+bool clipper(vec2 position, vec3 clipper_calc0, vec3 clipper_calc1, vec3 clipper_calc2, vec3 clipper_calc3) {
+	bool oddNodes = false;
+
+	bool previous = clipper_calc3.z > position.y;
+	bool current = clipper_calc0.z > position.y;
+	if (current != previous){
+		if (position.y*clipper_calc0.x+clipper_calc0.y < position.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc1.z > position.y;
+	if (current != previous){
+		if (position.y*clipper_calc1.x+clipper_calc1.y < position.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc2.z > position.y;
+	if (current != previous){
+		if (position.y*clipper_calc2.x+clipper_calc2.y < position.x)
+			oddNodes =! oddNodes;
+	}
+	
+	previous = current;
+	current = clipper_calc3.z > position.y;
+	if (current != previous){
+		if (position.y*clipper_calc3.x+clipper_calc3.y < position.x)
+			oddNodes =! oddNodes;
+	}
+	return oddNodes; 
+}
+
+bool clipper(vec2 position, vec3 clipper_calc0, vec3 clipper_calc1, vec3 clipper_calc2) {
+	bool oddNodes = false;
+
+	bool previous = clipper_calc2.z > position.y;
+	bool current = clipper_calc0.z > position.y;
+	if (current != previous){
+		if (position.y*clipper_calc0.x+clipper_calc0.y < position.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc1.z > position.y;
+	if (current != previous){
+		if (position.y*clipper_calc1.x+clipper_calc1.y < position.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc2.z > position.y;
+	if (current != previous){
+		if (position.y*clipper_calc2.x+clipper_calc2.y < position.x)
+			oddNodes =! oddNodes;
+	}
+	return oddNodes; 
+}
+
 
 void main() {
-
+#if defined(WORLD_POS_USED)
+	vec2 world_pos = world_pos_out.xy;
+#endif
 	vec4 color = color_interp;
 	vec2 uv = uv_interp;
 #ifdef USE_FORCE_REPEAT
@@ -417,6 +508,8 @@ FRAGMENT_SHADER_CODE
 	vec2 light_uv = light_uv_interp.xy;
 	vec4 light = texture2D(light_texture, light_uv);
 
+	bool real_light_dominant = light_dominant;
+
 	if (any(lessThan(light_uv_interp.xy, vec2(0.0, 0.0))) || any(greaterThanEqual(light_uv_interp.xy, vec2(1.0, 1.0)))) {
 		color.a *= light_outside_alpha; //invisible
 
@@ -439,17 +532,21 @@ FRAGMENT_SHADER_CODE
 #if defined(SCREEN_UV_USED)
 				screen_uv,
 #endif
-				color);
+				color, 
+				real_light_dominant);
 #endif
 
 		light *= real_light_color;
 
+		/*
 		if (normal_used) {
 			vec3 light_normal = normalize(vec3(light_vec, -real_light_height));
 			light *= max(dot(-light_normal, normal), 0.0);
 		}
 
 		color *= light;
+		*/
+		color = (1.0 + color ) * light;
 
 #ifdef USE_SHADOWS
 		// Reset light_vec to compute shadows, the shadow map is created from the light origin, so it only

@@ -212,20 +212,19 @@ void REDPolygon::_notification(int p_what) {
 
 
 				uvs.resize(len);
-				Ref<AtlasTexture> texture_atlas =  Ref<AtlasTexture>((texture));
-				if (texture_atlas.is_valid()){
+				Ref<AtlasTexture> texture_atlas = texture;
+				if (texture_atlas != NULL){
 					Size2 tex_size = texture_atlas->get_atlas()->get_size();
-					Vector2 size_k = (texture_atlas->get_region().get_size()+texture_atlas->get_margin().get_size())/tex_size;
-					Vector2 offset = (texture_atlas->get_region().get_position()-texture_atlas->get_margin().get_position())/tex_size;
+					Vector2 size_k = (texture_atlas->get_region().get_size() + texture_atlas->get_margin().get_size()) / tex_size;
+					Vector2 offset = (texture_atlas->get_region().get_position() - texture_atlas->get_margin().get_position()) / tex_size;
 					if (points.size() == uv.size()) {
 						PoolVector<Vector2>::Read uvr = uv.read();
 						for (int i = 0; i < len; i++) {
-							uvs.write[i] = texmat.xform(uvr[i])*size_k+offset;
+							uvs.write[i] = texmat.xform(uvr[i]) * size_k + offset;
 						}
 					} else {
 						for (int i = 0; i < len; i++) {
-							uvs.write[i] = texmat.xform(points[i]+texture_atlas->get_region().get_position());
-
+							uvs.write[i] = texmat.xform(points[i] + texture_atlas->get_region().get_position());
 						}
 					}
 				}else{

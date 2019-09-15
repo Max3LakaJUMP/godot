@@ -62,6 +62,7 @@ private:
 	Color color;
 	Color shadow_color;
 	float height;
+	bool dominant;
 	float _scale;
 	float energy;
 	int z_min;
@@ -114,6 +115,9 @@ public:
 	void set_height(float p_height);
 	float get_height() const;
 
+	void set_dominant(bool p_dominant);
+	bool is_dominant() const;
+	
 	void set_energy(float p_energy);
 	float get_energy() const;
 

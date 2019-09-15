@@ -202,6 +202,8 @@ ShaderTypes::ShaderTypes() {
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["POINT_SIZE"] = ShaderLanguage::TYPE_FLOAT;
 
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["WORLD_MATRIX"] = constt(ShaderLanguage::TYPE_MAT4);
+	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["GLOBAL_MATRIX"] = constt(ShaderLanguage::TYPE_MAT4);
+	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["INV_GLOBAL_MATRIX"] = constt(ShaderLanguage::TYPE_MAT4);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["PROJECTION_MATRIX"] = constt(ShaderLanguage::TYPE_MAT4);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["EXTRA_MATRIX"] = constt(ShaderLanguage::TYPE_MAT4);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["TIME"] = constt(ShaderLanguage::TYPE_FLOAT);
@@ -225,7 +227,10 @@ ShaderTypes::ShaderTypes() {
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["fragment"].built_ins["TIME"] = constt(ShaderLanguage::TYPE_FLOAT);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["fragment"].built_ins["AT_LIGHT_PASS"] = constt(ShaderLanguage::TYPE_BOOL);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["fragment"].built_ins["SCREEN_TEXTURE"] = constt(ShaderLanguage::TYPE_SAMPLER2D);
+	
+	shader_modes[VS::SHADER_CANVAS_ITEM].functions["fragment"].built_ins["WORLD_POS"] = constt(ShaderLanguage::TYPE_VEC2);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["fragment"].can_discard = true;
+
 
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["FRAGCOORD"] = constt(ShaderLanguage::TYPE_VEC4);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["NORMAL"] = constt(ShaderLanguage::TYPE_VEC3);
@@ -242,6 +247,7 @@ ShaderTypes::ShaderTypes() {
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["SHADOW_COLOR"] = ShaderLanguage::TYPE_VEC4;
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["POINT_COORD"] = constt(ShaderLanguage::TYPE_VEC2);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["TIME"] = constt(ShaderLanguage::TYPE_FLOAT);
+	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["LIGHT_DOMINANT"] = ShaderLanguage::TYPE_BOOL;
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].can_discard = true;
 
 	shader_modes[VS::SHADER_CANVAS_ITEM].modes.push_back("skip_vertex_transform");

@@ -32,13 +32,14 @@
 #define RED_FRAME_EDITOR_PLUGIN_H
 
 #include "editor/plugins/abstract_polygon_2d_editor.h"
-#include "modules/red/red_frame.h"
+
+class REDClipper;
 
 class REDFrameEditor : public AbstractPolygon2DEditor {
 
 	GDCLASS(REDFrameEditor, AbstractPolygon2DEditor);
 
-	REDFrame *node;
+	REDClipper *node;
 
 protected:
 	virtual Node2D *_get_node() const;

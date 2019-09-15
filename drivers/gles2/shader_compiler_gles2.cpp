@@ -918,6 +918,8 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 	actions[VS::SHADER_CANVAS_ITEM].renames["POINT_SIZE"] = "gl_PointSize";
 
 	actions[VS::SHADER_CANVAS_ITEM].renames["WORLD_MATRIX"] = "modelview_matrix";
+	actions[VS::SHADER_CANVAS_ITEM].renames["GLOBAL_MATRIX"] = "world_matrix";
+	actions[VS::SHADER_CANVAS_ITEM].renames["INV_GLOBAL_MATRIX"] = "inv_world_matrix";
 	actions[VS::SHADER_CANVAS_ITEM].renames["PROJECTION_MATRIX"] = "projection_matrix";
 	actions[VS::SHADER_CANVAS_ITEM].renames["EXTRA_MATRIX"] = "extra_matrix";
 	actions[VS::SHADER_CANVAS_ITEM].renames["TIME"] = "time";
@@ -943,6 +945,8 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 	actions[VS::SHADER_CANVAS_ITEM].renames["LIGHT_UV"] = "light_uv";
 	actions[VS::SHADER_CANVAS_ITEM].renames["LIGHT"] = "light";
 	actions[VS::SHADER_CANVAS_ITEM].renames["SHADOW_COLOR"] = "shadow_color";
+	actions[VS::SHADER_CANVAS_ITEM].renames["LIGHT_DOMINANT"] = "light_dominant";
+	actions[VS::SHADER_CANVAS_ITEM].renames["WORLD_POS"] = "world_pos";
 
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["COLOR"] = "#define COLOR_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["SCREEN_TEXTURE"] = "#define SCREEN_TEXTURE_USED\n";
@@ -951,6 +955,7 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["NORMAL"] = "#define NORMAL_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["NORMALMAP"] = "#define NORMALMAP_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["LIGHT"] = "#define USE_LIGHT_SHADER_CODE\n";
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["WORLD_POS"] = "#define WORLD_POS_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].render_mode_defines["skip_vertex_transform"] = "#define SKIP_TRANSFORM_USED\n";
 
 	// Ported from GLES3

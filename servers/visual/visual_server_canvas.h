@@ -228,6 +228,7 @@ public:
 	void canvas_light_set_texture_offset(RID p_light, const Vector2 &p_offset);
 	void canvas_light_set_color(RID p_light, const Color &p_color);
 	void canvas_light_set_height(RID p_light, float p_height);
+	void canvas_light_set_dominant(RID p_light, bool p_dominant);
 	void canvas_light_set_energy(RID p_light, float p_energy);
 	void canvas_light_set_z_range(RID p_light, int p_min_z, int p_max_z);
 	void canvas_light_set_layer_range(RID p_light, int p_min_layer, int p_max_layer);

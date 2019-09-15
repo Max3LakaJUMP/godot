@@ -1785,6 +1785,7 @@ CurveTexture::~CurveTexture() {
 #define COLOR_RAMP_SET_COLORS "set_colors"
 
 GradientTexture::GradientTexture() {
+	use_height = false;
 	update_pending = false;
 	width = 2048;
 
@@ -1802,11 +1803,14 @@ void GradientTexture::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_gradient"), &GradientTexture::get_gradient);
 
 	ClassDB::bind_method(D_METHOD("set_width", "width"), &GradientTexture::set_width);
+	ClassDB::bind_method(D_METHOD("set_use_height", "use_height"), &GradientTexture::set_use_height);
+	ClassDB::bind_method(D_METHOD("get_use_height"), &GradientTexture::get_use_height);
 
 	ClassDB::bind_method(D_METHOD("_update"), &GradientTexture::_update);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "gradient", PROPERTY_HINT_RESOURCE_TYPE, "Gradient"), "set_gradient", "get_gradient");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "width", PROPERTY_HINT_RANGE, "1,2048,1,or_greater"), "set_width", "get_width");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_height", PROPERTY_HINT_RANGE, "1,2048,1,or_greater"), "set_use_height", "get_use_height");
 }
 
 void GradientTexture::set_gradient(Ref<Gradient> p_gradient) {
@@ -1861,14 +1865,29 @@ void GradientTexture::_update() {
 		}
 	}
 
-	Ref<Image> image = memnew(Image(width, 1, false, Image::FORMAT_RGBA8, data));
+	if (use_height){
+		Ref<Image> image = memnew(Image(1, width, false, Image::FORMAT_RGBA8, data));
+		VS::get_singleton()->texture_allocate(texture, width, 1, 0, Image::FORMAT_RGBA8, VS::TEXTURE_TYPE_2D, VS::TEXTURE_FLAG_FILTER);
+		VS::get_singleton()->texture_set_data(texture, image);
+	} else{
+		Ref<Image> image = memnew(Image(width, 1, false, Image::FORMAT_RGBA8, data));
+		VS::get_singleton()->texture_allocate(texture, width, 1, 0, Image::FORMAT_RGBA8, VS::TEXTURE_TYPE_2D, VS::TEXTURE_FLAG_FILTER);
+		VS::get_singleton()->texture_set_data(texture, image);
+	}
 
-	VS::get_singleton()->texture_allocate(texture, width, 1, 0, Image::FORMAT_RGBA8, VS::TEXTURE_TYPE_2D, VS::TEXTURE_FLAG_FILTER);
-	VS::get_singleton()->texture_set_data(texture, image);
+
 
 	emit_changed();
 }
+void GradientTexture::set_use_height(bool p_use_height) {
 
+	use_height = p_use_height;
+	_queue_update();
+}
+bool GradientTexture::get_use_height() const {
+
+	return use_height;
+}
 void GradientTexture::set_width(int p_width) {
 
 	width = p_width;

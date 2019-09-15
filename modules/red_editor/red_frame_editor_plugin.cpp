@@ -28,6 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
+#include "modules/red/red_clipper.h"
 #include "red_frame_editor_plugin.h"
 #include <string> 
 Node2D *REDFrameEditor::_get_node() const {
@@ -36,7 +37,7 @@ Node2D *REDFrameEditor::_get_node() const {
 }
 
 void REDFrameEditor::_set_node(Node *p_line) {
-	node = Object::cast_to<REDFrame>(p_line);
+	node = (REDClipper*)(p_line);
 }
 
 bool REDFrameEditor::_is_line() const {
@@ -71,5 +72,5 @@ REDFrameEditor::REDFrameEditor(EditorNode *p_editor) :
 }
 
 REDFrameEditorPlugin::REDFrameEditorPlugin(EditorNode *p_node) :
-		AbstractPolygon2DEditorPlugin(p_node, memnew(REDFrameEditor(p_node)), "REDFrame") {
+		AbstractPolygon2DEditorPlugin(p_node, memnew(REDFrameEditor(p_node)), "REDClipper") {
 }

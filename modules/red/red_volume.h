@@ -1,7 +1,7 @@
 #ifndef RED_VOLUME_H
 #define RED_VOLUME_H
 
-#include "redfolder.h"
+#include "red_folder.h"
 
 class REDVolume : public REDFolder {
 	GDCLASS(REDVolume, REDFolder);

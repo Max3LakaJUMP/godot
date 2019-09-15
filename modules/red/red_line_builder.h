@@ -16,7 +16,7 @@ public:
 	REDLine::LineCapMode begin_cap_mode;
 	REDLine::LineCapMode end_cap_mode;
 	float width;
-	Curve *curve;
+	Curve *width_curve;
 	Color default_color;
 	Gradient *gradient;
 	REDLine::LineTextureMode texture_mode;
@@ -33,7 +33,7 @@ public:
 	Vector<int> indices;
 
 	REDLineBuilder();
-    Vector<float> thickness_list;
+    Vector<float> width_list;
     bool is_closed;
 	void build();
 	void clear_output();

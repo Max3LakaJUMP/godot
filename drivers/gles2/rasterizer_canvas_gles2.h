@@ -53,6 +53,9 @@ public:
 		Transform2D modelview_matrix;
 		Transform2D extra_matrix;
 
+		Transform2D world_matrix;
+		Transform2D inv_world_matrix;
+
 		Color final_modulate;
 
 		float time;
@@ -84,6 +87,9 @@ public:
 
 		Transform2D skeleton_transform;
 		Transform2D skeleton_transform_inverse;
+		Transform2D skeleton_transform_global;
+		Transform2D skeleton_transform_global_inverse;
+		
 		Size2i skeleton_texture_size;
 
 		RID current_tex;

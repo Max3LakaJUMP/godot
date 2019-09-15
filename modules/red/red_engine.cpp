@@ -1,6 +1,7 @@
 #include "red_engine.h"
 #include "red.h"
-#include "redpage.h"
+#include "red_controller_base.h"
+#include "red_page.h"
 #include "red_frame.h"
 #include "core/node_path.h"
 #include "core/node_path.h"
@@ -8,12 +9,48 @@
 #include "core/bind/core_bind.h"
 #include "core/math/vector3.h"
 #include "core/pool_vector.h"
+#include "scene/2d/camera_2d.h"
+
 namespace red {
-RED *get_red(const Node &n) {
-	return Object::cast_to<RED>(n.get_tree()->get_root()->get_node(NodePath("red"))->get_child(0));
+
+RED *get_red(const Node *n) {
+	Node *root = n->get_tree()->get_root();
+	Node *r = root->find_node(NodePath("RED"));
+	if (r==NULL)
+		return nullptr;
+	else
+		return (RED*)r;
 }
 
+REDControllerBase *get_controller(const Node *n) {
+	Node *root = n->get_tree()->get_root();
+	if (root->has_node(NodePath("/root/red/RED"))){
+		RED *r = (RED*)(root->get_node(NodePath("/root/red/RED")));
+		NodePath controller_path = r->get_controller_path();
+		if (!controller_path.is_empty())
+			return (REDControllerBase*)(r->get_node(controller_path));
+	}
+	return nullptr;
+}
 
+Camera2D *get_camera(const Node *n) {
+	REDControllerBase* controller = get_controller(n);
+	if (controller != nullptr){
+		return controller->get_camera();
+	}
+	return nullptr;
+}
+
+void get_all_children(const Node *node, Vector<Node*> &output){
+	ERR_FAIL_COND(!node);
+	int count = node->get_child_count();
+	for (int i = 0; i < count; i++)
+	{
+		Node *child = node->get_child(i);
+		output.push_back(child);
+		get_all_children(child, output);
+	}
+}
 
 Error create_dir(String dir){
 	DirAccess *da = DirAccess::open("res://");

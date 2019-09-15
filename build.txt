@@ -1,0 +1,2 @@
+scons -j4 platform=windows
+scons p=windows vsproj=yes

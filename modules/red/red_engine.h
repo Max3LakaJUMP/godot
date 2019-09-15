@@ -10,9 +10,11 @@
 #include "core/dictionary.h"
 
 
+class Camera2D;
 class RED;
 class REDPage;
 class REDFrame;
+class REDControllerBase;
 class Node;
 
 namespace red {
@@ -23,7 +25,17 @@ enum t {
 	PAGE,
 	FRAME
 };
-RED *get_red(const Node &n);
+
+Node *get_singleton(const Node *n);
+RED *get_red(const Node *n);
+Camera2D *get_camera(const Node *n);
+REDControllerBase *get_controller(const Node *n);
+Vector2 get_zoom(const Node *n);
+
+
+
+void get_all_children(const Node *node, Vector<Node*> &output);
+
 REDPage *get_page_from_scene(const Node &n);
 NodePath get_page_path_from_scene(const Node &n);
 void next(t t, const Node &node);
@@ -64,6 +76,28 @@ T *create_node(Node *parent=nullptr, const String &name="", Node *owner=nullptr)
 		node->set_owner(owner);
 	}
     return node;
+}
+
+template <class T>
+Vector<T> vector(const Array p_array) {
+	int count = p_array.size();
+	Vector<T> result;
+	result.resize(count);
+	for (int i = 0; i < count; i++) {
+		result.write[i] = p_array[i];
+	}
+	return result;
+}
+
+template <class T>
+Array array(const Vector<T> p_vector) {
+	int count = p_vector.size();
+	Array result;
+	result.resize(count);
+	for (int i = 0; i < count; i++) {
+		result[i] = p_vector[i];
+	}
+	return result;
 }
 } // namespace red
 #endif // RED_ENGINE_H

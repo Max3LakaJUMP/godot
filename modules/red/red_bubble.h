@@ -131,12 +131,13 @@ private:
     REDLine *outline_node;
     bool edit_tail;
 	int smooth;
+	int tale_smooth;
 	float spikes;
 	bool use_outline;
 	bool reorient;
     Interpolation interpolation;
 	Interpolation tale_interpolation;
-	Vector<Vector2> _tesselate(Vector<Vector2> &low_res, const Interpolation &p_interpolation) const;
+	Vector<Vector2> _tesselate(Vector<Vector2> &low_res, const Interpolation &p_interpolation, int smooth_factor) const;
 	void _add_spikes(Vector<Vector2> &target, const Vector<Vector2> &source);
 	void _add_spikes(Vector<Vector2> &points);
 public:
@@ -149,6 +150,9 @@ public:
     float get_spikes() const;
     void set_smooth(const int b);
     int get_smooth() const;
+	void set_tale_smooth(const int p_detail);
+	int get_tale_smooth() const;
+
 	void set_edit_tail(const bool b);
 	bool get_edit_tail() const;
 	void set_polygon_tail(const PoolVector<Vector2> &p_polygon);
@@ -166,12 +170,6 @@ public:
 		LINE_JOINT_ROUND
 	};
 
-	enum LineCapMode {
-		LINE_CAP_NONE = 0,
-		LINE_CAP_BOX,
-		LINE_CAP_ROUND
-	};
-
 	enum LineTextureMode {
 		LINE_TEXTURE_NONE = 0,
 		LINE_TEXTURE_TILE,
@@ -183,8 +181,8 @@ public:
 	void set_width(float width);
 	float get_width() const;
 
-	void set_curve(const Ref<Curve> &curve);
-	Ref<Curve> get_curve() const;
+	void set_width_curve(const Ref<Curve> &width_curve);
+	Ref<Curve> get_width_curve() const;
 
 	void set_default_color(Color color);
 	Color get_default_color() const;
@@ -207,21 +205,19 @@ public:
 	void set_round_precision(int precision);
 	int get_round_precision() const;
 
-    PoolVector<float> thickness_list;
-    void set_thickness_list(const PoolVector<float> &p_thickness_list);
-    PoolVector<float> get_thickness_list() const;
+    PoolVector<float> width_list;
+    void set_width_list(const PoolVector<float> &p_width_list);
+    PoolVector<float> get_width_list() const;
 
 private:
 	void _gradient_changed();
-	void _curve_changed();
+	void _width_curve_changed();
 protected:
 	void _draw_outline(Vector<Vector2> &p_points);
 private:
 	LineJointMode _joint_mode;
-	LineCapMode _begin_cap_mode;
-	LineCapMode _end_cap_mode;
 	float _width;
-	Ref<Curve> _curve;
+	Ref<Curve> _width_curve;
 	Color _default_color;
 	Ref<Gradient> _gradient;
 	Ref<Texture> _texture;
@@ -231,7 +227,6 @@ private:
 };
 VARIANT_ENUM_CAST(REDBubble::Interpolation);
 VARIANT_ENUM_CAST(REDBubble::LineJointMode)
-VARIANT_ENUM_CAST(REDBubble::LineCapMode)
 VARIANT_ENUM_CAST(REDBubble::LineTextureMode)
 
 #endif // POLYGON_2D_H
