@@ -62,13 +62,21 @@ void SceneExportEditorPlugin::to_maya() {
 
 	save_json(dict, json_path);
 
-	String json_global_path = red::globalize(json_path);
+	String json_global_path = "\'" + red::globalize(json_path) + "\'";
+
 	List<String> arr;
-	String arr1 = "python(\\\"cmds.loadModule(load=\'mayadot\')\\\");";
-	String arr2 = "python(\\\"get+godot_scene(\'" + json_global_path + "\')\\\");";
-	arr.push_back(arr1);
-	arr.push_back(arr2);
-	OS::get_singleton()->execute(red::globalize(String("res://addons/red.tomaya/commandPort.exe")), arr, true);
+
+	//String arr1 = "python(\\\"cmds.loadModule(load=\'redmaya\')\\\");";
+	//String arr2 = "python(\\\"get+godot_scene(\'" + json_global_path + "\')\\\");";
+	
+	print_line("python(\\\"rsptf = " + json_global_path + "\\\");");
+	print_line("python(\\\"cmds.loadModule(load=\'redmaya.redot\')\\\");");
+	print_line("python(\\\"redmaya.redot.godot.load(rsptf)\\\");");
+
+	arr.push_back("python(\\\"rsptf = " + json_global_path + "\\\");");
+	arr.push_back("python(\\\"cmds.loadModule(load=\'redmaya.redot.godot\')\\\");");
+	arr.push_back("python(\\\"redmaya.redot.godot.load(rsptf)\\\");");
+	OS::get_singleton()->execute(red::globalize(String("res://redot/apps/commandPort.exe")), arr, true);
 }
 
 Dictionary SceneExportEditorPlugin::scene_to_dict(Node *root){
@@ -113,6 +121,29 @@ Dictionary SceneExportEditorPlugin::node_to_dict(Node *node){
 				Ref<ShaderMaterial> r = property;
 				if (r.is_valid())
 					serialized[name] = r->get_shader()->get_path();
+			}else if (name == "bones"){
+				if (cl=="REDPolygon"){
+					REDPolygon *polygon = (REDPolygon*)node;
+					Array bones;
+					for (int i = 0; i < polygon->get_bone_count(); i++){
+						Dictionary bone;
+						bone["path"] = polygon->get_bone_path(i);
+						bone["weights"] = polygon->get_bone_weights(i);
+						bones.push_back(bone);
+					}
+					serialized["bones"] = bones;
+
+				} else if (cl=="Polygon2D"){
+					Polygon2D *polygon = (Polygon2D*)node;
+					Array bones;
+					for (int i = 0; i < polygon->get_bone_count(); i++){
+						Dictionary bone;
+						bone["path"] = polygon->get_bone_path(i);
+						bone["weights"] = polygon->get_bone_weights(i);
+						bones.push_back(bone);
+					}
+					serialized["bones"] = bones;
+				}
 			}else {
 				serialized[name] = property;
 			}

@@ -69,7 +69,7 @@ String REDJSON::_print_var(const Variant &p_var, const String &p_indent, int p_c
 	switch (p_var.get_type()) {
 		case Variant::NIL: return "null";
 		case Variant::BOOL: return p_var.operator bool() ? "true" : "false";
-		case Variant::REAL:
+		case Variant::REAL: return rtos(p_var);
 		case Variant::INT: return itos(p_var);
 		case Variant::VECTOR2: {
 			String s = "{";
@@ -106,7 +106,7 @@ String REDJSON::_print_var(const Variant &p_var, const String &p_indent, int p_c
 		};
 		//case Variant::REAL: return rtos(p_var);
 		//case Variant::POOL_INT_ARRAY:
-		//case Variant::POOL_REAL_ARRAY:
+		case Variant::POOL_REAL_ARRAY:
 		//case Variant::POOL_STRING_ARRAY:
 		//case Variant::POOL_BYTE_ARRAY:
 		case Variant::POOL_VECTOR2_ARRAY:
@@ -403,6 +403,11 @@ Error REDJSON::_parse_value(Variant &value, Token &token, const CharType *p_str,
 					value = red::pool_color_array(a);
 					return OK;
 				};		
+				case Variant::POOL_REAL_ARRAY: {
+					Array a = d["pool_data"];
+					value = red::pool_real_array(a);
+					return OK;
+				};	
 				default: break;
 			}
 		}

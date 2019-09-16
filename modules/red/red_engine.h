@@ -56,6 +56,7 @@ Array arr(PoolVector<Vector2> &p_value);
 
 PoolVector<Vector2> pool_vector2_array(Array &p_arr);
 PoolVector<Color> pool_color_array(Array &p_arr);
+PoolVector<float> pool_real_array(Array &p_arr);
 
 String globalize(String &p_path);
 String localize(String &p_path);

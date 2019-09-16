@@ -166,6 +166,18 @@ PoolVector<Color> pool_color_array(Array &p_arr){
 	return pool;
 }
 
+PoolVector<float> pool_real_array(Array &p_arr){
+	Array array;
+	int count = p_arr.size();
+	PoolVector<float> pool;
+	pool.resize(count);
+	PoolVector<float>::Write w = pool.write();
+	for (int i = 0; i < count; i++){
+		float el = p_arr[i];
+		w[i] = el;
+	}
+	return pool;
+}
 // RECT2, TRANSFORM2D, PLANE, QUAT, AABB, BASIS, TRANSFORM, NODE_PATH, _RID, OBJECT, DICTIONARY, ARRAY, VARIANT_MAX
 /*
 Variant dict(Variant &p_value){

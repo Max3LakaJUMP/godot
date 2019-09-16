@@ -108,13 +108,17 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 	String name = serialized["name"];
 	String type = serialized["type"];
 	bool need_create = true;
+	
 	if (parent==nullptr){
 		Ref<PackedScene> scene;
 		_File file2Check;
 		if (file2Check.file_exists(scene_path)){
 			scene = ResourceLoader::load(scene_path, "PackedScene");
 			node = scene->instance();
+			//node = EditorNode::get_singleton()->get_edited_scene()->get_child(0);
 			need_create = false;
+			if (node == nullptr)
+				return;
 		}
 	}
 	else if (parent->has_node(name)){
@@ -168,14 +172,57 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 				Ref<Shader> shader = ResourceLoader::load(global_path, "Shader");
 				material->set_shader(shader);
 				node->set(name, material);
-			}
-			else if (serialized[name].get_type() == node->get(name).get_type() || 
+			}else if (name == "bones"){
+				if (type=="REDPolygon"){
+					REDPolygon *polygon = (REDPolygon*)node;
+					Array bones = serialized[name];
+					for (int i = 0; i < bones.size(); i++){
+						bool found=false;
+						Dictionary bone = bones[i];
+						String path = bone["path"];
+						PoolVector<float> weights = bone["weights"];
+						NodePath bone_path(path.replace_first("/", ""));
+						for (int j = 0; j < polygon->get_bone_count(); j++){
+							if (polygon->get_bone_path(j) == bone_path){
+								polygon->set_bone_weights(j, weights);
+								found=true;
+								break;
+							}
+						}
+						if (!found){
+							polygon->add_bone(bone_path, weights);
+						}
+					}
+				} else if (type=="Polygon2D"){
+					Polygon2D *polygon = (Polygon2D*)node;
+					Array bones = serialized[name];
+					for (int i = 0; i < bones.size(); i++){
+						bool found=false;
+						Dictionary bone = bones[i];
+						String path = bone["path"];
+						PoolVector<float> weights = bone["weights"];
+						NodePath bone_path(path.replace_first("/", ""));
+						for (int j = 0; j < polygon->get_bone_count(); j++){
+							if (polygon->get_bone_path(j) == bone_path){
+								polygon->set_bone_weights(j, weights);
+								found=true;
+								break;
+							}
+						}
+						if (!found){
+							polygon->add_bone(bone_path, weights);
+						}
+					}
+				}
+			} else if (serialized[name].get_type() == node->get(name).get_type() || 
 			(serialized[name].get_type() == Variant::INT && node->get(name).get_type() == Variant::REAL) || 
 			(serialized[name].get_type() == Variant::REAL && node->get(name).get_type() == Variant::INT)){
 				node->set(name, serialized[name]);
 				print_line(std::to_string((int)serialized[name].get_type()).c_str());
 				print_line(std::to_string((int)node->get(name).get_type()).c_str());
 				print_line("Appled " + name + " property");
+			}else if (serialized[name].get_type()==4 && node->get(name).get_type()==15){
+				node->set(name, NodePath(serialized[name]));
 			}else {
 				print_line(std::to_string((int)serialized[name].get_type()).c_str());
 				print_line(std::to_string((int)node->get(name).get_type()).c_str());
@@ -253,281 +300,24 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 			print_line(node->get_name());
 		}
 	}
-	if (parent==nullptr){
+	if (parent == nullptr){
+		
 		Ref<PackedScene> scene = memnew(PackedScene);
 		Error err = scene->pack(node);
-		if (err==OK){
-			err = ResourceSaver::save(scene_path, scene);
-			if (err==OK){
-				EditorNode::get_singleton()->reload_scene(scene_path);
+		if (err == OK){
+			//err = ResourceSaver::save(scene_path, scene);
+			if (err == OK){
+				EditorNode::get_singleton()->set_edited_scene(node);
+				//EditorNode::get_singleton()->reload_scene(scene_path);
 			}
 		}
+		
 	}
 }
-/*
-void ResourceImporterJSCN::inject_data_to(Array &children, String &scene_path, const Map<StringName, Variant> &p_options, Node *parent, bool parent_is_root){
-	int count = children.size();
-	Node *node;
-	for (int i = 0; i < count; i++){	
-		Dictionary child = children[i];
-		String type = child["type"];
-		String name = child["name"];
-		bool need_create = true;
-		if (parent==nullptr){
-			Ref<PackedScene> scene;
-			_File file2Check;
-			if (file2Check.file_exists(scene_path)){
-				scene = ResourceLoader::load(scene_path, "PackedScene");
-				node = scene->instance();
-				need_create = false;
-			}
-		}
-		else if (parent->has_node(name)){
-			need_create = false;
-			node = parent->get_node(name);
-		}
-		if (need_create){
-			if (type=="Node")
-				continue;
-			if (type=="Node2D")
-				node = memnew(Node2D);
-			else if (type=="Polygon2D"){
-				node = memnew(Polygon2D);
-				print_line(type);}
-			else if (type=="REDPolygon")
-				node = memnew(REDPolygon);
-			else if (type=="AnimationPlayer")
-				node = memnew(AnimationPlayer);
-			else if (type=="Skeleton2D")
-				node = memnew(Skeleton2D);
-			else if (type=="Bone2D")
-				node = memnew(Bone2D);
-		}
-		if (node==nullptr)
-			continue;
-		node->set_name(name);
-		if (!(parent==nullptr)){
-			parent->add_child(node);
-			if (parent_is_root)
-				node->set_owner(parent);
-			else
-				node->set_owner(parent->get_owner());
-		}
-		// mode script meta
-		if (node->is_class("Node")){}
-		// modulate selfmodulate showbehindparent lightmask
-		if (node->is_class("CanvasItem")){
-			CanvasItem *canvasitem = (CanvasItem*)node;
-			if (child.has("visible")){
-				bool visible = false;
-				visible = child["visible"];
-				canvasitem->set_visible(visible);
-			}
-		}
-		// zasrelative
-		if (node->is_class("Node2D")){
-			if (p_options["update/position"] || need_create){
-				Node2D *node2d = (Node2D*)node;
-				node2d->set_position(red::vector2(child["position"]));
-				node2d->set_rotation_degrees(child["rotation_degrees"]);
-				node2d->set_scale(red::vector2(child["scale"]));
-				node2d->set_z_index(child["z_index"]);
-			}
-		}
-		// color offset antialised textureoffset texturescale texturerotation skeleton invertenable invertborder
-		if (node->is_class("Polygon2D")){
-			Polygon2D *polygon2d = (Polygon2D*)node;
-			
-			if (child.has("texture")){
-				String texture_path = child["texture"];
-				Ref<Texture> texture = ResourceLoader::load(ProjectSettings::get_singleton()->localize_path(texture_path), "Texture");
-				polygon2d->set_texture(texture);
-			}
-			if (p_options["update/polygon"] || need_create){
-				if (child.has("polygon")){
-					PoolVector<Vector2> polygon;
-					Array polygon_array = child["polygon"];
-					int polygon_count = polygon_array.size();
-					for (int i = 0; i < polygon_count; i++)
-						polygon.append(red::vector2(polygon_array[i]));
-					polygon2d->set_polygon(polygon);
-				}
-				if (child.has("polygons")){
-					Array polygons_array = child["polygons"];
-					polygon2d->set_polygons(polygons_array);
-				}	
-				if (child.has("uv")){
-					PoolVector<Vector2> uv;
-					Array uv_array = child["uv"];
-					int uv_count = uv_array.size();
-					for (int i = 0; i < uv_count; i++)	
-						uv.append(red::vector2(uv_array[i]));
-					polygon2d->set_uv(uv);
-				}
-			}
 
-			if (child.has("vertex_colors")){
-				PoolVector<Color> vertex_colors;
-				Array vertex_colors_array = child["vertex_colors"];
-				int vertex_colors_count = vertex_colors.size();
-				for (int i = 0; i < vertex_colors_count; i++)	
-					vertex_colors.append(red::color(vertex_colors_array[i]));
-				polygon2d->set_vertex_colors(vertex_colors);
-			}
-
-			if (child.has("internal_vertex_count")){
-				int internal_vertex_count = child["internal_vertex_count"];
-				polygon2d->set_internal_vertex_count(internal_vertex_count);
-			}
-
-			if (child.has("weights")){
-				Array weights = child["weights"];
-				int weights_count = weights.size();
-
-				for (int i = 0; i < weights_count; i++)	
-					polygon2d->set_bone_weights(i, weights[i]);
-			}
-		}
-		// color offset antialised textureoffset texturescale texturerotation skeleton invertenable invertborder
-		else if (node->is_class("REDPolygon")){
-			REDPolygon *redpolygon = (REDPolygon*)node;
-			if (child.has("texture")){
-				String texture_path = child["texture"];
-				Ref<Texture> texture = ResourceLoader::load(ProjectSettings::get_singleton()->localize_path(texture_path), "Texture");
-				redpolygon->set_texture(texture);
-			}
-			if (p_options["update/polygon"] || need_create){
-				if (child.has("polygon")){
-					PoolVector<Vector2> polygon;
-					Array polygon_array = child["polygon"];
-					int polygon_count = polygon_array.size();
-					for (int i = 0; i < polygon_count; i++)
-						polygon.append(red::vector2(polygon_array[i]));
-					redpolygon->set_polygon(polygon);
-				}
-				if (child.has("polygons")){
-					Array polygons_array = child["polygons"];
-					redpolygon->set_polygons(polygons_array);
-				}
-				if (child.has("uv")){
-					PoolVector<Vector2> uv;
-					Array uv_array = child["uv"];
-					int uv_count = uv_array.size();
-					for (int i = 0; i < uv_count; i++)	
-						uv.append(red::vector2(uv_array[i]));
-					redpolygon->set_uv(uv);
-				}
-			}
-			if (child.has("vertex_colors")){
-				PoolVector<Color> vertex_colors;
-				Array vertex_colors_array = child["vertex_colors"];
-				int vertex_colors_count = vertex_colors.size();
-				for (int i = 0; i < vertex_colors_count; i++)	
-					vertex_colors.append(red::color(vertex_colors_array[i]));
-				redpolygon->set_vertex_colors(vertex_colors);
-			}
-
-			if (child.has("internal_vertex_count")){
-				int internal_vertex_count = child["internal_vertex_count"];
-				redpolygon->set_internal_vertex_count(internal_vertex_count);
-			}
-
-			if (child.has("weights")){
-				Array weights = child["weights"];
-				int weights_count = weights.size();
-
-				for (int i = 0; i < weights_count; i++)	
-					redpolygon->set_bone_weights(i, weights[i]);
-			}
-		}
-		//rootnode currentanimation methodcall proccessmode defaultblendtime speed
-		else if (node->is_class("AnimationPlayer")){
-			AnimationPlayer *player = (AnimationPlayer*)node;
-			Array layers = child["layers"];
-			int layers_count = layers.size();
-			for (int i = 0; i < layers_count; i++){
-				Dictionary layer = layers[i];
-				String name = layer["name"];
-				Ref<Animation> animation = player->get_animation(name);
-
-				if (animation.is_valid()){
-					animation = Ref<Animation>(memnew(Ref<Animation>));
-					player->add_animation(name, animation);
-				}
-				Array keys = layer["keys"];
-				int keys_count = keys.size();
-				for (int j = 0; j < keys_count; j++){
-					Dictionary key = keys[j];
-					String track = key["track"];
-					Animation::TrackType type = (Animation::TrackType)(int)key["type"];
-					Animation::InterpolationType interpolation_type = (Animation::InterpolationType)(int)key["interpolation_type"];
-					int idx = animation->find_track(track);
-					
-					if (idx==-1){
-						idx = animation->add_track(type, -1);
-						animation->track_set_path(idx, track);
-						animation->track_set_interpolation_type(idx, interpolation_type);
-					}
-
-					Variant value = key["value"];
-					Variant new_value;
-					if (value.get_type()==Variant::ARRAY){
-						Array value_array = Array(value);
-						if(value_array.size()>0){
-							if (value_array[0].get_type()==Variant::DICTIONARY){
-								Array keys = layer["keys"];
-								int value_count = value_array.size();
-								PoolVector<Vector2> values;
-								for (int z = 0; z < value_count; z++){
-									Dictionary value = value_array[z];
-									values.append(red::vector2(value));
-								}
-								new_value = values;
-							}
-						}
-					} else if (value.get_type()==Variant::DICTIONARY)
-						new_value = Vector2(red::vector2(value));
-					else{
-						new_value = value;
-					}
-
-					int key_idx = animation->track_find_key (idx, key["time"], true);
-					if (key_idx == -1){
-						animation->track_insert_key(idx, key["time"], new_value, key["transition"]);
-						key_idx = animation->track_find_key(idx, key["time"], true);
-					}
-					else{
-						animation->track_set_key_value (idx, key_idx, new_value);
-						animation->track_set_key_transition (idx, key_idx, key["transition"]);
-					}
-				} 
-			}
-		}
-		else if (node->is_class("Skeleton2D")){
-			Skeleton2D *skeleton = (Skeleton2D*)node;
-		}
-		// rest length
-		else if (node->is_class("Bone2D")){
-			Bone2D *node2d = (Bone2D*)node;
-		}
-		if (child.has("children")) {
-			Array node_children = child["children"];
-			inject_data_to(node_children, scene_path, p_options, node, parent==nullptr);
-		}
-	}
-	if (parent==nullptr){
-		Ref<PackedScene> scene = memnew(PackedScene);
-		Error err = scene->pack(node);
-		if (err==OK){
-			err = ResourceSaver::save(scene_path, scene);
-			if (err==OK){
-				EditorNode::get_singleton()->reload_scene(scene_path);
-			}
-		}
-	}
-}
-*/
 Error ResourceImporterJSCN::import(const String &p_source_file, const String &p_save_path, const Map<StringName, Variant> &p_options, List<String> *r_platform_variants, List<String> *r_gen_files, Variant *r_metadata) {
+	if (EditorNode::get_editor_data().get_edited_scene_count()==0)
+		return OK;
 	FileAccess *f = FileAccess::open(p_source_file, FileAccess::READ);
 	ERR_FAIL_COND_V(!f, ERR_CANT_OPEN);
 	String json_text = f->get_as_utf8_string();

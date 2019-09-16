@@ -882,7 +882,7 @@ REDBubble::REDBubble() {
 	_width = 4;
 	_default_color = Color(0.0, 0.0, 1);
 	_texture_mode = LINE_TEXTURE_STRETCH;
-	_texture = ResourceLoader::load("res://redot/textures/outline.png", "Texture");
+	//_texture = ResourceLoader::load("res://redot/textures/outline.png", "Texture");
 	_sharp_limit = 100.f;
 	_round_precision = 8;
 	
