@@ -8,14 +8,13 @@
 #include "core/math/vector3.h"
 #include "core/pool_vector.h"
 #include "core/dictionary.h"
-
+#include "scene/main/node.h"
 
 class Camera2D;
 class RED;
 class REDPage;
 class REDFrame;
 class REDControllerBase;
-class Node;
 
 namespace red {
 enum t {

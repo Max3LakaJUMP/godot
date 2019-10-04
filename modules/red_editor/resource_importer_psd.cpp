@@ -104,6 +104,7 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/texture"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/folder_mask"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/folder_pos"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_size"), false));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_pos"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/page_height"), true));
 
@@ -298,24 +299,28 @@ void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
 	Ref<Shader> masked_shader_sub = p_options["shaders/masked_shader_sub"];
 	for (int i = 0; i < count; i++)
 	{
+		print_line(nodes[i]->get_class_name());
+		if (!nodes[i]->is_class("CanvasItem"))
+			continue;
 		CanvasItem *c = (CanvasItem*)nodes[i];
-		if (c!=nullptr){
-			Ref<ShaderMaterial> mat = Ref<ShaderMaterial>(c->get_material());
-			if (mat.is_valid()){
-				Ref<Shader> shader = mat->get_shader();
-				if (shader.is_valid()){
-					String shader_path = shader->get_path();
-					if (shader_path==masked_shader->get_path()){
-						masked_material = mat;
-					} else if (shader_path==masked_shader_mul->get_path()){
-						masked_material_mul = mat;
-					} else if (shader_path==masked_shader_add->get_path()){
-						masked_material_add = mat;
-					} else if (shader_path==masked_shader_sub->get_path()){
-						masked_material_sub = mat;
-					}
-				}
-			}
+		Ref<Material> m = c->get_material();
+		if (m.is_null())
+			continue;
+		Ref<ShaderMaterial> mat = Ref<ShaderMaterial>(m);
+		if (mat.is_null())
+			continue;
+		Ref<Shader> shader = mat->get_shader();
+		if (shader.is_null())
+			continue;
+		String shader_path = shader->get_path();
+		if (shader_path == masked_shader->get_path()){
+			masked_material = mat;
+		} else if (shader_path==masked_shader_mul->get_path()){
+			masked_material_mul = mat;
+		} else if (shader_path==masked_shader_add->get_path()){
+			masked_material_add = mat;
+		} else if (shader_path==masked_shader_sub->get_path()){
+			masked_material_sub = mat;
 		}
 	}
 	Vector<Node*> root_nodes;
@@ -329,26 +334,29 @@ void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
 	red::get_all_children(owner, root_nodes);
 	count = root_nodes.size();
 	for (int i = 0; i < count; i++){
+		if (!root_nodes[i]->is_class("CanvasItem"))
+			continue;
 		CanvasItem *c = (CanvasItem*)root_nodes[i];
-		if (c!=nullptr){
-			Ref<ShaderMaterial> mat = Ref<ShaderMaterial>(c->get_material());
-			if (mat.is_valid()){
-				Ref<Shader> shader = mat->get_shader();
-				if (shader.is_valid()){
-					String shader_path = shader->get_path();
-					if (shader_path == shader->get_path()){
-						material = mat;
-					} else if (shader_path == shader_mul->get_path()){
-						material_mul = mat;
-					} else if (shader_path == shader_add->get_path()){
-						material_add = mat;
-					} else if (shader_path == shader_sub->get_path()){
-						material_sub = mat;
-					}else if (shader_path == outline_shader->get_path()){
-						outline_material = mat;
-					}
-				}
-			}
+		Ref<Material> m = c->get_material();
+		if (m.is_null())
+			continue;
+		Ref<ShaderMaterial> mat = Ref<ShaderMaterial>(m);
+		if (mat.is_null())
+			continue;
+		Ref<Shader> shader = mat->get_shader();
+		if (shader.is_null())
+			continue;
+		String shader_path = shader->get_path();
+		if (shader_path == shader->get_path()){
+			material = mat;
+		} else if (shader_path == shader_mul->get_path()){
+			material_mul = mat;
+		} else if (shader_path == shader_add->get_path()){
+			material_add = mat;
+		} else if (shader_path == shader_sub->get_path()){
+			material_sub = mat;
+		}else if (shader_path == outline_shader->get_path()){
+			outline_material = mat;
 		}
 	}
 	if (outline_material.is_null()){
@@ -418,6 +426,8 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						int mat_objs_old_size = mat_objs.size();
 						for (int i = 0; i < clipper->get_child_count(); i++)
 						{
+							if (!clipper->get_child(i)->is_class("CanvasItem"))
+								continue;
 							CanvasItem *c = (CanvasItem*)clipper->get_child(i);
 							if (c!=nullptr){
 								Ref<ShaderMaterial> mat = Ref<ShaderMaterial>(c->get_material());
@@ -471,7 +481,10 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					save_png(layer, png_path);
 				}
 				Vector2 polygon_size(layer->width*size/context->width, layer->height*size/context->width);
+
+
 				float k = layer->height/layer->width;
+				Vector2 offset = Vector2(0.0f, 0.0f);
 				if (need_create){
 					Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
 					PoolVector<Vector2> uv;
@@ -495,6 +508,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						uv.append(texture_size);
 						uv.append(Vector2(0, texture_size.y));
 						poly->set_uv(uv);
+						offset = poly->get_offset();
 					}
 					else{
 						REDPolygon *poly = memnew(REDPolygon);
@@ -507,6 +521,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						uv.append(Vector2(1, 1));
 						uv.append(Vector2(0, 1));
 						poly->set_uv(uv);
+						offset = poly->get_offset();
 					}
 					switch(layer->blend_mode){
 						case psd_blend_mode_multiply:{
@@ -561,12 +576,90 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					node->set_name(name);
 					node->set_draw_behind_parent(true);
 				}
-				else 
-					node = (Node2D*)parent->get_node(NodePath(name));
-				if (p_options["update/layer_pos"]){
-					Vector2 local_pos = Vector2(layer->left * size / context->width, layer->top * size / context->width);
-					node->set_position(local_pos - parent_pos);
+				else {
+					node = (Node2D*)(parent->get_node(NodePath(name)));
+					if (mode==LAYER_POLYGON2D){
+						Polygon2D *poly = (Polygon2D*)node;
+						if (poly != nullptr){
+							if (p_options["update/layer_size"]){
+								Vector2 real_size = poly->_edit_get_rect().get_size();
+								Vector2 target_size = Vector2(polygon_size.x, polygon_size.y);
+
+								int count = poly->get_uv().size();
+								PoolVector<Vector2>::Read uvr = poly->get_uv().read();
+								Vector2 uv_min = uvr[0];
+								Vector2 uv_max = uvr[0];
+								for (int i = 0; i < count; i++)
+								{
+									Vector2 uv = uvr[i];
+									if (uv.x < uv_min.x)
+										uv_min.x = uv.x;
+									if (uv.x > uv_max.x)
+										uv_max.x = uv.x;
+									if (uv.y < uv_min.y)
+										uv_min.y = uv.y;
+									if (uv.y > uv_max.y)
+										uv_max.y = uv.y;
+								}
+								Vector2 resizer = (uv_max - uv_min)/poly->get_texture()->get_size()*target_size/real_size;
+								
+								count = poly->get_polygon().size();
+								PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+								PoolVector<Vector2> new_pool;
+								for (int i = 0; i < count; i++)
+								{
+									new_pool.append(polyr[i]*resizer);
+								}
+								poly->set_polygon(new_pool);
+							}
+							offset = poly->get_offset();
+						}
+					}
+					else{
+						REDPolygon *poly = (REDPolygon*)node;
+						if (poly != nullptr){
+							if (p_options["update/layer_size"]){
+								Vector2 real_size = poly->_edit_get_rect().get_size();
+								Vector2 target_size = Vector2(polygon_size.x, polygon_size.y);
+
+								int count = poly->get_uv().size();
+								PoolVector<Vector2>::Read uvr = poly->get_uv().read();
+								Vector2 uv_min = uvr[0];
+								Vector2 uv_max = uvr[0];
+								for (int i = 0; i < count; i++)
+								{
+									Vector2 uv = uvr[i];
+									if (uv.x < uv_min.x)
+										uv_min.x = uv.x;
+									if (uv.x > uv_max.x)
+										uv_max.x = uv.x;
+									if (uv.y < uv_min.y)
+										uv_min.y = uv.y;
+									if (uv.y > uv_max.y)
+										uv_max.y = uv.y;
+								}
+								Vector2 resizer = (uv_max - uv_min)*target_size/real_size;
+								
+								count = poly->get_polygon().size();
+								PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+								PoolVector<Vector2> new_pool;
+								for (int i = 0; i < count; i++)
+								{
+									new_pool.append(polyr[i]*resizer);
+								}
+								poly->set_polygon(new_pool);
+							}
+							offset = poly->get_offset();
+						}
+					}
 				}
+				if (node != nullptr){
+					if (p_options["update/layer_pos"] || need_create){
+						Vector2 local_pos = Vector2(layer->left * size / context->width, layer->top * size / context->width);
+						node->set_position(local_pos - parent_pos - offset);
+					}
+				}
+
 			} break;
 			case psd_layer_type::psd_layer_type_hidden:{
 				Node *node_external = nullptr;

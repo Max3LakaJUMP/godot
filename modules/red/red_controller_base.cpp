@@ -505,11 +505,11 @@ bool REDControllerBase::get_camera_mode() const {
 }
 
 void REDControllerBase::zoom_in() {
-	set_camera_zoom(camera_zoom - 0.25f);
+	set_camera_zoom(camera_zoom - 0.1f);
 }
 
 void REDControllerBase::zoom_out() {
-	set_camera_zoom(camera_zoom + 0.25);
+	set_camera_zoom(camera_zoom + 0.1f);
 }
 
 void REDControllerBase::set_camera_pos(const Vector2 &p_pos) {

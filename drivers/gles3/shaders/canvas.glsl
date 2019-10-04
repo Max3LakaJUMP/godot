@@ -157,6 +157,12 @@ void main() {
 	outvec.xy /= color_texpixel_size;
 #endif
 
+#if defined(DEPTH_USED)
+	float depth = 0.0;
+#endif
+#if defined(ROTATE_USED)
+	vec2 angle = vec2(0.0, 0.0);
+#endif
 #define extra_matrix extra_matrix_instance
 
 	//for compatibility with the fragment shader we need to use uv here
@@ -171,6 +177,10 @@ VERTEX_SHADER_CODE
 
 	uv_interp = uv;
 
+#if defined(DEPTH_USED)
+	outvec.z += depth;
+#endif
+
 #ifdef USE_NINEPATCH
 
 	pixel_size_interp = abs(dst_rect.zw) * vertex;
@@ -180,8 +190,7 @@ VERTEX_SHADER_CODE
 	outvec = extra_matrix * outvec;
 
 	#if defined(WORLD_POS_USED)
-		world_pos_out = outvec;
-		world_pos_out = world_matrix * world_pos_out;
+		world_pos_out = world_matrix * outvec;
 	#endif
 
 	outvec = modelview_matrix * outvec;

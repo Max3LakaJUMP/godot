@@ -156,47 +156,22 @@ void main() {
 
 	uv = uv_attrib;
 #endif
-
-#if !defined(SKIP_TRANSFORM_USED) && defined(VERTEX_WORLD_COORDS_USED)
-	outvec = world_matrix * extra_matrix_instance * outvec;
-#endif
-
-#define extra_matrix extra_matrix_instance
-
-
-	{
-		vec2 src_vtx = outvec.xy;
-		/* clang-format off */
-
-VERTEX_SHADER_CODE
-
-		/* clang-format on */
-	}
-
-#if !defined(SKIP_TRANSFORM_USED)
-	outvec = extra_matrix_instance * outvec;
-
-	#if defined(WORLD_POS_USED)
-		world_pos_out = outvec;
-		world_pos_out = world_matrix * world_pos_out;
+#if defined(DEPTH_USED)
+	float max_depth = 0.001;
+	float depth = 0.0;
+	#if defined(ROTATION_USED)
+		vec2 rotation = vec2(0.0, 0.0);
+		float rotation_mask = 1.0;
 	#endif
-	outvec = modelview_matrix * outvec;
-#endif
-
-	color_interp = color;
-
-#ifdef USE_PIXEL_SNAP
-	outvec.xy = floor(outvec + 0.5).xy;
-	// precision issue on some hardware creates artifacts within texture
-	// offset uv by a small amount to avoid
-	uv += 1e-5;
 #endif
 
 #ifdef USE_SKELETON
-
+	outvec = world_matrix * outvec;
+	#if defined(WORLD_POS_USED)
+		world_pos_out = outvec;
+	#endif
 	// look up transform from the "pose texture"
 	if (bone_weights != vec4(0.0)) {
-
 		highp mat4 bone_transform = mat4(0.0);
 
 		for (int i = 0; i < 4; i++) {
@@ -211,21 +186,106 @@ VERTEX_SHADER_CODE
 			bone_transform += b * bone_weights[i];
 		}
 
-		mat4 bone_matrix = skeleton_transform * transpose(bone_transform) * skeleton_transform_inverse;
-
+		////mat4 bone_matrix = skeleton_transform * transpose(bone_transform) * skeleton_transform_inverse;
+		mat4 bone_matrix = skeleton_transform_global * transpose(bone_transform) * skeleton_transform_global_inverse;
 		outvec = bone_matrix * outvec;
-
 		
-		#if defined(WORLD_POS_USED)
-			bone_matrix = skeleton_transform_global * transpose(bone_transform) * skeleton_transform_global_inverse;
-			world_pos_out = bone_matrix * world_pos_out;
-		#endif
+		outvec = inv_world_matrix * outvec;
+		
+		////#if defined(WORLD_POS_USED)
+		////	bone_matrix = skeleton_transform_global * transpose(bone_transform) * skeleton_transform_global_inverse;
+		/////	world_pos_out = bone_matrix * world_pos_out;
+		/////#endif
 	}
-
 #endif
 
+
+#define extra_matrix extra_matrix_instance
+
+
+	{
+		vec2 src_vtx = outvec.xy;
+		/* clang-format off */
+
+VERTEX_SHADER_CODE
+
+		/* clang-format on */
+	}
+
+#if defined(DEPTH_USED)
+	outvec.z = depth;
+#endif
+#if defined(ROTATION_USED)
+	vec2 s = sin(rotation*3.14/2.0);
+	vec2 c = cos(rotation*3.14/2.0);
+	// x
+	float old = outvec.x;
+	float rotated = outvec.x * c.x + s.x * outvec.z;
+	outvec.x = outvec.x + rotation_mask * (rotated - outvec.x);
+	// z
+	rotated = -old * s.x + c.x * outvec.z;
+	outvec.z = outvec.z + rotation_mask * (rotated - outvec.z);
+	
+	// y
+	old = outvec.y;
+	rotated = outvec.y * c.y - s.y * outvec.z;
+	outvec.y = outvec.y + rotation_mask * (rotated - outvec.y);
+
+	// z
+	rotated = old * s.y + c.y * outvec.z * rotation_mask;
+	outvec.z = (outvec.z + rotation_mask * (rotated - outvec.z)) * 0.5;
+#endif
+#if defined(DEPTH_USED)
+	outvec.z *= max_depth;
+#endif
+#if !defined(SKIP_TRANSFORM_USED)
+	outvec = extra_matrix_instance * outvec;
+	#if defined(WORLD_POS_USED)
+		world_pos_out = world_matrix * outvec;
+	#endif
+	outvec = modelview_matrix * outvec;
+	//outvec = world_matrix * outvec;
+#endif
+	color_interp = color;
+
+#ifdef USE_PIXEL_SNAP
+	outvec.xy = floor(outvec + 0.5).xy;
+	// precision issue on some hardware creates artifacts within texture
+	// offset uv by a small amount to avoid
+	uv += 1e-5;
+#endif
 	uv_interp = uv;
-	gl_Position = projection_matrix * outvec;
+	//outvec.z -= (color.a) * 2.0;
+	highp mat4 projection_matrix2 = projection_matrix;
+
+
+	//projection_matrix2[2][2] = -0.5;
+	//projection_matrix2[3][2] = -0.1;
+	#if defined(DEPTH_USED)
+	float far = outvec.z + 1.0;
+	float near = -outvec.z - 1.0;
+	//projection_matrix2[0][0] *= near;
+	//projection_matrix2[1][1] *= near;
+	
+ 	//projection_matrix2[2][2] = -(far + near) / (far - near);
+	//projection_matrix2[2][3] = -2*far * near / (far - near);
+	//projection_matrix2[3][2] = -1;
+	//projection_matrix2[3][3] = 0.0;
+
+	projection_matrix2[2][2] = -2.0 / (far - near);
+	projection_matrix2[2][3] = -((far + near) / (far - near));
+	//outvec.w = -depth;
+	#endif
+
+
+
+
+
+
+    //projection_matrix2[2][2] = -far / (far - near); // used to remap z to [0,1] 
+    //projection_matrix2[3][2] = -far * near / (far - near); // used to remap z [0,1] 
+
+	gl_Position = projection_matrix2 * outvec;
 
 #ifdef USE_LIGHTING
 

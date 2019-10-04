@@ -16,7 +16,6 @@
 #include "core/math/math_funcs.h"
 #include "core/core_string_names.h"
 #include <string>
-#include "drivers/gles2/shaders/canvas.glsl.gen.h"
 #include "scene/animation/animation_tree.h"
 #include "scene/scene_string_names.h"
 

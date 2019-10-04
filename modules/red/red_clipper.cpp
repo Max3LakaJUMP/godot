@@ -16,14 +16,31 @@
 #include "core/math/math_funcs.h"
 #include "core/core_string_names.h"
 #include <string>
-#include "drivers/gles2/shaders/canvas.glsl.gen.h"
 #include "scene/animation/animation_tree.h"
 #include "scene/scene_string_names.h"
 
-void REDClipper::clip() {
-	if (clip_enable && material_objects.size()>0 && is_inside_tree()){
+void REDClipper::_clip() {
+	if (clip_enable){
 		_update_stencil();
 		_send_stencil();
+	}
+}
+
+void REDClipper::_rotate() {
+	if (rotation_enable){
+		_send_rotation();
+	}
+}
+
+void REDClipper::_draw_clipper_outline(){
+	if (get_use_outline()){
+		Vector<Vector2> points;
+		int count = get_polygon().size();
+		points.resize(count);
+		PoolVector<Vector2>::Read polyr = get_polygon().read();
+		for (int i = 0; i < count; i++)
+			points.write[i] = polyr[i] + get_offset();
+		_draw_outline(points);
 	}
 }
 
@@ -114,6 +131,40 @@ void REDClipper::_send_stencil() {
 	}
 }
 
+
+void REDClipper::set_rotation1(const Vector2 &p_rotation){
+	rotation1 = p_rotation;
+	update();
+}
+Vector2 REDClipper::get_rotation1() const{
+	return rotation1;
+}
+void REDClipper::set_rotation2(const Vector2 &p_rotation){
+	rotation2 = p_rotation;
+	update();
+}
+Vector2 REDClipper::get_rotation2() const{
+	return rotation2;
+}
+
+void REDClipper::_send_rotation() {
+	int count = cached_materials.size();
+	for (int i = 0; i < count; i++){
+		if (!cached_materials[i].is_valid()){
+			cached_materials.remove(i);
+			if ( i < second_split_start_material_id){
+				second_split_start_material_id -= 1;
+			}
+		}
+	}
+	for (int i = 0; i < second_split_start_material_id; i++){
+		cached_materials.write[i]->set_shader_param("global_rotation", rotation1);
+	}
+	for (int i = second_split_start_material_id; i < count; i++){
+		cached_materials.write[i]->set_shader_param("global_rotation", rotation2);
+	}
+}
+
 void REDClipper::_update_stencil() {
 	int count = cached_materials.size();
 	if (count == 0)
@@ -153,7 +204,6 @@ void REDClipper::_update_stencil() {
 		Vector<Vector2> screen_coords_new;
 		polygon_size = 8;
 		screen_coords_new.resize(polygon_size);
-		int split_int = (int)split_angle;
 		float k = fmod(split_angle + 0.5, 4);
     	if (k < 0)
         	k += 4;
@@ -286,25 +336,27 @@ void REDClipper::_notification(int p_what) {
 		} break;
 		case NOTIFICATION_DRAW: {
 			VisualServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), clip_rect_enable);
-			clip();
-			if (get_use_outline()){
-				Vector<Vector2> points;
-				int count = get_polygon().size();
-				points.resize(count);
-				PoolVector<Vector2>::Read polyr = get_polygon().read();
-				for (int i = 0; i < count; i++)
-					points.write[i] = polyr[i] + get_offset();
-				_draw_outline(points);
+			if (material_objects.size()>0 && is_inside_tree()){
+				_clip();
+				_rotate();
 			}
+			_draw_clipper_outline();
 		} break;
 	}
 }
 
 void REDClipper::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_rotation_enable", "rotation_enable"), &REDClipper::set_rotation_enable);
+    ClassDB::bind_method(D_METHOD("get_rotation_enable"), &REDClipper::get_rotation_enable);
 	ClassDB::bind_method(D_METHOD("set_clip_enable", "clip_enable"), &REDClipper::set_clip_enable);
     ClassDB::bind_method(D_METHOD("get_clip_enable"), &REDClipper::get_clip_enable);
 	ClassDB::bind_method(D_METHOD("set_clip_rect_enable", "clip_rect_enable"), &REDClipper::set_clip_rect_enable);
     ClassDB::bind_method(D_METHOD("get_clip_rect_enable"), &REDClipper::get_clip_rect_enable);
+
+	ClassDB::bind_method(D_METHOD("set_rotation1", "rotation1"), &REDClipper::set_rotation1);
+    ClassDB::bind_method(D_METHOD("get_rotation1"), &REDClipper::get_rotation1);
+	ClassDB::bind_method(D_METHOD("set_rotation2", "rotation2"), &REDClipper::set_rotation2);
+    ClassDB::bind_method(D_METHOD("get_rotation2"), &REDClipper::get_rotation2);
 
 	ClassDB::bind_method(D_METHOD("set_split", "split"), &REDClipper::set_split);
     ClassDB::bind_method(D_METHOD("get_split"), &REDClipper::get_split);
@@ -327,6 +379,10 @@ void REDClipper::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("update_stencil"), &REDClipper::_update_stencil);
 	ClassDB::bind_method(D_METHOD("send_stencil"), &REDClipper::_send_stencil);
 
+	ADD_GROUP("Rotator", "");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "rotation_enable"), "set_rotation_enable", "get_rotation_enable");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "rotation1"), "set_rotation1", "get_rotation1");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "rotation2"), "set_rotation2", "get_rotation2");
 	ADD_GROUP("Clipper", "");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_enable"), "set_clip_enable", "get_clip_enable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_rect_enable"), "set_clip_rect_enable", "get_clip_rect_enable");
@@ -334,12 +390,16 @@ void REDClipper::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "split_angle"), "set_split_angle", "get_split_angle");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "split_offset"), "set_split_offset", "get_split_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "space", PROPERTY_HINT_ENUM, "World, Local, Screen"), "set_space", "get_space");
+	ADD_GROUP("Materials", "");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "material_objects", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDPolygon"), "set_material_objects", "get_material_objects");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "material_objects2", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDPolygon"), "set_material_objects2", "get_material_objects2");
+
+
 	BIND_ENUM_CONSTANT(WORLD);
 	BIND_ENUM_CONSTANT(LOCAL);
 	BIND_ENUM_CONSTANT(SCREEN);
 }
+
 void REDClipper::set_split(bool p_split){
 	split = p_split;
 	_update_materials();
@@ -366,6 +426,15 @@ Vector2 REDClipper::get_split_offset() const{
 	return split_offset;
 }
 
+void REDClipper::set_rotation_enable(bool p_rotation){
+	rotation_enable = p_rotation;
+	update();
+}
+
+bool REDClipper::get_rotation_enable() const{
+	return rotation_enable;
+}
+
 void REDClipper::set_clip_enable(bool p_clip){
 	clip_enable = p_clip;
 	update();
@@ -386,7 +455,7 @@ bool REDClipper::get_clip_rect_enable() const{
 
 void REDClipper::set_space(REDClipper::Space p_space){
 	space = p_space;
-	clip();
+	_clip();
 }
 
 REDClipper::Space REDClipper::get_space() const{
@@ -447,6 +516,9 @@ Vector<Ref<ShaderMaterial> > REDClipper::get_cached_materials() const {
 }
 
 REDClipper::REDClipper() {
+	rotation1 = Vector2(0, 0);
+	rotation2 = Vector2(0, 0);
+	rotation_enable = true;
 	clip_enable = true;
 	clip_rect_enable = true;
 	split = false;

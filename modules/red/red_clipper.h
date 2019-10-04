@@ -7,6 +7,9 @@
 
 class REDClipper : public REDShape {
 	GDCLASS(REDClipper, REDShape);
+	Vector2 rotation1;
+	Vector2 rotation2;
+
 	Vector<float> multiple;
 	Vector<float> constant;
 	Vector<Vector2> screen_coords;
@@ -17,6 +20,7 @@ class REDClipper : public REDShape {
 
 	int second_split_start_material_id;
 	bool clip_enable;
+	bool rotation_enable;
 	bool clip_rect_enable;
 	bool split;
 	float split_angle;
@@ -33,10 +37,18 @@ public:
 		LOCAL,
 		SCREEN
 	} space;
-	void clip();
+	void _draw_clipper_outline();
+	void _clip();
+	void _rotate();
 	void _update_materials();
 	void _update_stencil();
 	void _send_stencil();
+	void _send_rotation();
+
+	void set_rotation1(const Vector2 &p_rotation);
+	Vector2 get_rotation1() const;
+	void set_rotation2(const Vector2 &p_rotation);
+	Vector2 get_rotation2() const;
 
 	void set_split(bool p_split);
 	bool get_split() const;
@@ -45,14 +57,15 @@ public:
 	void set_split_offset(const Vector2 &p_split_offset);
 	Vector2 get_split_offset() const;
 
+	void set_rotation_enable(bool p_rotation);
+	bool get_rotation_enable() const;
 	void set_clip_enable(bool p_clip);
 	bool get_clip_enable() const;
-
 	void set_clip_rect_enable(bool p_clip_rect_enable);
 	bool get_clip_rect_enable() const;
 
 	void set_space(REDClipper::Space p_space);
-	REDClipper::Space REDClipper::get_space() const;
+	REDClipper::Space get_space() const;
 	void set_position_names(const Array &p_position_names);
 	Array get_position_names() const;
 

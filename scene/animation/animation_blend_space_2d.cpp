@@ -491,6 +491,7 @@ float AnimationNodeBlendSpace2D::process(float p_time, bool p_seek) {
 
 		first = true;
 
+		/*
 		for (int i = 0; i < blend_points_used; i++) {
 
 			bool found = false;
@@ -510,6 +511,51 @@ float AnimationNodeBlendSpace2D::process(float p_time, bool p_seek) {
 			if (!found) {
 				//ignore
 				blend_node(blend_points[i].name, blend_points[i].node, p_time, p_seek, 0, FILTER_IGNORE, false);
+			}
+
+
+
+		int j_min = 0;
+		float min_weight = blend_weights[0];
+		for (int j = 1; j < 3; j++) {
+			if (blend_weights[j]<min_weight){
+				min_weight = blend_weights[j];
+				j_min = j;
+			}
+		}
+		int j_min2 = 0;
+		float min_weight2 = 10.0f;
+		for (int j = 0; j < 3; j++) {
+			if (j != j_min && blend_weights[j] < min_weight2){
+				min_weight2 = blend_weights[j];
+				j_min2 = j;
+			}
+		}
+		float t = blend_node(blend_points[triangle_points[j_min]].name, blend_points[triangle_points[j_min]].node, p_time, p_seek, blend_weights[j_min], FILTER_IGNORE, false);
+		mind = t;
+		t = blend_node(blend_points[triangle_points[j_min2]].name, blend_points[triangle_points[j_min2]].node, p_time, p_seek, blend_weights[j_min2], FILTER_IGNORE, false);
+		if (t < mind) {
+			mind = t;
+		}
+		for (int j = 0; j < 3; j++) {
+			if (j == j_min || j == j_min2){
+				continue;
+			}
+			t = blend_node(blend_points[triangle_points[j]].name, blend_points[triangle_points[j]].node, p_time, p_seek, blend_weights[j], FILTER_IGNORE, false);
+			if (t < mind) {
+				mind = t;
+			}
+		}
+		}
+		*/
+		for (int i = 0; i < blend_points_used; i++) {
+			blend_node(blend_points[i].name, blend_points[i].node, p_time, p_seek, 0.0, FILTER_IGNORE, false);
+		}
+		for (int j = 0; j < 3; j++) {
+			float t = blend_node(blend_points[triangle_points[j]].name, blend_points[triangle_points[j]].node, p_time, p_seek, blend_weights[j], FILTER_IGNORE, false);
+			if (first || t < mind) {
+				mind = t;
+				first = false;
 			}
 		}
 	} else {
