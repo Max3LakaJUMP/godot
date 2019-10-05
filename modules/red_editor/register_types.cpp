@@ -1,5 +1,6 @@
 /* register_types.cpp */
 
+#ifdef TOOLS_ENABLED
 #include "register_types.h"
 
 #include "core/class_db.h"
@@ -20,13 +21,14 @@
 
 static Ref<ResourceImporterJSCN> import_jscn;
 static Ref<ResourceImporterPSD> import_psd;
+#endif
 	
 void register_red_editor_types() {
 #ifdef TOOLS_ENABLED
 
 	ClassDB::register_class<PSD>();
 	ClassDB::register_class<JSCN>();
-    EditorPlugins::add_by_type<REDFrameEditorPlugin>();
+    	EditorPlugins::add_by_type<REDFrameEditorPlugin>();
 	EditorPlugins::add_by_type<REDBubbleEditorPlugin>();
 	EditorPlugins::add_by_type<REDLineEditorPlugin>();
 	EditorPlugins::add_by_type<REDPolygonEditorPlugin>();
@@ -48,8 +50,11 @@ void register_red_editor_types() {
 }
 
 void unregister_red_editor_types() {
+#ifdef TOOLS_ENABLED
+
 	ResourceFormatImporter::get_singleton()->remove_importer(import_jscn);
 	import_jscn.unref();
 	ResourceFormatImporter::get_singleton()->remove_importer(import_psd);
 	import_psd.unref();
+#endif
 }
