@@ -86,9 +86,9 @@ public:
 
 		Color canvas_item_modulate;
 		Transform2D extra_matrix;
-		Transform2D world_matrix;
-		Transform2D inv_world_matrix;
 		Transform2D final_transform;
+		Transform2D world_transform;
+		Transform2D inv_world_transform;
 		bool using_skeleton;
 		Transform2D skeleton_transform;
 		Transform2D skeleton_transform_inverse;

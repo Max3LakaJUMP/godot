@@ -166,12 +166,9 @@ void main() {
 #endif
 
 #ifdef USE_SKELETON
-	outvec = world_matrix * outvec;
-	#if defined(WORLD_POS_USED)
-		world_pos_out = outvec;
-	#endif
 	// look up transform from the "pose texture"
 	if (bone_weights != vec4(0.0)) {
+		outvec = world_matrix * outvec;
 		highp mat4 bone_transform = mat4(0.0);
 
 		for (int i = 0; i < 4; i++) {
@@ -192,10 +189,10 @@ void main() {
 		
 		outvec = inv_world_matrix * outvec;
 		
-		////#if defined(WORLD_POS_USED)
-		////	bone_matrix = skeleton_transform_global * transpose(bone_transform) * skeleton_transform_global_inverse;
-		/////	world_pos_out = bone_matrix * world_pos_out;
-		/////#endif
+		//#if defined(WORLD_POS_USED)
+		//	bone_matrix = skeleton_transform_global * transpose(bone_transform) * skeleton_transform_global_inverse;
+		//	world_pos_out = bone_matrix * world_pos_out;
+		//#endif
 	}
 #endif
 
@@ -204,7 +201,6 @@ void main() {
 
 
 	{
-		vec2 src_vtx = outvec.xy;
 		/* clang-format off */
 
 VERTEX_SHADER_CODE
@@ -255,36 +251,13 @@ VERTEX_SHADER_CODE
 	uv += 1e-5;
 #endif
 	uv_interp = uv;
-	//outvec.z -= (color.a) * 2.0;
 	highp mat4 projection_matrix2 = projection_matrix;
-
-
-	//projection_matrix2[2][2] = -0.5;
-	//projection_matrix2[3][2] = -0.1;
 	#if defined(DEPTH_USED)
 	float far = outvec.z + 1.0;
 	float near = -outvec.z - 1.0;
-	//projection_matrix2[0][0] *= near;
-	//projection_matrix2[1][1] *= near;
-	
- 	//projection_matrix2[2][2] = -(far + near) / (far - near);
-	//projection_matrix2[2][3] = -2*far * near / (far - near);
-	//projection_matrix2[3][2] = -1;
-	//projection_matrix2[3][3] = 0.0;
-
 	projection_matrix2[2][2] = -2.0 / (far - near);
 	projection_matrix2[2][3] = -((far + near) / (far - near));
-	//outvec.w = -depth;
 	#endif
-
-
-
-
-
-
-    //projection_matrix2[2][2] = -far / (far - near); // used to remap z to [0,1] 
-    //projection_matrix2[3][2] = -far * near / (far - near); // used to remap z [0,1] 
-
 	gl_Position = projection_matrix2 * outvec;
 
 #ifdef USE_LIGHTING

@@ -44,10 +44,10 @@ layout(std140) uniform CanvasItemData { //ubo:0
 };
 
 uniform highp mat4 modelview_matrix;
-uniform highp mat4 extra_matrix;
-
 uniform highp mat4 world_matrix;
 uniform highp mat4 inv_world_matrix;
+uniform highp mat4 extra_matrix;
+
 out highp vec2 uv_interp;
 out mediump vec4 color_interp;
 
@@ -158,58 +158,23 @@ void main() {
 #endif
 
 #if defined(DEPTH_USED)
+	float max_depth = 0.001;
 	float depth = 0.0;
 #endif
-#if defined(ROTATE_USED)
-	vec2 angle = vec2(0.0, 0.0);
+#if defined(ROTATION_USED)
+	vec2 rotation = vec2(0.0, 0.0);
+	float rotation_mask = 1.0;
 #endif
+
 #define extra_matrix extra_matrix_instance
 
 	//for compatibility with the fragment shader we need to use uv here
 	vec2 uv = uv_interp;
-	{
-		/* clang-format off */
-
-VERTEX_SHADER_CODE
-
-		/* clang-format on */
-	}
-
-	uv_interp = uv;
-
-#if defined(DEPTH_USED)
-	outvec.z += depth;
-#endif
-
-#ifdef USE_NINEPATCH
-
-	pixel_size_interp = abs(dst_rect.zw) * vertex;
-#endif
-
-#if !defined(SKIP_TRANSFORM_USED)
-	outvec = extra_matrix * outvec;
-
-	#if defined(WORLD_POS_USED)
-		world_pos_out = world_matrix * outvec;
-	#endif
-
-	outvec = modelview_matrix * outvec;
-#endif
-
-#undef extra_matrix
-
-	color_interp = color;
-
-#ifdef USE_PIXEL_SNAP
-	outvec.xy = floor(outvec + 0.5).xy;
-	// precision issue on some hardware creates artifacts within texture
-	// offset uv by a small amount to avoid
-	uv_interp += 1e-5;
-#endif
-
+	
 #ifdef USE_SKELETON
 
 	if (bone_weights != vec4(0.0)) { //must be a valid bone
+		outvec = world_matrix * outvec;
 		//skeleton transform
 
 		ivec4 bone_indicesi = ivec4(bone_indices);
@@ -243,19 +208,85 @@ VERTEX_SHADER_CODE
 					 texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
 			 bone_weights.w;
 
-		mat4 bone_matrix = skeleton_transform * transpose(mat4(m[0], m[1], vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_inverse;
-
+		//mat4 bone_matrix = skeleton_transform * transpose(mat4(m[0], m[1], vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_inverse;
+		mat4 bone_matrix = skeleton_transform_global * transpose(mat4(m[0], m[1], vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_global_inverse;
 		outvec = bone_matrix * outvec;
-
-		#if defined(WORLD_POS_USED)
-			bone_matrix = skeleton_transform_global * transpose(mat4(m[0], m[1], vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_global_inverse;
-			world_pos_out = bone_matrix * world_pos_out;
-		#endif
+		outvec = inv_world_matrix * outvec;
 	}
 
 #endif
+	
+	
+	{
+		/* clang-format off */
 
-	gl_Position = projection_matrix * outvec;
+VERTEX_SHADER_CODE
+
+		/* clang-format on */
+	}
+
+	uv_interp = uv;
+
+#if defined(DEPTH_USED)
+	outvec.z = depth;
+#endif
+#if defined(ROTATION_USED)
+	vec2 s = sin(rotation*3.14/2.0);
+	vec2 c = cos(rotation*3.14/2.0);
+	// x
+	float old = outvec.x;
+	float rotated = outvec.x * c.x + s.x * outvec.z;
+	outvec.x = outvec.x + rotation_mask * (rotated - outvec.x);
+	// z
+	rotated = -old * s.x + c.x * outvec.z;
+	outvec.z = outvec.z + rotation_mask * (rotated - outvec.z);
+	
+	// y
+	old = outvec.y;
+	rotated = outvec.y * c.y - s.y * outvec.z;
+	outvec.y = outvec.y + rotation_mask * (rotated - outvec.y);
+
+	// z
+	rotated = old * s.y + c.y * outvec.z * rotation_mask;
+	outvec.z = (outvec.z + rotation_mask * (rotated - outvec.z)) * 0.5;
+#endif
+#if defined(DEPTH_USED)
+	outvec.z *= max_depth;
+#endif
+
+#ifdef USE_NINEPATCH
+
+	pixel_size_interp = abs(dst_rect.zw) * vertex;
+#endif
+
+#if !defined(SKIP_TRANSFORM_USED)
+	outvec = extra_matrix * outvec;
+
+	#if defined(WORLD_POS_USED)
+		world_pos_out = world_matrix * outvec;
+	#endif
+
+	outvec = modelview_matrix * outvec;
+#endif
+
+#undef extra_matrix
+
+	color_interp = color;
+
+#ifdef USE_PIXEL_SNAP
+	outvec.xy = floor(outvec + 0.5).xy;
+	// precision issue on some hardware creates artifacts within texture
+	// offset uv by a small amount to avoid
+	uv_interp += 1e-5;
+#endif
+	highp mat4 projection_matrix2 = projection_matrix;
+	#if defined(DEPTH_USED)
+	float far = outvec.z + 1.0;
+	float near = -outvec.z - 1.0;
+	projection_matrix2[2][2] = -2.0 / (far - near);
+	projection_matrix2[2][3] = -((far + near) / (far - near));
+	#endif
+	gl_Position = projection_matrix2 * outvec;
 
 #ifdef USE_LIGHTING
 
@@ -345,6 +376,7 @@ const bool at_light_pass = true;
 #else
 const bool at_light_pass = false;
 #endif
+
 uniform mediump vec4 final_modulate;
 
 layout(location = 0) out mediump vec4 frag_color;
@@ -451,7 +483,7 @@ float map_ninepatch_axis(float pixel, float draw_size, float tex_pixel_size, flo
 #endif
 
 #if defined(WORLD_POS_USED)
-out vec4 world_pos_out;
+in vec4 world_pos_out;
 #endif
 
 bool clipper(vec2 position, vec3 clipper_calc0, vec3 clipper_calc1, vec3 clipper_calc2, vec3 clipper_calc3) {
@@ -615,8 +647,6 @@ FRAGMENT_SHADER_CODE
 	vec2 light_uv = light_uv_interp.xy;
 	vec4 light = texture(light_texture, light_uv);
 
-	bool real_light_dominant = light_dominant;
-
 	if (any(lessThan(light_uv_interp.xy, vec2(0.0, 0.0))) || any(greaterThanEqual(light_uv_interp.xy, vec2(1.0, 1.0)))) {
 		color.a *= light_outside_alpha; //invisible
 
@@ -641,19 +671,18 @@ FRAGMENT_SHADER_CODE
 				screen_uv,
 #endif
 				color, 
-				real_light_dominant););
+				real_light_dominant);
+				color);
 #endif
 
 		light *= real_light_color;
 
-		/*
 		if (normal_used) {
 			vec3 light_normal = normalize(vec3(light_vec, -real_light_height));
 			light *= max(dot(-light_normal, normal), 0.0);
 		}
 
-		color *= light;
-		*/
+		//color *= light;
 		color = (1.0 + color ) * light;
 
 #ifdef USE_SHADOWS
