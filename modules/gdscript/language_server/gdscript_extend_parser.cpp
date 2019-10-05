@@ -105,6 +105,40 @@ void ExtendGDScriptParser::update_symbols() {
 	}
 }
 
+void ExtendGDScriptParser::update_document_links(const String &p_code) {
+	document_links.clear();
+
+	GDScriptTokenizerText tokenizer;
+	FileAccessRef fs = FileAccess::create(FileAccess::ACCESS_RESOURCES);
+	tokenizer.set_code(p_code);
+	while (true) {
+		if (tokenizer.get_token() == GDScriptTokenizer::TK_EOF) {
+			break;
+		} else if (tokenizer.get_token() == GDScriptTokenizer::TK_CONSTANT) {
+			Variant const_val = tokenizer.get_token_constant();
+			if (const_val.get_type() == Variant::STRING) {
+				String path = const_val;
+				bool exists = fs->file_exists(path);
+				if (!exists) {
+					path = get_path().get_base_dir() + "/" + path;
+					exists = fs->file_exists(path);
+				}
+				if (exists) {
+					String value = const_val;
+					lsp::DocumentLink link;
+					link.target = GDScriptLanguageProtocol::get_singleton()->get_workspace()->get_file_uri(path);
+					link.range.start.line = LINE_NUMBER_TO_INDEX(tokenizer.get_token_line());
+					link.range.end.line = link.range.start.line;
+					link.range.end.character = LINE_NUMBER_TO_INDEX(tokenizer.get_token_column());
+					link.range.start.character = link.range.end.character - value.length();
+					document_links.push_back(link);
+				}
+			}
+		}
+		tokenizer.advance();
+	}
+}
+
 void ExtendGDScriptParser::parse_class_symbol(const GDScriptParser::ClassNode *p_class, lsp::DocumentSymbol &r_symbol) {
 
 	const String uri = get_uri();
@@ -189,6 +223,7 @@ void ExtendGDScriptParser::parse_class_symbol(const GDScriptParser::ClassNode *p
 		lsp::DocumentSymbol symbol;
 		const GDScriptParser::ClassNode::Constant &c = E->value();
 		const GDScriptParser::ConstantNode *node = dynamic_cast<const GDScriptParser::ConstantNode *>(c.expression);
+		ERR_FAIL_COND(!node);
 		symbol.name = E->key();
 		symbol.kind = lsp::SymbolKind::Constant;
 		symbol.deprecated = false;
@@ -344,14 +379,12 @@ String ExtendGDScriptParser::marked_documentation(const String &p_bbcode) {
 		if (block_start != -1) {
 			code_block_indent = block_start;
 			in_code_block = true;
-			line = "'''gdscript";
 			line = "\n";
 		} else if (in_code_block) {
 			line = "\t" + line.substr(code_block_indent, line.length());
 		}
 
 		if (in_code_block && line.find("[/codeblock]") != -1) {
-			line = "'''\n";
 			line = "\n";
 			in_code_block = false;
 		}
@@ -573,6 +606,10 @@ const lsp::DocumentSymbol *ExtendGDScriptParser::get_member_symbol(const String 
 	return NULL;
 }
 
+const List<lsp::DocumentLink> &ExtendGDScriptParser::get_document_links() const {
+	return document_links;
+}
+
 const Array &ExtendGDScriptParser::get_member_completions() {
 
 	if (member_completions.empty()) {
@@ -674,6 +711,7 @@ Dictionary ExtendGDScriptParser::dump_class_api(const GDScriptParser::ClassNode 
 
 		const GDScriptParser::ClassNode::Constant &c = E->value();
 		const GDScriptParser::ConstantNode *node = dynamic_cast<const GDScriptParser::ConstantNode *>(c.expression);
+		ERR_FAIL_COND_V(!node, class_api);
 
 		Dictionary api;
 		api["name"] = E->key();
@@ -755,5 +793,6 @@ Error ExtendGDScriptParser::parse(const String &p_code, const String &p_path) {
 	Error err = GDScriptParser::parse(p_code, p_path.get_base_dir(), false, p_path, false, NULL, false);
 	update_diagnostics();
 	update_symbols();
+	update_document_links(p_code);
 	return err;
 }

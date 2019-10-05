@@ -467,6 +467,11 @@ String ShaderCompilerGLES3::_dump_node_code(SL::Node *p_node, int p_level, Gener
 				vcode += _prestr(E->get().precision);
 				vcode += _typestr(E->get().type);
 				vcode += " " + _mkid(E->key());
+				if (E->get().array_size > 0) {
+					vcode += "[";
+					vcode += itos(E->get().array_size);
+					vcode += "]";
+				}
 				vcode += ";\n";
 				r_gen_code.vertex_global += interp_mode + "out " + vcode;
 				r_gen_code.fragment_global += interp_mode + "in " + vcode;
@@ -944,6 +949,7 @@ ShaderCompilerGLES3::ShaderCompilerGLES3() {
 	actions[VS::SHADER_CANVAS_ITEM].renames["MAX_DEPTH"] = "max_depth";
 	actions[VS::SHADER_CANVAS_ITEM].renames["ROTATION"] = "rotation";
 	actions[VS::SHADER_CANVAS_ITEM].renames["ROTATION_MASK"] = "rotation_mask";
+	actions[VS::SHADER_CANVAS_ITEM].renames["SHADOW_VEC"] = "shadow_vec";
 
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["COLOR"] = "#define COLOR_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["SCREEN_TEXTURE"] = "#define SCREEN_TEXTURE_USED\n";
@@ -957,6 +963,7 @@ ShaderCompilerGLES3::ShaderCompilerGLES3() {
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["MAX_DEPTH"] = "#define DEPTH_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["ROTATION"] = "#define ROTATION_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["ROTATION_MASK"] = "#define ROTATION_USED\n";
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["SHADOW_VEC"] = "#define SHADOW_VEC_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].render_mode_defines["skip_vertex_transform"] = "#define SKIP_TRANSFORM_USED\n";
 	/** SPATIAL SHADER **/
 

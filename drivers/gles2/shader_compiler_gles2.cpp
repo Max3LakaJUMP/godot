@@ -353,6 +353,11 @@ String ShaderCompilerGLES2::_dump_node_code(SL::Node *p_node, int p_level, Gener
 				varying_code += _typestr(E->get().type);
 				varying_code += " ";
 				varying_code += _mkid(E->key());
+				if (E->get().array_size > 0) {
+					varying_code += "[";
+					varying_code += itos(E->get().array_size);
+					varying_code += "]";
+				}
 				varying_code += ";\n";
 
 				String final_code = varying_code.as_string();
@@ -951,6 +956,7 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 	actions[VS::SHADER_CANVAS_ITEM].renames["SHADOW_COLOR"] = "shadow_color";
 	actions[VS::SHADER_CANVAS_ITEM].renames["LIGHT_DOMINANT"] = "light_dominant";
 	actions[VS::SHADER_CANVAS_ITEM].renames["WORLD_POS"] = "world_pos";
+	actions[VS::SHADER_CANVAS_ITEM].renames["SHADOW_VEC"] = "shadow_vec";
 
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["COLOR"] = "#define COLOR_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["SCREEN_TEXTURE"] = "#define SCREEN_TEXTURE_USED\n";
@@ -965,6 +971,7 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["ROTATION"] = "#define ROTATION_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["ROTATION_MASK"] = "#define ROTATION_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].render_mode_defines["skip_vertex_transform"] = "#define SKIP_TRANSFORM_USED\n";
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["SHADOW_VEC"] = "#define SHADOW_VEC_USED\n";
 
 	// Ported from GLES3
 

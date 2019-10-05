@@ -271,8 +271,17 @@ Array GDScriptTextDocument::codeLens(const Dictionary &p_params) {
 	return arr;
 }
 
-Variant GDScriptTextDocument::documentLink(const Dictionary &p_params) {
-	Variant ret;
+Array GDScriptTextDocument::documentLink(const Dictionary &p_params) {
+	Array ret;
+
+	lsp::DocumentLinkParams params;
+	params.load(p_params);
+
+	List<lsp::DocumentLink> links;
+	GDScriptLanguageProtocol::get_singleton()->get_workspace()->resolve_document_links(params.textDocument.uri, links);
+	for (const List<lsp::DocumentLink>::Element *E = links.front(); E; E = E->next()) {
+		ret.push_back(E->get().to_json());
+	}
 	return ret;
 }
 
@@ -380,8 +389,8 @@ GDScriptTextDocument::~GDScriptTextDocument() {
 	memdelete(file_checker);
 }
 
-void GDScriptTextDocument::sync_script_content(const String &p_uri, const String &p_content) {
-	String path = GDScriptLanguageProtocol::get_singleton()->get_workspace()->get_file_path(p_uri);
+void GDScriptTextDocument::sync_script_content(const String &p_path, const String &p_content) {
+	String path = GDScriptLanguageProtocol::get_singleton()->get_workspace()->get_file_path(p_path);
 	GDScriptLanguageProtocol::get_singleton()->get_workspace()->parse_script(path, p_content);
 }
 
