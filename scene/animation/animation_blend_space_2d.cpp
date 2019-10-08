@@ -489,8 +489,6 @@ float AnimationNodeBlendSpace2D::process(float p_time, bool p_seek) {
 			triangle_points[j] = get_triangle_point(blend_triangle, j);
 		}
 
-		first = true;
-
 		/*
 		for (int i = 0; i < blend_points_used; i++) {
 
@@ -548,9 +546,11 @@ float AnimationNodeBlendSpace2D::process(float p_time, bool p_seek) {
 		}
 		}
 		*/
+		// redot
 		for (int i = 0; i < blend_points_used; i++) {
 			blend_node(blend_points[i].name, blend_points[i].node, p_time, p_seek, 0.0, FILTER_IGNORE, false);
 		}
+		first = true;
 		for (int j = 0; j < 3; j++) {
 			float t = blend_node(blend_points[triangle_points[j]].name, blend_points[triangle_points[j]].node, p_time, p_seek, blend_weights[j], FILTER_IGNORE, false);
 			if (first || t < mind) {

@@ -146,10 +146,6 @@ AnimationNodeStateMachineTransition::AnimationNodeStateMachineTransition() {
 ////////////////////////////////////////////////////////
 
 void AnimationNodeStateMachinePlayback::travel(const StringName &p_state) {
-	print_line("lltravelllllllllllllllllllllllllllllllllllllllll");
-	print_line(current);
-	print_line(p_state);
-	print_line("lltravelllllllllllllllllllllllllllllllllllllllllend");
 	start_request_travel = true;
 	start_request = p_state;
 	stop_request = false;
@@ -505,7 +501,7 @@ float AnimationNodeStateMachinePlayback::process(AnimationNodeStateMachine *p_st
 	}else{
 		end_reached = false;
 	}
-	
+	// redot
 	if (pos_current == len_current){
 		if (!end_reached && !Engine::get_singleton()->is_editor_hint()){
 			emit_signal("animation_changed", old_current, current);
