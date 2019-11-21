@@ -216,6 +216,7 @@ void REDPage::set_frame(int p_id, bool force_inactive, bool ended) {
 	return;
 }
 
+/*
 REDFrame *REDPage::get_frame (int p_id){
     int last_id = frames.size() - 1;
     p_id = MAX(MIN(p_id, last_id), 0);
@@ -229,6 +230,35 @@ REDFrame *REDPage::get_frame (int p_id){
         if (node != NULL){
             if (node->is_class("REDFrame")){
                 return (REDFrame *)node;
+            }
+        }
+    }
+    return nullptr;
+}
+
+*/
+
+REDFrame *REDPage::get_frame (int p_id){
+    int last_id = frames.size() - 1;
+    p_id = MAX(MIN(p_id, last_id), 0);
+    NodePath frame_path = frames[p_id];
+    if (has_node(frame_path)){
+        Node *node = get_node(frame_path);
+        if (node->is_class("REDFrame")){
+            return (REDFrame *)node;
+        }
+        Node *node2 = node->find_node(frame_path.get_name(0));
+        if (node2){
+            if (node2->is_class("REDFrame")){
+                return (REDFrame *)node2;
+            }
+        }
+        if (node->get_child_count() > 0){
+            node = node->get_child(0);
+            if (node){
+                if (node->is_class("REDFrame")){
+                    return (REDFrame *)node;
+                }
             }
         }
     }
@@ -293,4 +323,14 @@ Size2 REDPage::get_size() const {
 
 REDPage::REDPage() {
     id = 0;
+    creation_date.year = 2000;
+    creation_date.month = 1;
+    creation_date.day = 1;
+
+    meta.name = "Undefined";
+    meta.title = "Undefined";
+    meta.character = "Undefined";
+    meta.type = "Undefined";
+    meta.additional = "Undefined";
+    meta.additional2 = "Undefined";
 }

@@ -66,12 +66,9 @@ void SceneExportEditorPlugin::to_maya() {
 
 	List<String> arr;
 
-	//String arr1 = "python(\\\"cmds.loadModule(load=\'redmaya\')\\\");";
-	//String arr2 = "python(\\\"get+godot_scene(\'" + json_global_path + "\')\\\");";
-	
-	print_line("python(\\\"rsptf = " + json_global_path + "\\\");");
-	print_line("python(\\\"cmds.loadModule(load=\'redmaya.redot\')\\\");");
-	print_line("python(\\\"redmaya.redot.godot.load(rsptf)\\\");");
+	//print_line("python(\\\"rsptf = " + json_global_path + "\\\");");
+	//print_line("python(\\\"cmds.loadModule(load=\'redmaya.redot\')\\\");");
+	//print_line("python(\\\"redmaya.redot.godot.load(rsptf)\\\");");
 
 	arr.push_back("python(\\\"rsptf = " + json_global_path + "\\\");");
 	arr.push_back("python(\\\"cmds.loadModule(load=\'redmaya.redot.godot\')\\\");");
@@ -83,8 +80,10 @@ Dictionary SceneExportEditorPlugin::scene_to_dict(Node *root){
 	Dictionary result;
 	result["name"] = root->get_filename().get_file().get_basename();
 	result["path"] = red::globalize(root->get_filename().get_basename()) + ".json";
+	result["project_path"] = ProjectSettings::get_singleton()->get_resource_path();
 	result["format"] = "scene";
-	result["version"] = "1.0";
+	result["mode"] = "2D";
+	result["version"] = 1.0;
 
 	result["root"] = node_to_dict(root);
 	return result;

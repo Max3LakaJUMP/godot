@@ -223,6 +223,7 @@ void REDPolygon::_notification(int p_what) {
 							uvs.write[i] = texmat.xform(uvr[i]) * size_k + offset;
 						}
 					} else {
+						
 						for (int i = 0; i < len; i++) {
 							uvs.write[i] = texmat.xform(points[i] + texture_atlas->get_region().get_position());
 						}
@@ -236,7 +237,7 @@ void REDPolygon::_notification(int p_what) {
 						}
 					} else {
 						for (int i = 0; i < len; i++) {
-							uvs.write[i] = texmat.xform(points[i]) / tex_size;
+							uvs.write[i] = texmat.xform(points[i] / _edit_get_rect().size);
 						}
 					}
 				}
@@ -730,6 +731,15 @@ bool REDPolygon::get_antialiased() const {
 	return antialiased;
 }
 
+void REDPolygon::set_move_uv_with_polygon(bool p_move_uv_with_polygon) {
+
+	move_uv_with_polygon = p_move_uv_with_polygon;
+}
+bool REDPolygon::get_move_uv_with_polygon() const {
+
+	return move_uv_with_polygon;
+}
+
 void REDPolygon::set_invert_border(float p_invert_border) {
 
 	invert_border = p_invert_border;
@@ -749,9 +759,42 @@ void REDPolygon::set_offset(const Vector2 &p_offset) {
 }
 
 Vector2 REDPolygon::get_offset() const {
-
 	return offset;
 }
+
+
+
+void REDPolygon::set_psd_offset(const Vector2 &p_psd_offset){
+	//set_offset(get_offset() - psd_offset + p_psd_offset);
+	psd_offset = p_psd_offset;
+}
+Vector2 REDPolygon::get_psd_offset() const{
+	return psd_offset;
+}
+
+void REDPolygon::set_psd_applied_offset(const Vector2 &p_psd_applied_offset){
+	//set_offset(get_offset() - psd_offset + p_psd_offset);
+	psd_applied_offset = p_psd_applied_offset;
+}
+Vector2 REDPolygon::get_psd_applied_offset() const{
+	return psd_applied_offset;
+}
+
+void REDPolygon::set_psd_uv_offset(const Vector2 &p_psd_uv_offset){
+	//set_offset(get_offset() - psd_offset + p_psd_offset);
+	psd_uv_offset = p_psd_uv_offset;
+}
+Vector2 REDPolygon::get_psd_uv_offset() const{
+	return psd_uv_offset;
+}
+
+void REDPolygon::set_psd_uv_scale(const Vector2 &p_psd_uv_scale){
+	psd_uv_scale = p_psd_uv_scale;
+}
+Vector2 REDPolygon::get_psd_uv_scale() const{
+	return psd_uv_scale;
+}
+
 
 void REDPolygon::add_bone(const NodePath &p_path, const PoolVector<float> &p_weights) {
 
@@ -860,13 +903,24 @@ void REDPolygon::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_antialiased", "antialiased"), &REDPolygon::set_antialiased);
 	ClassDB::bind_method(D_METHOD("get_antialiased"), &REDPolygon::get_antialiased);
-
+	
+	ClassDB::bind_method(D_METHOD("set_move_uv_with_polygon", "move_uv_with_polygon"), &REDPolygon::set_move_uv_with_polygon);
+	ClassDB::bind_method(D_METHOD("get_move_uv_with_polygon"), &REDPolygon::get_move_uv_with_polygon);
+	
 	ClassDB::bind_method(D_METHOD("set_invert_border", "invert_border"), &REDPolygon::set_invert_border);
 	ClassDB::bind_method(D_METHOD("get_invert_border"), &REDPolygon::get_invert_border);
 
 	ClassDB::bind_method(D_METHOD("set_offset", "offset"), &REDPolygon::set_offset);
 	ClassDB::bind_method(D_METHOD("get_offset"), &REDPolygon::get_offset);
-
+	ClassDB::bind_method(D_METHOD("set_psd_offset", "psd_offset"), &REDPolygon::set_psd_offset);
+	ClassDB::bind_method(D_METHOD("get_psd_offset"), &REDPolygon::get_psd_offset);
+	ClassDB::bind_method(D_METHOD("set_psd_applied_offset", "psd_applied_offset"), &REDPolygon::set_psd_applied_offset);
+	ClassDB::bind_method(D_METHOD("get_psd_applied_offset"), &REDPolygon::get_psd_applied_offset);
+	ClassDB::bind_method(D_METHOD("set_psd_uv_offset", "psd_uv_offset"), &REDPolygon::set_psd_uv_offset);
+	ClassDB::bind_method(D_METHOD("get_psd_uv_offset"), &REDPolygon::get_psd_uv_offset);
+	ClassDB::bind_method(D_METHOD("set_psd_uv_scale", "psd_uv_scale"), &REDPolygon::set_psd_uv_scale);
+	ClassDB::bind_method(D_METHOD("get_psd_uv_scale"), &REDPolygon::get_psd_uv_scale);
+	
 	ClassDB::bind_method(D_METHOD("add_bone", "path", "weights"), &REDPolygon::add_bone);
 	ClassDB::bind_method(D_METHOD("get_bone_count"), &REDPolygon::get_bone_count);
 	ClassDB::bind_method(D_METHOD("get_bone_path", "index"), &REDPolygon::get_bone_path);
@@ -889,7 +943,11 @@ void REDPolygon::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset"), "set_offset", "get_offset");
+
+
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
+	
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "move_uv_with_polygon"), "set_move_uv_with_polygon", "get_move_uv_with_polygon");
 	ADD_GROUP("Texture", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_texture", "get_texture");
 	ADD_GROUP("Texture", "texture_");
@@ -910,10 +968,22 @@ void REDPolygon::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "bones", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_bones", "_get_bones");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "internal_vertex_count", PROPERTY_HINT_RANGE, "0,1000"), "set_internal_vertex_count", "get_internal_vertex_count");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "skeleton", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Skeleton2D"), "set_skeleton", "get_skeleton");
+	
+	ADD_GROUP("PSD", "");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_offset"), "set_psd_offset", "get_psd_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_applied_offset"), "set_psd_applied_offset", "get_psd_applied_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_uv_offset"), "set_psd_uv_offset", "get_psd_uv_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_uv_scale"), "set_psd_uv_scale", "get_psd_uv_scale");
 }
 
 REDPolygon::REDPolygon() {
+	move_uv_with_polygon = false;
+	psd_offset = Vector2(0, 0);
+	psd_applied_offset = Vector2(0, 0);
+	psd_uv_offset = Vector2(0, 0);
+	psd_uv_scale = Vector2(1, 1);
 
+	offset = Vector2(0, 0);
 	invert = 0;
 	invert_border = 100;
 	antialiased = false;

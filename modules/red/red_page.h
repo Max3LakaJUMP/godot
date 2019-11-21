@@ -14,6 +14,22 @@ class REDPage : public REDElement {
 
     int id;
     Size2 size;
+    struct Date
+    {
+        int year;
+        int month;
+        int day;
+    } creation_date;
+
+    struct Meta
+    {
+        String name;
+        String title;
+        String character;
+        String type;
+        String additional;
+        String additional2;
+    } meta;
 
 protected:
 	//void _notification(int p_what);

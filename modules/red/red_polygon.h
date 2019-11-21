@@ -61,6 +61,14 @@ class REDPolygon : public Node2D {
 	bool antialiased;
 
 	Vector2 offset;
+
+	bool move_uv_with_polygon;
+	
+	Vector2 psd_offset;
+	Vector2 psd_applied_offset;
+	Vector2 psd_uv_offset;
+	Vector2 psd_uv_scale;
+
 	mutable bool rect_cache_dirty;
 	mutable Rect2 item_rect;
 
@@ -133,6 +141,21 @@ public:
 	void set_offset(const Vector2 &p_offset);
 	Vector2 get_offset() const;
 
+	void set_move_uv_with_polygon(bool p_move_uv_with_polygon);
+	bool get_move_uv_with_polygon() const;
+
+	void set_psd_offset(const Vector2 &p_psd_offset);
+	Vector2 get_psd_offset() const;
+	
+	void set_psd_applied_offset(const Vector2 &p_psd_applied_offset);
+	Vector2 get_psd_applied_offset() const;
+	
+	void set_psd_uv_offset(const Vector2 &p_psd_uv_offset);
+	Vector2 get_psd_uv_offset() const;
+	void set_psd_uv_scale(const Vector2 &p_psd_uv_scale);
+	Vector2 get_psd_uv_scale() const;
+	
+	
 	void add_bone(const NodePath &p_path = NodePath(), const PoolVector<float> &p_weights = PoolVector<float>());
 	int get_bone_count() const;
 	NodePath get_bone_path(int p_index) const;

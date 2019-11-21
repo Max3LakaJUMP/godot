@@ -43,6 +43,7 @@ class Polygon2D;
 class Node2D;
 class ShaderMaterial;
 class REDClipper;
+class REDPolygon;
 struct _psd_context;
 struct _psd_layer_mask_info;
 
@@ -59,6 +60,22 @@ struct Materials{
 	Ref<ShaderMaterial> masked_material_sub;
 	void init(const Map<StringName, Variant> &p_options, Node *node);
 };
+
+struct MeshData{
+	int vertex_count = 0;
+	int faces_count = 0;
+	Size2 vtx_size;
+	Size2 uv_size;
+	Point2 uv_min;
+	Point2 uv_max;
+	Vector2 vtx_min;
+	Vector2 vtx_max;
+	Vector2 uv_offset;
+	Vector2 vtx_offset;
+	Point2 obj_pos;
+	void calc(REDPolygon *poly, bool vtx=false, bool uv=false, bool faces=false, bool obj=false);
+};
+
 
 class ResourceImporterPSD : public ResourceImporter {
 	GDCLASS(ResourceImporterPSD, ResourceImporter);
@@ -96,10 +113,11 @@ public:
 	void create_polygon(_psd_layer_record *layer, Ref<ShaderMaterial> material, Vector2 polygon_size, String png_path, Node2D *parent);
 
 	int load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 
-					Node *parent, Vector2 parent_pos, const Map<StringName, Variant> &p_options, int counter=0, int folder_level=-1, REDClipper *parent_clipper=nullptr);
+					Node *parent, Vector2 parent_pos, const Map<StringName, Variant> &p_options, bool force_save=false, int counter=0, int folder_level=-1, REDClipper *parent_clipper=nullptr);
 	
 	void _mask_to_node(_psd_layer_record *layer, float target_width, int psd_width, REDClipper *clipper, _psd_context *context);
-	Node *_get_root(_psd_context *context, const String &target_dir) const;
+	Node *_get_root(_psd_context *context, const String &target_dir, bool &force_save, const Map<StringName, Variant> &p_options) const;
+	Node *get_edited_scene_root(String p_path) const;
 	ResourceImporterPSD();
 };
 

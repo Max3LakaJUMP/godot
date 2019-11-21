@@ -59,7 +59,6 @@
 #include "modules/red/red_clipper.h"
 #include "modules/red/red_polygon.h"
 #include "modules/red/red_engine.h"
-#include "modules/red/red_engine.h"
 
 String ResourceImporterPSD::get_importer_name() const {
 
@@ -99,14 +98,19 @@ String ResourceImporterPSD::get_preset_name(int p_idx) const {
 }
 
 void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int p_preset) const {
-	r_options->push_back(ImportOption(PropertyInfo(Variant::REAL, "resolution/width"), 2000.0f));
-	
+	r_options->push_back(ImportOption(PropertyInfo(Variant::REAL, "main/resolution_width"), 2000.0f));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/update"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/update_only_editor"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/try_to_keep_uv"), false));
+
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/texture"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/page_height"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/folder_mask"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/folder_pos"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_size"), false));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_pos"), true));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/page_height"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_pos"), false));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_uv"), true));
+
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/root", PROPERTY_HINT_ENUM, "Node2D, Page"), 1));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/folder", PROPERTY_HINT_ENUM, "Node2D, Page, Frame, Frame external"), 3));
@@ -268,17 +272,85 @@ void ResourceImporterPSD::_mask_to_node(_psd_layer_record *layer, float target_w
 }
 
 
+Node *ResourceImporterPSD::get_edited_scene_root(String p_path) const{
+	EditorData editor_data = EditorNode::get_singleton()->get_editor_data();
+	for (int i = 0; i < editor_data.get_edited_scene_count(); i++) {
+		if (editor_data.get_scene_path(i) == p_path)
+			return editor_data.get_edited_scene_root(i);
+	}
+	return nullptr;
+}
 
-Node *ResourceImporterPSD::_get_root(_psd_context *context, const String &target_dir) const{
+
+Node *ResourceImporterPSD::_get_root(_psd_context *context, const String &target_dir, bool &force_save, const Map<StringName, Variant> &p_options) const{
 	red::create_dir(target_dir);
 	_psd_layer_record *last_layer = &(context->layer_records[context->layer_count-1]);
 	String scene_path;
+	Node *root = nullptr;
 
-	scene_path = target_dir + "/" + target_dir.get_file() + ".tscn";
-	red::scene_loader(scene_path);
-	Ref<PackedScene> scene = ResourceLoader::load(scene_path, "PackedScene");
-	Node *root = scene->instance();
+	scene_path = target_dir + ".tscn";
+
+	bool b_update = p_options["main/update"];
+	bool b_update_only_editor = p_options["main/update_only_editor"];
+	_File file_сheck;
+	if (file_сheck.file_exists(scene_path)){
+		force_save = false;
+		if (!b_update){
+			return nullptr;
+		}
+		if (b_update_only_editor){
+			if (EditorNode::get_singleton()->is_scene_open(scene_path)){
+				root = get_edited_scene_root(scene_path);
+			}
+		}
+	}
+	if (root == nullptr){
+		red::scene_loader(scene_path);
+		Ref<PackedScene> scene = ResourceLoader::load(scene_path, "PackedScene");
+		root = scene->instance();
+	}
 	return root;
+}
+
+void MeshData::calc(REDPolygon *poly, bool vtx, bool uv, bool faces, bool obj){
+	if (vtx && poly->get_polygon().size() > 0){
+		PoolVector<Vector2>::Read vtxr = poly->get_polygon().read();
+		vtx_min = vtxr[0];
+		vtx_max = vtxr[0];
+		int count = poly->get_polygon().size();
+		for (int i = 0; i < count; i++)
+		{
+			Vector2 vtx = vtxr[i];
+			vtx_min.x = MIN(vtx.x, vtx_min.x);
+			vtx_max.x = MAX(vtx.x, vtx_max.x);
+			vtx_min.y = MIN(vtx.y, vtx_min.y);
+			vtx_max.y = MAX(vtx.y, vtx_max.y);
+		}
+		vtx_size = vtx_max - vtx_min;
+	}
+	if (uv && poly->get_uv().size() > 0){
+		PoolVector<Vector2>::Read uvr = poly->get_uv().read();
+		uv_min = uvr[0];
+		uv_max = uvr[0];
+		int count = poly->get_uv().size();
+		for (int i = 0; i < count; i++)
+		{
+			Vector2 uv = uvr[i];
+			uv_min.x = MIN(uv.x, uv_min.x);
+			uv_min.y = MIN(uv.y, uv_min.y);
+			
+			uv_max.x = MAX(uv.x, uv_max.x);
+			uv_max.y = MAX(uv.y, uv_max.y);
+		}
+		uv_size = uv_max - uv_min;
+       	uv_offset = Vector2(uv_min.x, uv_min.y);
+	}
+	if (vtx && uv){
+		vtx_offset = Vector2(uv_min.x * vtx_size.x/uv_size.x, (1.0-uv_max.y) * uv_size.y/uv_size.y);
+	}
+	if (obj){
+		obj_pos = poly->get_global_position();
+	}
 }
 
 void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
@@ -399,7 +471,7 @@ void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
 
 
 int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 
-									 Node *parent, Vector2 parent_pos, const Map<StringName, Variant> &p_options, int counter, int folder_level, REDClipper *parent_clipper){
+									 Node *parent, Vector2 parent_pos, const Map<StringName, Variant> &p_options, bool force_save, int counter, int folder_level, REDClipper *parent_clipper){
 	psd_layer_record *layers = context->layer_records;
 	int count = 0;
 	int offset = 0;
@@ -407,11 +479,27 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 
 	int end = context->layer_count;
 	bool loop = true;
+
+	float resolution_width = p_options["main/resolution_width"];
+	bool b_update = p_options["main/update"];
+	bool b_update_only_editor = p_options["main/update_only_editor"];
+
+	bool updateble = true;
+	if (parent->get_owner()){
+		updateble = p_options["main/update"] && (!p_options["main/update_only_editor"] || EditorNode::get_singleton()->is_scene_open(parent->get_owner()->get_filename()));
+	}
+	else{
+		updateble = p_options["main/update"] && (!p_options["main/update_only_editor"] || EditorNode::get_singleton()->is_scene_open(parent->get_filename()));
+	}
+	
+	bool saveble = force_save || (!p_options["main/update_only_editor"] && p_options["main/update"]);
+	
+	_File file_сheck;
 	for (int iter = start; iter + offset < end && loop; iter++){	
 		final_iter = iter + offset; count++;
 		_psd_layer_record *layer = &layers[final_iter];
 		String name = reinterpret_cast<char const*>(layers[final_iter].layer_name);
-		_File file2check;
+
 		switch (layers[final_iter].layer_type){
 			case psd_layer_type::psd_layer_type_folder:{
 				if (counter > 0){
@@ -469,19 +557,37 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 			case psd_layer_type::psd_layer_type_normal:{
 				Node2D *node;
 				int mode = p_options["types/layer"];
-				float size = p_options["resolution/width"];
 				bool need_create = parent->has_node(name) ? false : true;
 				
 				int len = layer->width*layer->height;
 				if (len==0) 
 
 					continue;
-				String png_path = target_dir + "/" + name +".png";
-				if (p_options["update/texture"] || !file2check.file_exists(png_path)){
+				String png_path = target_dir + "/textures/"+ name +".png";
+				
+				Vector2 texture_resize(1, 1);
+				Vector2 old_texture_size(0, 0);
+				if (file_сheck.file_exists(png_path)){
+					Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
+					if (texture.is_valid())
+						old_texture_size = texture->get_size();
+				}
+
+				if (!file_сheck.file_exists(png_path))
+					save_png(layer, png_path);
+				else if (p_options["update/texture"] && updateble){
 					save_png(layer, png_path);
 				}
-				Vector2 polygon_size(layer->width*size/context->width, layer->height*size/context->width);
+				
+				if (old_texture_size.x != 0){
+					Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
+					if (texture.is_valid())
+						old_texture_size = texture->get_size()/old_texture_size;
+				}
 
+				
+				Vector2 polygon_size(layer->width * resolution_width / context->width, layer->height * resolution_width / context->width);
+				Point2 global_pos = Point2(layer->left * resolution_width / context->width, layer->top * resolution_width / context->width);
 
 				float k = layer->height/layer->width;
 				Vector2 offset = Vector2(0.0f, 0.0f);
@@ -576,41 +682,33 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					node->set_name(name);
 					node->set_draw_behind_parent(true);
 				}
-				else {
+				else if (updateble){
 					node = (Node2D*)(parent->get_node(NodePath(name)));
 					if (mode==LAYER_POLYGON2D){
 						Polygon2D *poly = (Polygon2D*)node;
 						if (poly != nullptr){
 							if (p_options["update/layer_size"]){
-								Vector2 real_size = poly->_edit_get_rect().get_size();
-								Vector2 target_size = Vector2(polygon_size.x, polygon_size.y);
-
-								int count = poly->get_uv().size();
-								PoolVector<Vector2>::Read uvr = poly->get_uv().read();
-								Vector2 uv_min = uvr[0];
-								Vector2 uv_max = uvr[0];
-								for (int i = 0; i < count; i++)
-								{
-									Vector2 uv = uvr[i];
-									if (uv.x < uv_min.x)
-										uv_min.x = uv.x;
-									if (uv.x > uv_max.x)
-										uv_max.x = uv.x;
-									if (uv.y < uv_min.y)
-										uv_min.y = uv.y;
-									if (uv.y > uv_max.y)
-										uv_max.y = uv.y;
+								PoolVector<Vector2> uvs = poly->get_uv();
+								if (uvs.size() > 0){
+									Vector2 real_size = poly->_edit_get_rect().get_size();
+									PoolVector<Vector2>::Read uvr = uvs.read();
+									Vector2 uv_min = uvr[0];
+									Vector2 uv_max = uv_min;
+									for (int i = 0; i < poly->get_uv().size(); i++)
+									{
+										Vector2 uv = uvr[i];
+										uv_min.x = MIN(uv.x, uv_min.x);
+										uv_max.x = MAX(uv.x, uv_max.x);
+										uv_min.y = MIN(uv.y, uv_min.y);
+										uv_max.y = MAX(uv.y, uv_max.y);
+									}
+									Vector2 resizer = (uv_max - uv_min)/poly->get_texture()->get_size()*polygon_size/real_size;
+									PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+									PoolVector<Vector2> new_pool;
+									for (int i = 0; i < poly->get_polygon().size(); i++)
+										new_pool.append(polyr[i]*resizer);
+									poly->set_polygon(new_pool);
 								}
-								Vector2 resizer = (uv_max - uv_min)/poly->get_texture()->get_size()*target_size/real_size;
-								
-								count = poly->get_polygon().size();
-								PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
-								PoolVector<Vector2> new_pool;
-								for (int i = 0; i < count; i++)
-								{
-									new_pool.append(polyr[i]*resizer);
-								}
-								poly->set_polygon(new_pool);
 							}
 							offset = poly->get_offset();
 						}
@@ -619,44 +717,92 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						REDPolygon *poly = (REDPolygon*)node;
 						if (poly != nullptr){
 							if (p_options["update/layer_size"]){
-								Vector2 real_size = poly->_edit_get_rect().get_size();
-								Vector2 target_size = Vector2(polygon_size.x, polygon_size.y);
-
-								int count = poly->get_uv().size();
-								PoolVector<Vector2>::Read uvr = poly->get_uv().read();
-								Vector2 uv_min = uvr[0];
-								Vector2 uv_max = uvr[0];
-								for (int i = 0; i < count; i++)
-								{
-									Vector2 uv = uvr[i];
-									if (uv.x < uv_min.x)
-										uv_min.x = uv.x;
-									if (uv.x > uv_max.x)
-										uv_max.x = uv.x;
-									if (uv.y < uv_min.y)
-										uv_min.y = uv.y;
-									if (uv.y > uv_max.y)
-										uv_max.y = uv.y;
+								PoolVector<Vector2> uvs = poly->get_uv();
+								if (uvs.size() > 0){
+									Vector2 real_size = poly->_edit_get_rect().get_size();
+									PoolVector<Vector2>::Read uvr = uvs.read();
+									Vector2 uv_min = uvr[0];
+									Vector2 uv_max = uv_min;
+									for (int i = 0; i < poly->get_uv().size(); i++)
+									{
+										Vector2 uv = uvr[i];
+										uv_min.x = MIN(uv.x, uv_min.x);
+										uv_max.x = MAX(uv.x, uv_max.x);
+										uv_min.y = MIN(uv.y, uv_min.y);
+										uv_max.y = MAX(uv.y, uv_max.y);
+									}
+									Vector2 resizer = (uv_max - uv_min)*polygon_size/real_size;
+									PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+									PoolVector<Vector2> new_pool;
+									for (int i = 0; i < poly->get_polygon().size(); i++)
+										new_pool.append(polyr[i] * resizer);
+									poly->set_polygon(new_pool);
 								}
-								Vector2 resizer = (uv_max - uv_min)*target_size/real_size;
-								
-								count = poly->get_polygon().size();
-								PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
-								PoolVector<Vector2> new_pool;
-								for (int i = 0; i < count; i++)
-								{
-									new_pool.append(polyr[i]*resizer);
-								}
-								poly->set_polygon(new_pool);
 							}
 							offset = poly->get_offset();
 						}
 					}
 				}
-				if (node != nullptr){
+				if (node != nullptr && (updateble || need_create)){
 					if (p_options["update/layer_pos"] || need_create){
-						Vector2 local_pos = Vector2(layer->left * size / context->width, layer->top * size / context->width);
-						node->set_position(local_pos - parent_pos - offset);
+						if (mode==LAYER_POLYGON){
+							REDPolygon *poly = (REDPolygon*)node;
+							node->set_position(global_pos - parent_pos - offset - poly->get_psd_offset() + poly->get_psd_offset());
+						}
+						else{
+							node->set_position(global_pos - parent_pos - offset);
+						}
+					}
+					else if (p_options["update/layer_uv"]){
+						if (mode==LAYER_POLYGON){
+							REDPolygon *poly = (REDPolygon*)node;
+							MeshData data;
+							
+							Vector2 real_size = poly->_edit_get_rect().get_size();
+							
+							Vector2 old_psd_offset = poly->get_psd_uv_offset();
+
+							poly->set_position(poly->get_position() - poly->get_psd_applied_offset());
+							Vector2 psd_offset = global_pos - poly->get_position() - parent_pos - poly->get_offset();
+							poly->set_psd_uv_offset(psd_offset);
+
+
+							Vector2 old_psd_scale = poly->get_psd_uv_scale();
+							poly->set_psd_uv_scale(real_size/polygon_size);
+							
+							Vector2 psd_offset_uv = psd_offset/polygon_size;
+							Vector2 psd_scale_uv = real_size/polygon_size;
+							{
+								Vector<Vector2> uv_temp;
+								if (poly->get_uv().size() != poly->get_polygon().size() || !p_options["main/try_to_keep_uv"]){
+									PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+									for (int i = 0; i < poly->get_polygon().size(); i++)
+										uv_temp.push_back(polyr[i]/real_size);
+								}
+								else{
+									data.calc(poly, true, true);
+									PoolVector<Vector2>::Read uvr = poly->get_uv().read();
+									for (int i = 0; i < poly->get_uv().size(); i++)
+										uv_temp.push_back(uvr[i]/old_psd_scale+old_psd_offset/polygon_size);
+								}
+								PoolVector<Vector2> new_uv;
+								for (int i = 0; i < uv_temp.size(); i++)
+									new_uv.append(uv_temp[i] * psd_scale_uv - psd_offset_uv);
+								poly->set_uv(new_uv);
+							}
+							/*
+							{
+								PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+								PoolVector<Vector2> new_pool;
+								count = poly->get_polygon().size();
+								for (int i = 0; i < count; i++)
+									new_pool.append(polyr[i] - psd_offset);
+								poly->set_polygon(new_pool);
+							}
+							*/
+							poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset + poly->get_psd_offset());
+							poly->set_psd_applied_offset(poly->get_psd_offset());
+						}
 					}
 				}
 
@@ -703,6 +849,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				
 				red::create_dir(new_target_dir);
 				Materials new_materials;
+				bool new_force_save = false;
 
 				bool need_create = parent->has_node(folder_name) ? false : true;
 				bool external_frame_created = false;
@@ -727,7 +874,11 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						node_2d = (Node2D*)frame;
 					} break;
 					case FOLDER_FRAME_EXTERNAL:{
-						String scene_path = (new_target_dir + "/" + new_target_dir.get_file() + ".tscn");
+						String scene_path = (new_target_dir + ".tscn");
+
+						if (!file_сheck.file_exists(scene_path))
+							new_force_save = true;
+
 						red::scene_loader(scene_path);
 						if (need_create){
 							RES res = ResourceLoader::load(scene_path);
@@ -737,14 +888,23 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 							parent->add_child(instanced_scene);
 							instanced_scene->set_owner(parent->get_owner());
 						}
-						Ref<PackedScene> scene = ResourceLoader::load(scene_path, "PackedScene");
-						Node *root_node = scene->instance();
+
+						Node *root_node = nullptr;
+
+						if (b_update_only_editor){
+							root_node = get_edited_scene_root(scene_path);
+						}
+						if (root_node == nullptr){
+							Ref<PackedScene> scene = ResourceLoader::load(scene_path, "PackedScene");
+							root_node = scene->instance();
+						}
 						if (!root_node->has_node(folder_name)){
 							frame = red::create_node<REDFrame>(root_node, folder_name);
 							external_frame_created = true;
 						}
 						else
 							frame = (REDFrame*)root_node->get_node(folder_name);
+						
 						node_external = (Node*)frame;
 						clipper = (REDClipper*)frame;
 						node_2d = (Node2D*)parent->get_node(folder_name);
@@ -753,24 +913,21 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				}
 				Vector2 new_parent_pos = parent_pos;
 				if (node_2d != nullptr){
-					float size = p_options["resolution/width"];
-					float offset_x = layer_folder->layer_mask_info.left*size/context->width;
-					float offset_y = layer_folder->layer_mask_info.top*size/context->width;
+					float offset_x = layer_folder->layer_mask_info.left*resolution_width/context->width;
+					float offset_y = layer_folder->layer_mask_info.top*resolution_width/context->width;
 					Vector2 local_pos = Vector2(offset_x, offset_y);
-					if (p_options["update/folder_pos"] || need_create){
+					if ((updateble || need_create) && p_options["update/folder_pos"]){
 						node_2d->set_position(local_pos - parent_pos);
 					}
-					new_parent_pos+=local_pos;
+					new_parent_pos += local_pos;
 				}
-				if (mode == FOLDER_PAGE && (p_options["update/page_height"]|| need_create)){
-					float size = p_options["resolution/width"];
-					page->set_size(Size2(size, ((float)context->height)/context->width*size));
+				if ((updateble || need_create) && mode == FOLDER_PAGE && (p_options["update/page_height"])){
+					page->set_size(Size2(resolution_width, ((float)context->height)/context->width*resolution_width));
 				}
-
-				if (frame != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
+				
+				if ((need_create || updateble) && frame != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
 					if (p_options["update/folder_mask"] || external_frame_created || (need_create && mode == FOLDER_FRAME) && clipper!=nullptr){
-						float size = p_options["resolution/width"];
-						_mask_to_node(layer_folder, size, context->width, clipper, context);
+						_mask_to_node(layer_folder, resolution_width, context->width, clipper, context);
 					}
 					if (clipper != nullptr){
 						Rect2 rect = clipper->_edit_get_rect();
@@ -793,7 +950,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					node = (Node*) node_2d;
 				}
 				if (node != nullptr)
-					offset += load_folder(context, new_target_dir, final_iter+1, new_materials, node, new_parent_pos, p_options, counter+1, new_folder_level, clipper);
+					offset += load_folder(context, new_target_dir, final_iter+1, new_materials, node, new_parent_pos, p_options, new_force_save, counter+1, new_folder_level, clipper);
 				else
 					ERR_PRINTS("Error can't create node " + folder_name);
 			} break;
@@ -801,20 +958,21 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				break;
 		}
 	}
-
-	int mode = (folder_level==0) ? p_options["types/root"] : (folder_level==1) ? p_options["types/folder"] : FOLDER_NODE2D;
-	if(folder_level == -1 || (mode == FOLDER_FRAME_EXTERNAL)){
-		String scene_path = target_dir + "/" + target_dir.get_file() + ".tscn";
-		Ref<PackedScene> scene = memnew(PackedScene);
-		Node *owner = parent->get_owner();
-		if (!owner){
-			owner = parent;
-		}
-		Error err = scene->pack(owner);
-		if (err==OK){
-			err = ResourceSaver::save(scene_path, scene);
-			if (err==OK)
-				EditorNode::get_singleton()->reload_scene(scene_path);
+	if (saveble){
+		int mode = (folder_level==0) ? p_options["types/root"] : (folder_level==1) ? p_options["types/folder"] : FOLDER_NODE2D;
+		if(folder_level == -1 || (mode == FOLDER_FRAME_EXTERNAL)){
+			String scene_path = target_dir + ".tscn";
+			Ref<PackedScene> scene = memnew(PackedScene);
+			Node *owner = parent->get_owner();
+			if (!owner){
+				owner = parent;
+			}
+			Error err = scene->pack(owner);
+			if (err==OK){
+				err = ResourceSaver::save(scene_path, scene);
+				if (err==OK)
+					EditorNode::get_singleton()->reload_scene(scene_path);
+			}
 		}
 	}
 	return count + offset;
@@ -838,23 +996,17 @@ Error ResourceImporterPSD::import(const String &p_source_file, const String &p_s
 		return ERR_FILE_CANT_READ;
 	}
 
-	Node *parent = _get_root(context, target_dir);
+	bool force_save = true;
+	Node *parent = _get_root(context, target_dir, force_save, p_options);
+	if (parent == nullptr){
+		return OK;
+	}
 	Materials mats;
 
 	mats.init(p_options, parent);
 
-	load_folder(context, target_dir, 0, mats, parent, Vector2(0,0), p_options, 0);
+	load_folder(context, target_dir, 0, mats, parent, Vector2(0,0), p_options, force_save, 0);
 	psd_image_free(context);
-
-
-
-	//add_control_to_container(CustomControlContainer p_location, Control *p_control)
-
-	//HBoxContainer *menu_hb = EditorNode::get_menu_hb();
-	//MenuButton *file = (MenuButton *)(menu_hb->get_child(1)->get_child(0));
-	//print_line(file->get_text());
-	//PopupMenu *file_popup = file->get_popup();
-	//file_popup->add_item("ddddddddd");
 	return OK;
 }
 

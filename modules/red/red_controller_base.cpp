@@ -227,6 +227,9 @@ bool REDControllerBase::to_prev_page() {
 }
 
 bool REDControllerBase::to_next_page() {
+	if (!issue){
+		return false;
+	}
 	int new_id = issue->get_id() + 1;
 	if (new_id >= 0 && new_id < issue->get_pages_count()){
 		set_page(new_id);
@@ -257,6 +260,9 @@ bool REDControllerBase::to_prev_frame() {
 }
 
 bool REDControllerBase::to_next_frame() {
+	if (!page){
+		return false;
+	}
 	int new_id = page->get_id() + 1;
 	if (new_id >= 0 && new_id < page->get_frames_count()){
 		set_frame(new_id, true);
