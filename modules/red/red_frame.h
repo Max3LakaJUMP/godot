@@ -10,14 +10,17 @@ class AnimationPlayer;
 class REDFrame : public REDClipper {
 	GDCLASS(REDFrame, REDClipper);
 	Vector2 camera_pos;
+	Vector2 camera_pos_zoom_out;
 	Vector2 camera_zoom;
 
 public:
 	void set_camera_pos(const Vector2 &p_camera_pos);
 	Vector2 get_camera_pos() const;
-
+	void  set_camera_pos_zoom_out(const Vector2 &p_camera_pos_zoom_out);
+	Vector2  get_camera_pos_zoom_out() const;
 	void set_camera_zoom(const Vector2 &p_camera_zoom);
 	Vector2 get_camera_zoom() const;
+
 
 //line
 public:

@@ -81,6 +81,12 @@ class ResourceImporterPSD : public ResourceImporter {
 	GDCLASS(ResourceImporterPSD, ResourceImporter);
 
 public:
+	enum TextureScale {
+		ORIGINAL,
+		DOWNSCALE,
+		UPSCALE,
+		CLOSEST,
+	};
 	enum LayerType {
 		LAYER_POLYGON2D,
 		LAYER_POLYGON,
@@ -109,7 +115,7 @@ public:
 	
 	Vector<Vector2> load_polygon_from_mask(_psd_layer_record *layer, float target_width, int psd_width);
 	void simplify_polygon(Vector<Vector2> &p_polygon, float min_dot);
-	void save_png(_psd_layer_record *layer, String png_path);
+	void save_png(_psd_layer_record *layer, String png_path, int texture_max_size=2048, int texture_scale=0);
 	void create_polygon(_psd_layer_record *layer, Ref<ShaderMaterial> material, Vector2 polygon_size, String png_path, Node2D *parent);
 
 	int load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 

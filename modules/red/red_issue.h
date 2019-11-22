@@ -1,15 +1,15 @@
 #ifndef RED_ISSUE_H
 #define RED_ISSUE_H
 
-#include "red_folder.h"
+#include "red_element.h"
 #include "scene/resources/packed_scene.h"
 #include "core/object.h"
 
 class RED;
 class REDPage;
 
-class REDIssue : public REDFolder {
-	GDCLASS(REDIssue, REDFolder);
+class REDIssue : public REDElement {
+	GDCLASS(REDIssue, REDElement);
 	Vector<Ref<PackedScene> > page_scenes;
     Vector<REDPage*> pages;
     Vector<bool> instanced_list;
@@ -19,6 +19,10 @@ class REDIssue : public REDFolder {
 	int id;
     int instance_count;
     Vector2 pages_margin;
+
+    bool invert_pages;
+    bool autostart;
+
     void resize_instanced_list(int p_size);
 
 protected:
@@ -26,6 +30,11 @@ protected:
 	static void _bind_methods();
 
 public:
+	void set_invert_pages(const bool p_invert_pages);
+	bool get_invert_pages() const;
+	void set_autostart(const bool p_autostart);
+	bool get_autostart() const;
+
     void run();
     Vector2 get_pages_margin() const;
     void set_pages_margin(const Vector2 &p_pages_margin);

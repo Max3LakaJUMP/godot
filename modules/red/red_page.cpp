@@ -15,6 +15,7 @@
 #include "scene/animation/animation_tree.h"
 #include "core/engine.h"
 #include "scene/scene_string_names.h"
+#include "red_controller_base.h"
 /*
 void REDPage::set_start_frame_path(const NodePath &n) {
 if (start_frame_path == n)
@@ -116,16 +117,40 @@ void REDPage::update_camera() const {
         cam->set_position(new_pos);
     }
 }
+
+*/
 void REDPage::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY: {
-            break;
+            Node *issue = get_node(NodePath("../../"));
+            bool single_run = false;
+            if (issue){
+                if (!issue->is_class("REDIssue")){
+                    single_run = true;
+                }
+            }else{
+                single_run = true;
+            }
+            if (single_run){
+                REDControllerBase *controller = red::get_controller(this);
+                if (controller != nullptr){
+                    if (controller->get_issue()==nullptr){
+                        controller->set_page(this);
+                    }
+                }
+            }
 		} 
 	}
 }
-*/
 
-
+void REDPage::run() {
+    if (!Engine::get_singleton()->is_editor_hint()) {
+        REDControllerBase *controller = red::get_controller(this);
+        if (controller != nullptr){
+            controller->set_page(this);
+        }
+    }
+}
 
 void REDPage::pause_frames() {
     if (is_inside_tree()){
@@ -156,6 +181,8 @@ void REDPage::update_camera_zoom(const Vector2 &p_zoom) {
 
 
 void REDPage::_bind_methods() {
+
+
     ClassDB::bind_method(D_METHOD("set_frame", "id", "is_prev"), &REDPage::set_frame);
     ClassDB::bind_method(D_METHOD("get_frame", "id"), &REDPage::get_frame);
     ClassDB::bind_method(D_METHOD("set_frames", "frames"), &REDPage::set_frames);
@@ -165,6 +192,9 @@ void REDPage::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_id"), &REDPage::get_id);
     ClassDB::bind_method(D_METHOD("set_size", "size"), &REDPage::set_size);
     ClassDB::bind_method(D_METHOD("get_size"), &REDPage::get_size);
+
+	ClassDB::bind_method(D_METHOD("update_camera_zoom"), &REDPage::update_camera_zoom);
+
     //BIND_VMETHOD(MethodInfo("_frame_changed"));
 
     ADD_GROUP("Main", "");

@@ -20,14 +20,34 @@
 #include "scene/animation/animation_tree.h"
 #include "scene/scene_string_names.h"
 
+
 void  REDFrame::set_camera_pos(const Vector2 &p_camera_pos){
 	camera_pos = p_camera_pos;
 
-	emit_signal("update_camera_pos", p_camera_pos);
+	emit_signal("update_camera_pos");
 };
 
 Vector2  REDFrame::get_camera_pos() const{
 	return camera_pos;
+};
+
+void REDFrame::set_camera_zoom(const Vector2 &p_camera_zoom){
+	if (camera_zoom != p_camera_zoom){
+		camera_zoom = p_camera_zoom;
+		emit_signal("update_camera_zoom");
+	}
+};
+
+Vector2  REDFrame::get_camera_zoom() const{
+	return camera_zoom;
+};
+
+void  REDFrame::set_camera_pos_zoom_out(const Vector2 &p_camera_pos_zoom_out){
+	camera_pos_zoom_out = p_camera_pos_zoom_out;
+};
+
+Vector2  REDFrame::get_camera_pos_zoom_out() const{
+	return camera_pos_zoom_out;
 };
 
 void REDFrame::update_camera_zoom_and_child(const Vector2 &p_camera_zoom){
@@ -42,19 +62,6 @@ void REDFrame::update_camera_zoom_and_child(const Vector2 &p_camera_zoom){
 	}
 };
 
-void REDFrame::set_camera_zoom(const Vector2 &p_camera_zoom){
-	if (camera_zoom != p_camera_zoom){
-		camera_zoom = p_camera_zoom;
-		emit_signal("update_camera_zoom", camera_zoom);
-		//if (use_outline)
-		//	update();
-			//_draw_outline();
-	}
-};
-
-Vector2  REDFrame::get_camera_zoom() const{
-	return camera_zoom;
-};
 
 void REDFrame::animation_changed(StringName old_name, StringName new_name){
 	if (reinit_tree){
@@ -62,7 +69,6 @@ void REDFrame::animation_changed(StringName old_name, StringName new_name){
 		if (playback.is_valid() && playback->is_playing()){
 			reinit_tree = false;
 			playback->start(end_state);
-			print_line("REVERSEDERRROR");
 			playback->disconnect("animation_changed", this, "animation_changed");
 			if (get_script_instance() != NULL) {
 				if (get_script_instance()->has_method("_ended"))
@@ -123,7 +129,6 @@ void REDFrame::_starting(){
 	b_ended = false;
 	b_active = true;
 	travel();
-	print_line("ACTIVATE");
 	if (!anim_tree.is_empty()){
 		//AnimationTree *at = Object::cast_to<AnimationTree>(get_node(get_anim_tree()));
 		//Ref<AnimationNodeStateMachine> machine = at->get_tree_root();
@@ -229,8 +234,12 @@ void REDFrame::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_camera_pos", "camera_pos"), &REDFrame::set_camera_pos);
 	ClassDB::bind_method(D_METHOD("get_camera_pos"), &REDFrame::get_camera_pos);
 
+	ClassDB::bind_method(D_METHOD("set_camera_pos_zoom_out", "camera_pos_zoom_out"), &REDFrame::set_camera_pos_zoom_out);
+	ClassDB::bind_method(D_METHOD("get_camera_pos_zoom_out"), &REDFrame::get_camera_pos_zoom_out);
+	
 	ADD_GROUP("Frame", "");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "camera_pos"), "set_camera_pos", "get_camera_pos");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "camera_pos_zoom_out"), "set_camera_pos_zoom_out", "get_camera_pos_zoom_out");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "camera_zoom"), "set_camera_zoom", "get_camera_zoom");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "id"), "set_id", "get_id");
 	
@@ -430,6 +439,7 @@ NodePath REDFrame::get_anim_tree() const {
 
 REDFrame::REDFrame() {
 	camera_pos = Vector2(0.f, 0.f);
+	camera_pos_zoom_out = Vector2(0.f, 0.f);
 	camera_zoom = Vector2(1.f, 1.f);
     
 	b_pre_starting = true;

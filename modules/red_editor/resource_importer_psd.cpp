@@ -111,10 +111,12 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_pos"), false));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_uv"), true));
 
-
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/root", PROPERTY_HINT_ENUM, "Node2D, Page"), 1));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/folder", PROPERTY_HINT_ENUM, "Node2D, Page, Frame, Frame external"), 3));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/layer", PROPERTY_HINT_ENUM, "Polygon2D, REDPolygon"), 1));
+
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "texture/max_size"), 4096));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "texture/scale", PROPERTY_HINT_ENUM, "Original, Downscale, Upscale, Closest"), 1));
 	
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/outline_shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/outline_shader.shader")));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/shader.shader")));
@@ -134,8 +136,6 @@ Vector<Vector2> ResourceImporterPSD::load_polygon_from_mask(_psd_layer_record *l
 
 	int len = layer->layer_mask_info.width*layer->layer_mask_info.height;
 	if ((layer->layer_mask_info.width)<2 || (layer->layer_mask_info.height)<2){
-		print_line("wow");
-		print_line(std::to_string(layer->layer_mask_info.bottom).c_str());
 		Vector<Vector2> output;
 		return output;
 	}
@@ -216,33 +216,52 @@ void ResourceImporterPSD::simplify_polygon(Vector<Vector2> &p_polygon, float min
 	p_polygon = polygon_dist;
 }
 
-void ResourceImporterPSD::save_png(_psd_layer_record *layer, String png_path){
-	int len = layer->width * layer->height;
-	
-	PoolVector<uint8_t> data;
-	data.resize(len*4);
-	PoolVector<uint8_t>::Write w = data.write();
-	int j = 0;
-	for (int i = 0; i < len; i++) {
-		unsigned int pixel = layer->image_data[i];
-		w[j] = (uint8_t) ((pixel & 0x00FF0000) >> 16);
-		w[j+1] = (uint8_t) ((pixel & 0x0000FF00) >> 8);
-		w[j+2] = (uint8_t) ((pixel & 0x000000FF));
-		w[j+3] = (uint8_t) ((pixel & 0xFF000000) >> 24);
-		j+=4;
-	}
+void ResourceImporterPSD::save_png(_psd_layer_record *layer, String png_path, int texture_max_size, int texture_scale){
 	Ref<Image> img;
-	img.instance();
-	img->create(layer->width, layer->height, false, Image::FORMAT_RGBA8, data);
+	{
+		int len = layer->width * layer->height;
+		PoolVector<uint8_t> data;
+		data.resize(len*4);
+		PoolVector<uint8_t>::Write w = data.write();
+		int j = 0;
+		for (int i = 0; i < len; i++) {
+			unsigned int pixel = layer->image_data[i];
+			w[j] = (uint8_t) ((pixel & 0x00FF0000) >> 16);
+			w[j+1] = (uint8_t) ((pixel & 0x0000FF00) >> 8);
+			w[j+2] = (uint8_t) ((pixel & 0x000000FF));
+			w[j+3] = (uint8_t) ((pixel & 0xFF000000) >> 24);
+			j+=4;
+		}
 
-	int new_width = previous_power_of_2(layer->width);
-	int new_height = previous_power_of_2(layer->height);
+		img.instance();
+		img->create(layer->width, layer->height, false, Image::FORMAT_RGBA8, data);
+	}
 
-	if (new_width != img->get_width() || new_height != img->get_height())
-		img->resize(new_width, new_height,Image::INTERPOLATE_CUBIC);
-
+	if (texture_scale != ORIGINAL)
+	{
+		int new_width = img->get_width();
+		int new_height = img->get_height();
+		if (texture_scale == DOWNSCALE)
+		{
+			new_width = previous_power_of_2(layer->width);
+			new_height = previous_power_of_2(layer->height);
+		}else if (texture_scale == UPSCALE){
+			new_width = next_power_of_2(layer->width);
+			new_height = next_power_of_2(layer->height);
+		}else if (texture_scale == CLOSEST){
+			new_width = closest_power_of_2(layer->width);
+			new_height = closest_power_of_2(layer->height);
+		}
+		if (new_width > texture_max_size){
+			new_width = texture_max_size;
+		}
+		if (new_height > texture_max_size){
+			new_height = texture_max_size;
+		}
+		if (new_width != img->get_width() || new_height != img->get_height())
+			img->resize(new_width, new_height, Image::INTERPOLATE_CUBIC);
+	}
 	img->save_png(png_path);
-
 	if (ResourceLoader::import){
 		ResourceLoader::import(png_path);
 	}
@@ -512,11 +531,13 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 
 						Vector<Ref<ShaderMaterial> > mats = clipper->get_cached_materials();
 						int mat_objs_old_size = mat_objs.size();
-						for (int i = 0; i < clipper->get_child_count(); i++)
+						Vector<Node*> all_children;
+						red::get_all_children(clipper, all_children);
+						for (int i = 0; i < all_children.size(); i++)
 						{
-							if (!clipper->get_child(i)->is_class("CanvasItem"))
+							if (!all_children[i]->is_class("CanvasItem"))
 								continue;
-							CanvasItem *c = (CanvasItem*)clipper->get_child(i);
+							CanvasItem *c = (CanvasItem*)all_children[i];
 							if (c!=nullptr){
 								Ref<ShaderMaterial> mat = Ref<ShaderMaterial>(c->get_material());
 								if (mat.is_valid()){
@@ -530,7 +551,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 									}
 									if (!found){
 										mats.push_back(mat);
-										mat_objs.push_back(NodePath(c->get_name()));
+										mat_objs.push_back(clipper->get_path_to(c));
 									}
 								}
 							}
@@ -563,6 +584,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				if (len==0) 
 
 					continue;
+				red::create_dir( target_dir + "/textures");
 				String png_path = target_dir + "/textures/"+ name +".png";
 				
 				Vector2 texture_resize(1, 1);
@@ -574,9 +596,9 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				}
 
 				if (!file_сheck.file_exists(png_path))
-					save_png(layer, png_path);
+					save_png(layer, png_path, p_options["texture/max_size"], p_options["texture/scale"]);
 				else if (p_options["update/texture"] && updateble){
-					save_png(layer, png_path);
+					save_png(layer, png_path, p_options["texture/max_size"], p_options["texture/scale"]);
 				}
 				
 				if (old_texture_size.x != 0){
@@ -765,11 +787,11 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 							poly->set_position(poly->get_position() - poly->get_psd_applied_offset());
 							Vector2 psd_offset = global_pos - poly->get_position() - parent_pos - poly->get_offset();
 							poly->set_psd_uv_offset(psd_offset);
-
+							poly->_change_notify("psd_uv_offset");
 
 							Vector2 old_psd_scale = poly->get_psd_uv_scale();
 							poly->set_psd_uv_scale(real_size/polygon_size);
-							
+							poly->_change_notify("psd_uv_scale");
 							Vector2 psd_offset_uv = psd_offset/polygon_size;
 							Vector2 psd_scale_uv = real_size/polygon_size;
 							{
@@ -802,6 +824,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 							*/
 							poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset + poly->get_psd_offset());
 							poly->set_psd_applied_offset(poly->get_psd_offset());
+							poly->_change_notify("psd_applied_offset");
 						}
 					}
 				}
@@ -837,15 +860,23 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					}
 				}
 				String folder_name = reinterpret_cast<char const*>(layer_folder->layer_name);
-				if (folder_name==""){
+				int mode = (new_folder_level==0) ? p_options["types/root"] : (new_folder_level==1) ? p_options["types/folder"] : FOLDER_NODE2D;
+				if (folder_name == ""){
 					folder_name = "root";
 				}
-				int mode = (new_folder_level==0) ? p_options["types/root"] : (new_folder_level==1) ? p_options["types/folder"] : FOLDER_NODE2D;
+				else{
+					if (mode == FOLDER_FRAME_EXTERNAL && folder_name.find("_internal") != -1)
+					{
+						mode = FOLDER_FRAME;
+						folder_name = folder_name.replace_first("_internal", "");
+					}
+				}
 				String new_target_dir = target_dir;
-				if (mode != FOLDER_PAGE)
+				if (mode == FOLDER_FRAME_EXTERNAL)
 				{
 					new_target_dir += "/" + folder_name;	
 				}
+
 				
 				red::create_dir(new_target_dir);
 				Materials new_materials;
@@ -931,7 +962,8 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					}
 					if (clipper != nullptr){
 						Rect2 rect = clipper->_edit_get_rect();
-						frame->set_camera_pos(rect.size*0.5+ rect.position);
+						frame->set_camera_pos(rect.size * 0.5 + rect.position);
+						frame->set_camera_pos_zoom_out(rect.size * 0.5 + rect.position);
 					}
 					new_frame = frame;
 					new_materials.init(p_options, frame);

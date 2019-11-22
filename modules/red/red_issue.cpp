@@ -3,7 +3,7 @@
 #include "red_engine.h"
 #include "red_frame.h"
 #include "red_page.h"
-#include "red_controller.h"
+#include "red_controller_base.h"
 
 #include "core/engine.h"
 #include "core/class_db.h"
@@ -11,6 +11,24 @@
 #include "core/string_name.h"
 #include <string>
 #include "scene/animation/animation_node_state_machine.h"
+
+void REDIssue::set_invert_pages(bool p_invert_pages) {
+	invert_pages = p_invert_pages;
+    page_scenes.invert();
+    _change_notify("page_scenes");
+}
+
+bool REDIssue::get_invert_pages() const {
+	return invert_pages;
+}
+
+void REDIssue::set_autostart(bool p_autostart) {
+	autostart = p_autostart;
+}
+
+bool REDIssue::get_autostart() const {
+	return autostart;
+}
 
 
 
@@ -71,7 +89,8 @@ Ref<PackedScene> REDIssue::get_page_scene (int p_id){
 void REDIssue::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY: {
-            run();
+            if(autostart)
+                run();
 		} break;
 	}
 }
@@ -167,6 +186,7 @@ void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_zoom) {
             }
 	    }
 	}
+
     page->update_camera_zoom(p_zoom);
     page->pause_frames();
     
@@ -206,11 +226,11 @@ void REDIssue::unload_pages() {
 }
 
 void REDIssue::update_camera_pos() const {
-	RED *r = red::get_red(this);
-	if (r->get_camera_mode()) {
+	//RED *r = red::get_red(this);
+	//if (r->get_camera_mode()) {
 		//Object::cast_to<Node2D>(get_node(r->get_camera()))->
 		//        set_position(get_node(get_current())->get_global_transform().xform(Vector2(0, 0)));
-	}
+	//}
 }
 
 void REDIssue::to_prev() {
@@ -254,6 +274,11 @@ void REDIssue::to_next() {
 }
 
 void REDIssue::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("set_invert_pages", "invert_pages"), &REDIssue::set_invert_pages);
+    ClassDB::bind_method(D_METHOD("get_invert_pages"), &REDIssue::get_invert_pages);
+    ClassDB::bind_method(D_METHOD("set_autostart", "autostart"), &REDIssue::set_autostart);
+    ClassDB::bind_method(D_METHOD("get_autostart"), &REDIssue::get_autostart);
+
     ClassDB::bind_method(D_METHOD("set_pages_margin", "pages_margin"), &REDIssue::set_pages_margin);
     ClassDB::bind_method(D_METHOD("get_pages_margin"), &REDIssue::get_pages_margin);
 
@@ -280,9 +305,11 @@ void REDIssue::_bind_methods() {
 
     ADD_GROUP("Main", "");
     ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "page_scenes", PROPERTY_HINT_RESOURCE_TYPE, "PackedScene"), "set_page_scenes", "get_page_scenes");
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "invert_pages"), "set_invert_pages", "get_invert_pages");
     ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "pages_pos"), "set_pages_pos", "get_pages_pos");
     ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "pages_margin"), "set_pages_margin", "get_pages_margin");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "instance_count"), "set_instance_count", "get_instance_count");
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "autostart"), "set_autostart", "get_autostart");
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "id"), "set_id", "get_id");
 }
@@ -355,4 +382,7 @@ void REDIssue::set_pages_margin(const Vector2 &p_pages_margin){
 REDIssue::REDIssue() {
     id = 0;
     instance_count = 1;
+
+    invert_pages = false;
+    autostart = true;
 }

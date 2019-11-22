@@ -32,12 +32,13 @@ class REDPage : public REDElement {
     } meta;
 
 protected:
-	//void _notification(int p_what);
+	void _notification(int p_what);
 	static void _bind_methods();
 
 public:
     void pause_frames();
     void update_camera_zoom(const Vector2 &p_zoom);
+    void run();
 
     int get_frames_count();
     void set_frame(int p_id, bool force_inactive=true, bool ended=true);
@@ -49,7 +50,7 @@ public:
 
     void set_size(const Size2 &p_size);
     Size2 get_size() const;
-	
+
     REDPage();
 
 };

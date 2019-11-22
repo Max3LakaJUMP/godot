@@ -33,6 +33,7 @@ class REDControllerBase : public Node {
 	Vector2 camera_zoom_min;
 	Vector2 camera_zoom_max;
 	Vector2 camera_pos;
+	bool b_camera_can_update;
 
 protected:
 	static void _bind_methods();
@@ -42,7 +43,7 @@ public:
 	void frame_start(StringName old_name, StringName new_name);
 	void frame_end(StringName old_name, StringName new_name);
 	void update_camera();
-	void update_camera_pos() const;
+	void update_camera_pos();
 	void update_camera_zoom();
 	//void unload_page(REDPage *page) const;
 	//REDPage *load_page(const int &i, bool is_prev=false, int state=0);
@@ -58,11 +59,13 @@ public:
 
 	void to_next();
 	void to_prev();
-	void zoom_in();
-	void zoom_out();
+	void zoom_in(const float &p_val=0.25f);
+	void zoom_out(const float &p_val=0.25f);
 	void set_issue(REDIssue *p_issue);
 	void set_issue_by_path(const NodePath &p_issue_path);
 	REDIssue *get_issue() const;
+
+	void set_page(REDPage *p_page);
 	void set_page(int p_id, bool is_prev=false);
 	REDPage *get_page() const;
 	void set_frame(int p_id, bool ended=true);
