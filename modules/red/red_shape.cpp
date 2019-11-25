@@ -171,8 +171,8 @@ int REDShape::get_round_precision() const {
 	return round_precision;
 }
 
-void REDShape::update_camera_zoom(Vector2 p_zoom) {
-	camera_zoom = p_zoom;
+void REDShape::update_camera_zoom(Vector2 p_camera_zoom) {
+	camera_zoom = p_camera_zoom;
 	if (use_outline)
 		update();
 		//_draw_outline();

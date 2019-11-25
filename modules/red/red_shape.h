@@ -85,7 +85,8 @@ public:
 	void set_camera_zoom(const Vector2 &p_camera_zoom);
 	Vector2 get_camera_zoom() const;
 
-	void update_camera_zoom(const Vector2 p_zoom_width=Vector2(1.0, 1.0));
+	void update_camera_pos(const Vector2 p_camera_pos=Vector2(0.0, 0.0));
+	void update_camera_zoom(const Vector2 p_camera_zoom=Vector2(1.0, 1.0));
 
 	void set_width(float width);
 	float get_width() const;

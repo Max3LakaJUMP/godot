@@ -166,14 +166,19 @@ void REDPage::pause_frames() {
     }
 }
 
-void REDPage::update_camera_zoom(const Vector2 &p_zoom) {
+
+void REDPage::update_camera_pos(const Vector2 &p_camera_pos) {
+
+}
+
+void REDPage::update_camera_zoom(const Vector2 &p_camera_zoom) {
     if (is_inside_tree()){
         int count = frames.size();
         for (int i = 0; i < count; i++)
         {
             REDFrame *child_frame = get_frame(i);
             if (child_frame != nullptr)
-                child_frame->update_camera_zoom_and_child(p_zoom);
+                child_frame->update_camera_zoom_and_child(p_camera_zoom);
         }
     }
 }

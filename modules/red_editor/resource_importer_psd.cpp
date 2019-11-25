@@ -59,7 +59,7 @@
 #include "modules/red/red_clipper.h"
 #include "modules/red/red_polygon.h"
 #include "modules/red/red_engine.h"
-
+#include "modules/red/red_parallax_folder.h"
 String ResourceImporterPSD::get_importer_name() const {
 
 	return "psd_frame";
@@ -112,7 +112,8 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_uv"), true));
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/root", PROPERTY_HINT_ENUM, "Node2D, Page"), 1));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/folder", PROPERTY_HINT_ENUM, "Node2D, Page, Frame, Frame external"), 3));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/second_level", PROPERTY_HINT_ENUM, "Node2D, Page, Frame, Frame external, Parallax"), 3));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/folder", PROPERTY_HINT_ENUM, "Node2D, Page, Frame, Frame external, Parallax"), 4));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/layer", PROPERTY_HINT_ENUM, "Polygon2D, REDPolygon"), 1));
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "texture/max_size"), 4096));
@@ -524,8 +525,14 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				if (counter > 0){
 					loop = false;
 					REDClipper* clipper = (REDClipper*)parent_clipper;
-
-					int mode = (folder_level==0) ? p_options["types/root"] : (folder_level==1) ? p_options["types/folder"] : FOLDER_NODE2D;
+					
+					int mode = 0;
+					if(folder_level==0)
+						mode = p_options["types/root"];
+					else if (folder_level==1)
+						mode = p_options["types/second_level"];
+					else if (folder_level>1)
+						mode = p_options["types/folder"];
 					if (clipper != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
 						Vector<NodePath> mat_objs = red::vector<NodePath>(clipper->get_material_objects());
 
@@ -860,7 +867,13 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					}
 				}
 				String folder_name = reinterpret_cast<char const*>(layer_folder->layer_name);
-				int mode = (new_folder_level==0) ? p_options["types/root"] : (new_folder_level==1) ? p_options["types/folder"] : FOLDER_NODE2D;
+				int mode = 0;
+				if(new_folder_level==0)
+					mode = p_options["types/root"];
+				else if (new_folder_level==1)
+					mode = p_options["types/second_level"];
+				else
+					mode = p_options["types/folder"];
 				if (folder_name == ""){
 					folder_name = "root";
 				}
@@ -894,7 +907,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						node_2d = (Node2D*)page;
 
 					} break;
-					default:
+
 					case FOLDER_FRAME:{
 						frame = need_create ? red::create_node<REDFrame>(parent, folder_name) : (REDFrame*)parent->get_node(NodePath(folder_name));
 						
@@ -941,11 +954,15 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						node_2d = (Node2D*)parent->get_node(folder_name);
 
 					} break;
+					default:
+					case FOLDER_PARALLAX:{
+						node_2d = need_create ? (Node2D*)red::create_node<REDParallaxFolder>(parent, folder_name) : (Node2D*)parent->get_node(folder_name);
+					} break;
 				}
 				Vector2 new_parent_pos = parent_pos;
 				if (node_2d != nullptr){
-					float offset_x = layer_folder->layer_mask_info.left*resolution_width/context->width;
-					float offset_y = layer_folder->layer_mask_info.top*resolution_width/context->width;
+					float offset_x = layer_folder->layer_mask_info.left * resolution_width / context->width;
+					float offset_y = layer_folder->layer_mask_info.top * resolution_width / context->width;
 					Vector2 local_pos = Vector2(offset_x, offset_y);
 					if ((updateble || need_create) && p_options["update/folder_pos"]){
 						node_2d->set_position(local_pos - parent_pos);
@@ -953,7 +970,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					new_parent_pos += local_pos;
 				}
 				if ((updateble || need_create) && mode == FOLDER_PAGE && (p_options["update/page_height"])){
-					page->set_size(Size2(resolution_width, ((float)context->height)/context->width*resolution_width));
+					page->set_size(Size2(resolution_width, ((float)context->height) / context->width*resolution_width));
 				}
 				
 				if ((need_create || updateble) && frame != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
@@ -963,7 +980,13 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					if (clipper != nullptr){
 						Rect2 rect = clipper->_edit_get_rect();
 						frame->set_camera_pos(rect.size * 0.5 + rect.position);
+						frame->set_camera_pos_zoom_in(rect.size * 0.5 + rect.position);
 						frame->set_camera_pos_zoom_out(rect.size * 0.5 + rect.position);
+
+						frame->set_parallax_pos(rect.size * 0.5 + rect.position);
+						frame->set_parallax_pos_zoom_in(rect.size * 0.5 + rect.position);
+						frame->set_parallax_pos_zoom_out(rect.size * 0.5 + rect.position);
+
 					}
 					new_frame = frame;
 					new_materials.init(p_options, frame);

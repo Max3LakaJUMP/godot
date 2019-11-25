@@ -37,7 +37,8 @@ protected:
 
 public:
     void pause_frames();
-    void update_camera_zoom(const Vector2 &p_zoom);
+    void update_camera_pos(const Vector2 &p_camera_pos);
+    void update_camera_zoom(const Vector2 &p_camera_zoom);
     void run();
 
     int get_frames_count();

@@ -51,7 +51,8 @@ public:
 
     int get_pages_count();
     int get_page_scenes_count();
-    void update_camera_zoom(const Vector2 &p_zoom=Vector2(1.0, 1.0));
+	void update_camera_pos(const Vector2 &p_camera_pos=Vector2(0.0, 0.0)) const;
+    void update_camera_zoom(const Vector2 &p_camera_zoom=Vector2(1.0, 1.0));
     void set_pages(const Array &pages_new);
     Array get_pages() const;
     void set_pages_pos(const Array &y);
@@ -63,7 +64,7 @@ public:
 	void load_pages();
 	void unload_pages();
 
-	void update_camera_pos() const;
+
 	void to_prev();
 	void to_next();
 

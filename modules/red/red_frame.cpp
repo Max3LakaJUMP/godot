@@ -9,6 +9,7 @@
 #include "red.h"
 #include "red_issue.h"
 #include "red_shape.h"
+#include "red_polygon.h"
 
 #include "core/math/geometry.h"
 #include "red_line.h"
@@ -19,18 +20,105 @@
 #include <string>
 #include "scene/animation/animation_tree.h"
 #include "scene/scene_string_names.h"
+#include "red_parallax_folder.h"
 
-
-void  REDFrame::set_camera_pos(const Vector2 &p_camera_pos){
+// Cam pos
+void REDFrame::set_camera_pos(const Vector2 &p_camera_pos){
 	camera_pos = p_camera_pos;
 
 	emit_signal("update_camera_pos");
 };
 
-Vector2  REDFrame::get_camera_pos() const{
+Vector2 REDFrame::get_camera_pos() const{
 	return camera_pos;
 };
 
+void REDFrame::set_camera_pos_zoom_in(const Vector2 &p_camera_pos_zoom_in){
+	camera_pos_zoom_in = p_camera_pos_zoom_in;
+};
+
+Vector2 REDFrame::get_camera_pos_zoom_in() const{
+	return camera_pos_zoom_in;
+};
+
+void REDFrame::set_camera_pos_zoom_out(const Vector2 &p_camera_pos_zoom_out){
+	camera_pos_zoom_out = p_camera_pos_zoom_out;
+};
+
+Vector2 REDFrame::get_camera_pos_zoom_out() const{
+	return camera_pos_zoom_out;
+};
+
+// Parallax
+void REDFrame::set_parallax(const Vector2 &p_parallax){
+	int count = get_child_count();
+	for (int i = 0; i < count; i++)
+	{
+		//Node *child_node = get_child(i);
+		//if (child_node->is_class("Node2D")){
+			//REDPolygon *child_poly = (REDPolygon*)child_node;
+			//child_poly->set_position(child_poly->get_position() - parallax + p_parallax);
+		//}
+
+		REDParallaxFolder *folder = Object::cast_to<REDParallaxFolder>(get_child(i));
+		if (!folder)
+			continue;
+
+		//if (ignore_camera_zoom)
+			folder->set_base_offset_and_scale(p_parallax, get_scroll_scale(), Point2(0, 0));
+		//else
+		//	l->set_base_offset_and_scale(ofs, scale, screen_offset);
+
+	}
+	parallax = p_parallax;
+	//emit_signal("parallax_changed");
+};
+
+Vector2 REDFrame::get_parallax() const{
+	return parallax;
+};
+
+float REDFrame::get_scroll_scale() const{
+	return 1.0;
+};
+
+void REDFrame::set_parallax_pos_current(const Vector2 &p_parallax_pos){
+	parallax_pos_current = p_parallax_pos;
+	emit_signal("parallax_pos_changed");
+};
+
+Vector2 REDFrame::get_parallax_pos_current() const{
+	return parallax_pos_current;
+};
+
+void REDFrame::set_parallax_pos(const Vector2 &p_parallax_pos){
+	parallax_pos = p_parallax_pos;
+
+	emit_signal("parallax_pos_changed");
+};
+
+Vector2 REDFrame::get_parallax_pos() const{
+	return parallax_pos;
+};
+
+void REDFrame::set_parallax_pos_zoom_in(const Vector2 &p_parallax_pos_zoom_in){
+	camera_pos_zoom_in = p_parallax_pos_zoom_in;
+};
+
+Vector2 REDFrame::get_parallax_pos_zoom_in() const{
+	return camera_pos_zoom_in;
+};
+
+void REDFrame::set_parallax_pos_zoom_out(const Vector2 &p_parallax_pos_zoom_out){
+	parallax_pos_zoom_out = p_parallax_pos_zoom_out;
+};
+
+Vector2 REDFrame::get_parallax_pos_zoom_out() const{
+	return parallax_pos_zoom_out;
+};
+
+
+// Cam zoom
 void REDFrame::set_camera_zoom(const Vector2 &p_camera_zoom){
 	if (camera_zoom != p_camera_zoom){
 		camera_zoom = p_camera_zoom;
@@ -41,15 +129,6 @@ void REDFrame::set_camera_zoom(const Vector2 &p_camera_zoom){
 Vector2  REDFrame::get_camera_zoom() const{
 	return camera_zoom;
 };
-
-void  REDFrame::set_camera_pos_zoom_out(const Vector2 &p_camera_pos_zoom_out){
-	camera_pos_zoom_out = p_camera_pos_zoom_out;
-};
-
-Vector2  REDFrame::get_camera_pos_zoom_out() const{
-	return camera_pos_zoom_out;
-};
-
 void REDFrame::update_camera_zoom_and_child(const Vector2 &p_camera_zoom){
 	update_camera_zoom(p_camera_zoom);
 	int count = get_child_count();
@@ -117,7 +196,6 @@ void REDFrame::_pre_starting(){
 	b_started = false;
 	b_ending = false;
 	b_ended = false;
-	b_active = false;
 	travel();
 }
 
@@ -127,7 +205,6 @@ void REDFrame::_starting(){
 	b_started = false;
 	b_ending = false;
 	b_ended = false;
-	b_active = true;
 	travel();
 	if (!anim_tree.is_empty()){
 		//AnimationTree *at = Object::cast_to<AnimationTree>(get_node(get_anim_tree()));
@@ -160,7 +237,6 @@ void REDFrame::_started(){
 	b_started = true;
 	b_ending = false;
 	b_ended = false;
-	b_active = true;
 
 	travel();
 	if (get_script_instance() != NULL) {
@@ -175,7 +251,6 @@ void REDFrame::_ending(){
 	b_started = false;
 	b_ending = true;
 	b_ended = false;
-	b_active = true;
 	travel();
 
 	if (get_script_instance() != NULL) {
@@ -233,13 +308,33 @@ void REDFrame::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_camera_pos", "camera_pos"), &REDFrame::set_camera_pos);
 	ClassDB::bind_method(D_METHOD("get_camera_pos"), &REDFrame::get_camera_pos);
-
+	ClassDB::bind_method(D_METHOD("set_camera_pos_zoom_in", "camera_pos_zoom_in"), &REDFrame::set_camera_pos_zoom_in);
+	ClassDB::bind_method(D_METHOD("get_camera_pos_zoom_in"), &REDFrame::get_camera_pos_zoom_in);
 	ClassDB::bind_method(D_METHOD("set_camera_pos_zoom_out", "camera_pos_zoom_out"), &REDFrame::set_camera_pos_zoom_out);
 	ClassDB::bind_method(D_METHOD("get_camera_pos_zoom_out"), &REDFrame::get_camera_pos_zoom_out);
+
+	ClassDB::bind_method(D_METHOD("set_parallax", "parallax"), &REDFrame::set_parallax);
+	ClassDB::bind_method(D_METHOD("get_parallax"), &REDFrame::get_parallax);
+
+	ClassDB::bind_method(D_METHOD("set_parallax_pos_current", "parallax_pos_current"), &REDFrame::set_parallax_pos_current);
+	ClassDB::bind_method(D_METHOD("get_parallax_pos_current"), &REDFrame::get_parallax_pos_current);
+	ClassDB::bind_method(D_METHOD("set_parallax_pos", "parallax_pos"), &REDFrame::set_parallax_pos);
+	ClassDB::bind_method(D_METHOD("get_parallax_pos"), &REDFrame::get_parallax_pos);
+
+	ClassDB::bind_method(D_METHOD("set_parallax_pos_zoom_in", "camera_pos_zoom_in"), &REDFrame::set_parallax_pos_zoom_in);
+	ClassDB::bind_method(D_METHOD("get_parallax_pos_zoom_in"), &REDFrame::get_parallax_pos_zoom_in);
+	ClassDB::bind_method(D_METHOD("set_parallax_pos_zoom_out", "camera_pos_zoom_out"), &REDFrame::set_parallax_pos_zoom_out);
+	ClassDB::bind_method(D_METHOD("get_parallax_pos_zoom_out"), &REDFrame::get_parallax_pos_zoom_out);
 	
 	ADD_GROUP("Frame", "");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "camera_pos"), "set_camera_pos", "get_camera_pos");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "camera_pos_zoom_in"), "set_camera_pos_zoom_in", "get_camera_pos_zoom_in");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "camera_pos_zoom_out"), "set_camera_pos_zoom_out", "get_camera_pos_zoom_out");
+
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "parallax_pos"), "set_parallax_pos", "get_parallax_pos");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "parallax_pos_zoom_in"), "set_parallax_pos_zoom_in", "get_parallax_pos_zoom_in");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "parallax_pos_zoom_out"), "set_parallax_pos_zoom_out", "get_parallax_pos_zoom_out");
+
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "camera_zoom"), "set_camera_zoom", "get_camera_zoom");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "id"), "set_id", "get_id");
 	

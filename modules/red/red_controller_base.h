@@ -16,35 +16,51 @@ class REDControllerBase : public Node {
     REDPage *page;
 	REDFrame *frame;
 
-    REDPage *prev_page;
-    REDPage *next_page;
-
 	NodePath camera_path;
-	NodePath tween_path;
 	Camera2D *camera;
+	Timer *timer;
 	Tween *tween;
-
+	String group_name;
 	bool camera_mode;
 	bool camera_smooth;
 	bool b_can_control;
-	
-	float camera_zoom;
-
 	Vector2 camera_zoom_min;
 	Vector2 camera_zoom_max;
-	Vector2 camera_pos;
-	bool b_camera_can_update;
+	float camera_zoom;
+	float camera_zoom_target;
+
+	Vector2 mouse_pos_final;
+	Vector2 mouse_pos;
+	Vector2 frame_pos_local;
+	Vector2 frame_pos_global;
+	Vector2 frame_zoom;
+	Vector2 frame_parallax;
+
+	bool init_parallax_tween;
+	bool frame_timer_connected;
+
+	void _input(Ref<InputEvent> p_event);
+
+public:
+	enum CameraState{
+		STATIC,
+		LOCKED,
+		MOVING,
+	};
+private:
+	CameraState camera_state;
 
 protected:
+	void _camera_moved(const Transform2D &p_transform, const Point2 &p_screen_offset);
 	static void _bind_methods();
 	void _notification(int p_what);
 
 public:
 	void frame_start(StringName old_name, StringName new_name);
 	void frame_end(StringName old_name, StringName new_name);
-	void update_camera();
-	void update_camera_pos();
-	void update_camera_zoom();
+	//void update_camera();
+	//void update_camera_pos();
+
 	//void unload_page(REDPage *page) const;
 	//REDPage *load_page(const int &i, bool is_prev=false, int state=0);
 	//void unload_pages();
@@ -77,15 +93,11 @@ public:
 	void set_camera(Camera2D *p_camera);
 	Camera2D *get_camera() const;
 
-	void set_tween_path(const NodePath &p_tween_path);
-	NodePath get_tween_path() const;
 	void set_tween(Tween *p_tween);
 	Tween *get_tween() const;
 	
 	void set_camera_mode(bool b);
 	bool get_camera_mode() const;
-	void set_camera_pos(const Vector2 &p_pos);
-	Vector2 get_camera_pos() const;
 	void set_camera_zoom(const float p_zoom);
 	float get_camera_zoom() const;
 
@@ -99,7 +111,25 @@ public:
 
 	Vector2 clamp_camera_zoom(const Vector2 &p_zoom) const;
 	Vector2 get_global_camera_zoom() const;
+	Vector2 get_mouse_pos() const;
+	void set_mouse_pos(const Vector2 &p_mouse_pos);
+
 	bool can_control() const;
+
+	void _frame_change();
+	void _frame_changed();
+
+	void update_camera();
+	void update_camera_pos();
+	void update_camera_zoom();
+	void update_camera_to_frame(const bool first_frame=false);
+	void zoom_reset(const float reset_duration=0.5f);
+
+	Vector2 get_target_pos();
+	Vector2 get_target_zoom();
+	Vector2 get_target_offset();
+	Vector2 get_target_parallax();
+
 	REDControllerBase();
 };
 

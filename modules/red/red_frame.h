@@ -10,14 +10,42 @@ class AnimationPlayer;
 class REDFrame : public REDClipper {
 	GDCLASS(REDFrame, REDClipper);
 	Vector2 camera_pos;
+	Vector2 camera_pos_zoom_in;
 	Vector2 camera_pos_zoom_out;
+
+
+	Vector2 parallax;
+
+	Vector2 parallax_pos_current;
+	Vector2 parallax_pos;
+	Vector2 parallax_pos_zoom_in;
+	Vector2 parallax_pos_zoom_out;
+
 	Vector2 camera_zoom;
 
+	Vector2 parallax_multiplayer;
+	Vector2 current_parallax;
 public:
 	void set_camera_pos(const Vector2 &p_camera_pos);
 	Vector2 get_camera_pos() const;
+	void set_camera_pos_zoom_in(const Vector2 &p_camera_pos_zoom_in);
+	Vector2 get_camera_pos_zoom_in() const;
 	void  set_camera_pos_zoom_out(const Vector2 &p_camera_pos_zoom_out);
 	Vector2  get_camera_pos_zoom_out() const;
+	
+	void set_parallax(const Vector2 &p_parallax);
+	Vector2 get_parallax() const;
+	float  get_scroll_scale() const;
+
+	void set_parallax_pos_current(const Vector2 &p_parallax_pos);
+	Vector2 get_parallax_pos_current() const;
+	void set_parallax_pos(const Vector2 &p_parallax_pos);
+	Vector2 get_parallax_pos() const;
+	void set_parallax_pos_zoom_in(const Vector2 &p_parallax_pos_zoom_in);
+	Vector2 get_parallax_pos_zoom_in() const;
+	void  set_parallax_pos_zoom_out(const Vector2 &p_parallax_pos_zoom_out);
+	Vector2  get_parallax_pos_zoom_out() const;
+
 	void set_camera_zoom(const Vector2 &p_camera_zoom);
 	Vector2 get_camera_zoom() const;
 

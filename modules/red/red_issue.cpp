@@ -104,14 +104,22 @@ void REDIssue::run() {
     }
 }
 
-void REDIssue::update_camera_zoom(const Vector2 &p_zoom) {
+void REDIssue::update_camera_pos(const Vector2 &p_camera_pos) const {
+	//RED *r = red::get_red(this);
+	//if (r->get_camera_mode()) {
+		//Object::cast_to<Node2D>(get_node(r->get_camera()))->
+		//        set_position(get_node(get_current())->get_global_transform().xform(Vector2(0, 0)));
+	//}
+}
+
+void REDIssue::update_camera_zoom(const Vector2 &p_camera_zoom) {
     if (!Engine::get_singleton()->is_editor_hint()) {
         if (is_inside_tree()){
             int count = get_pages_count();
             resize_instanced_list(MAX(count, instanced_list.size()));
             for (int i = 0; i < count; i++){
                 if (instanced_list[i]){
-                    pages.write[i]->update_camera_zoom(p_zoom);
+                    pages.write[i]->update_camera_zoom(p_camera_zoom);
                 }
             }
         }
@@ -126,7 +134,7 @@ int REDIssue::get_page_scenes_count() {
     return page_scenes.size();
 }
 
-void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_zoom) {
+void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_camera_zoom) {
     REDIssue *issue = this;
     if (instanced_list[p_id]) {
         return;
@@ -187,7 +195,7 @@ void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_zoom) {
 	    }
 	}
 
-    page->update_camera_zoom(p_zoom);
+    page->update_camera_zoom(p_camera_zoom);
     page->pause_frames();
     
     pages.write[p_id] = page;
@@ -225,13 +233,6 @@ void REDIssue::unload_pages() {
     }
 }
 
-void REDIssue::update_camera_pos() const {
-	//RED *r = red::get_red(this);
-	//if (r->get_camera_mode()) {
-		//Object::cast_to<Node2D>(get_node(r->get_camera()))->
-		//        set_position(get_node(get_current())->get_global_transform().xform(Vector2(0, 0)));
-	//}
-}
 
 void REDIssue::to_prev() {
         /*

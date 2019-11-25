@@ -96,7 +96,8 @@ public:
 		FOLDER_NODE2D,
 		FOLDER_PAGE,
 		FOLDER_FRAME,
-		FOLDER_FRAME_EXTERNAL
+		FOLDER_FRAME_EXTERNAL,
+		FOLDER_PARALLAX,
 	};
 
 	virtual String get_importer_name() const;
