@@ -19,7 +19,7 @@
 void REDControllerBase::_frame_change() {
 	bool first_frame = false;
 	if (frame != nullptr){
-		frame->disconnect("update_camera_zoom", this, "update_camera_zoom");
+		frame->disconnect("update_camera_zoom", this, "update_camera");
 		frame->disconnect("update_camera_pos", this, "update_camera_pos");
 		if (frame_timer_connected){
 			frame_timer_connected = false;
@@ -36,10 +36,10 @@ void REDControllerBase::_frame_change() {
 		return;
 
 	//frame->_started();
-	frame->connect("update_camera_zoom", this, "update_camera_zoom");
+	frame->connect("update_camera_zoom", this, "update_camera");
 	frame->connect("update_camera_pos", this, "update_camera_pos");
 	
-	update_camera_to_frame(first_frame);
+	update_camera_to_frame(true);
 	if (first_frame){
 		camera->reset_smoothing();
 	}
@@ -48,7 +48,7 @@ void REDControllerBase::_frame_change() {
 void REDControllerBase::_frame_changed() {
 	frame_timer_connected = false;
 	print_line("changed");
-	camera_state = STATIC;
+	camera_state = CAMERA_STATIC;
 	frame->set_active(true);
 }
 
@@ -296,11 +296,10 @@ void REDControllerBase::set_page(REDPage *p_page){
 void REDControllerBase::set_page(int p_id, bool is_prev){
 	if (issue == nullptr)
 		return;
-	Vector2 z = camera_zoom_min + camera_zoom * (camera_zoom_max - camera_zoom_min);
+	Vector2 z = camera_zoom_min + zoom_k * (camera_zoom_max - camera_zoom_min);
 	issue->set_page(p_id, is_prev, z);
-	if (issue->get_instanced_list(p_id)){
-		REDPage *p_page = issue->get_page(p_id);
-		page = p_page;
+	page = issue->get_page(p_id);
+	if (page != nullptr){
 		set_frame(page->get_id(), !is_prev);
 	}
 }
@@ -318,7 +317,7 @@ void REDControllerBase::set_frame(int p_id, bool ended){
 
 	if (frame != nullptr){
 		if (frame->is_active()){
-			if (zoom_reset_duration >= 0 && camera_zoom != 0.5f){
+			if (zoom_reset_duration >= 0 && zoom_k != 0.5f){
 				total_delay += zoom_reset_duration;
 				zoom_reset(zoom_reset_duration);
 			}
@@ -336,13 +335,13 @@ void REDControllerBase::set_frame(int p_id, bool ended){
 void REDControllerBase::zoom_reset(const float reset_duration) {
 	if (!frame->is_active())
 		return;
-	tween->stop(this, "set_camera_zoom");	
-	tween->interpolate_method(this, "set_camera_zoom", camera_zoom, 0.5f, reset_duration, Tween::TRANS_CUBIC, Tween::EASE_OUT);
+	tween->stop(this, "set_zoom_k");	
+	tween->interpolate_method(this, "set_zoom_k", zoom_k, 0.5f, reset_duration, Tween::TRANS_CUBIC, Tween::EASE_OUT);
 	tween->start();	
 }
 
 
-void REDControllerBase::update_camera_to_frame(bool first_frame) {
+void REDControllerBase::update_camera_to_frame(bool reset_zoom, bool force_immediate) {
     if (!camera_mode || Engine::get_singleton()->is_editor_hint()){
 		return;
 	}
@@ -352,43 +351,52 @@ void REDControllerBase::update_camera_to_frame(bool first_frame) {
     if (frame == nullptr){
 		return;
 	}
-	camera_zoom = 0.5;
+	camera_state = CAMERA_MOVING;
+	if (reset_zoom){
+		zoom_k_target = 0.5;
+		zoom_k = 0.5;
+	}
 	if (tween->is_active()){
 		tween->stop(camera, "set_position");	
 		tween->stop(camera, "set_zoom");
-		tween->stop(camera, "set_offset");	
+		//tween->stop(camera, "set_offset");	
 		tween->stop(frame, "set_parallax");
 	}
-	if(camera_smooth && !first_frame){
+	if(camera_smooth && !force_immediate){
 		Tween::TransitionType tween_transition_type = Tween::TRANS_CUBIC;
 		Tween::EaseType tween_ease_type = (camera->get_zoom()) <= frame_zoom ? Tween::EASE_OUT : Tween::EASE_OUT;
 		float tween_duration = ABS(camera->get_position().distance_to(get_target_pos()))/4000.0f;
 		tween->follow_method(camera, "set_position", camera->get_position(), this, "get_target_pos", tween_duration, tween_transition_type, tween_ease_type);
 		tween->follow_method(camera, "set_zoom", camera->get_zoom(), this, "get_target_zoom", tween_duration, tween_transition_type, tween_ease_type);
-		tween->follow_method(camera, "set_offset", camera->get_offset(), this, "get_target_offset", tween_duration, tween_transition_type, tween_ease_type);
+		//tween->follow_method(camera, "set_offset", camera->get_offset(), this, "get_target_mouse", tween_duration, tween_transition_type, tween_ease_type);
 		tween->follow_method(frame, "set_parallax", frame->get_parallax(), this, "get_target_parallax", tween_duration, tween_transition_type, tween_ease_type);
-		camera_state = MOVING;
+ 
 		tween->start();	
 		frame_timer_connected = true;
 		timer->connect("timeout", this, "_frame_changed", varray(), CONNECT_ONESHOT);
 		timer->start(tween_duration + 0.01);
 	}
 	else{
-		get_target_pos();
-		camera->set_position(Vector2(1000, -10000.0));
+		camera->set_position(get_target_pos());
 		camera->set_zoom(get_target_zoom());
-		camera->set_offset(get_target_offset());
+		//camera->set_offset(get_target_mouse());
 		_frame_changed();
 	}
 }
 
+Vector2 REDControllerBase::get_target_mouse(){
+	mouse_offset_target = get_viewport()->get_size() * mouse_offset * mouse_offset_k * camera->get_zoom();
+	if (zoom_k > 0.5)
+		mouse_offset_target *= 2.0 - 2 * zoom_k;
+	return mouse_offset_target;
+}
 
 Vector2 REDControllerBase::get_target_pos(){
-	if (camera_zoom < 0.5)
-		frame_pos_local = frame->get_camera_pos_zoom_in().linear_interpolate(frame->get_camera_pos(), camera_zoom * 2.0);
+	if (zoom_k < 0.5)
+		frame_pos_local = frame->get_camera_pos_zoom_in().linear_interpolate(frame->get_camera_pos(), zoom_k * 2.0);
 	else
-		frame_pos_local = frame->get_camera_pos().linear_interpolate(frame->get_camera_pos_zoom_out(), 2 * camera_zoom - 1.0);
-	frame_pos_global = frame_pos_local + frame->get_global_position();
+		frame_pos_local = frame->get_camera_pos().linear_interpolate(frame->get_camera_pos_zoom_out(), 2 * zoom_k - 1.0);
+	frame_pos_global = frame_pos_local + frame->get_global_position() + get_target_mouse();
 	return frame_pos_global;
 }
 
@@ -396,11 +404,11 @@ Vector2 REDControllerBase::get_target_zoom(){
 	Vector2 frame_camera_zoom = frame->get_camera_zoom();
 	Vector2 camera_zoom_min_clamped = Vector2(MIN(camera_zoom_min.x, frame_camera_zoom.x), MIN(camera_zoom_min.y, frame_camera_zoom.y));
 	Vector2 camera_zoom_max_clamped = Vector2(MAX(camera_zoom_max.x, frame_camera_zoom.x), MAX(camera_zoom_max.y, frame_camera_zoom.y));
-	if (camera_zoom < 0.5){
-		frame_zoom = camera_zoom_min_clamped + camera_zoom * 2.0 * (frame_camera_zoom - camera_zoom_min_clamped);
+	if (zoom_k < 0.5){
+		frame_zoom = camera_zoom_min_clamped + zoom_k * 2.0 * (frame_camera_zoom - camera_zoom_min_clamped);
 	}
 	else{
-		frame_zoom = frame_camera_zoom + (camera_zoom - 0.5) * 2 * (camera_zoom_max_clamped - frame_camera_zoom);
+		frame_zoom = frame_camera_zoom + (zoom_k - 0.5) * 2 * (camera_zoom_max_clamped - frame_camera_zoom);
 	}
 	frame_zoom *= page->get_size().width / get_viewport()->get_size().width;
 	if (issue != nullptr){
@@ -412,28 +420,18 @@ Vector2 REDControllerBase::get_target_zoom(){
 	return frame_zoom;
 }
 
-Vector2 REDControllerBase::get_target_offset(){
-	if (camera_zoom > 0.5){
-		mouse_pos_final = mouse_pos * (2.0 - 2 * camera_zoom);
-	}
-	else{
-		mouse_pos_final = mouse_pos;
-	}
-	return mouse_pos_final;
-}
-
 Vector2 REDControllerBase::get_target_parallax(){
-	if (camera_zoom < 0.5){
-		frame_parallax = frame->get_parallax_pos_zoom_in().linear_interpolate(frame->get_parallax_pos(), camera_zoom * 2.0);
+	if (zoom_k < 0.5){
+		frame_parallax = frame->get_parallax_pos_zoom_in().linear_interpolate(frame->get_parallax_pos(), zoom_k * 2.0);
 	}
 	else{
-		frame_parallax = frame->get_parallax_pos().linear_interpolate(frame->get_parallax_pos_zoom_out(), 2 * camera_zoom - 1.0);
+		frame_parallax = frame->get_parallax_pos().linear_interpolate(frame->get_parallax_pos_zoom_out(), 2 * zoom_k - 1.0);
 	}
 	if (frame->is_active()){
-		frame_parallax = camera->get_position() - frame->get_global_position() - frame_parallax + camera->get_offset();
+		frame_parallax = camera->get_position() - frame->get_global_position() - frame_parallax;// + camera->get_offset();
 	}
 	else{
-		frame_parallax = frame_pos_local - frame_parallax + camera->get_offset();
+		frame_parallax = frame_pos_local - frame_parallax + get_target_mouse();// + camera->get_offset();
 	}
 	return frame_parallax;
 }
@@ -474,59 +472,82 @@ bool REDControllerBase::get_camera_mode() const {
 }
 
 void REDControllerBase::zoom_in(const float &p_val) {
-	if (frame == nullptr)
+	zoom_k_target = CLAMP(zoom_k_target - p_val, 0.0f, 1.0f);
+	if (zoom_k == zoom_k_target)
 		return;
-
-	camera_zoom_target = CLAMP(camera_zoom_target - p_val, 0.0f, 1.0f);
-	if (camera_zoom == camera_zoom_target)
-		return;
-	
-	tween->stop(this, "set_camera_zoom");	
-	tween->interpolate_method(this, "set_camera_zoom", camera_zoom, camera_zoom_target, ABS(camera_zoom-camera_zoom_target), Tween::TRANS_CUBIC, Tween::EASE_OUT);
+	tween->stop(this, "set_zoom_k");	
+	tween->interpolate_method(this, "set_zoom_k", zoom_k, zoom_k_target, ABS(zoom_k-zoom_k_target), Tween::TRANS_CUBIC, Tween::EASE_OUT);
 	tween->start();	
 }
 
 void REDControllerBase::zoom_out(const float &p_val) {
-	if (frame == nullptr)
+	zoom_k_target = CLAMP(zoom_k_target + p_val, 0.0f, 1.0f);
+	if (zoom_k == zoom_k_target)
 		return;
-	camera_zoom_target = CLAMP(camera_zoom_target + p_val, 0.0f, 1.0f);
-	if (camera_zoom == camera_zoom_target)
-		return;
-	
-	tween->stop(this, "set_camera_zoom");	
-	tween->interpolate_method(this, "set_camera_zoom", camera_zoom, camera_zoom_target, ABS(camera_zoom-camera_zoom_target), Tween::TRANS_CUBIC, Tween::EASE_OUT);
+	tween->stop(this, "set_zoom_k");	
+	tween->interpolate_method(this, "set_zoom_k", zoom_k, zoom_k_target, ABS(zoom_k-zoom_k_target), Tween::TRANS_CUBIC, Tween::EASE_OUT);
 	tween->start();	
 }
 
-void REDControllerBase::set_camera_zoom(const float p_zoom) {
-	if(camera_zoom == p_zoom){
+void REDControllerBase::set_mouse_offset(const Vector2 &p_mouse_offset) {
+	mouse_offset = p_mouse_offset;
+	update_camera_pos();
+
+	//if(camera_state == CAMERA_STATIC){
+		//tween->stop(camera, "set_position");	
+		//tween->follow_method(camera, "set_position", camera->get_position(), this, "get_target_pos", 0.5f, Tween::TRANS_CUBIC, Tween::EASE_OUT);
+		//tween->start();	
+		//tween->stop(camera, "set_offset");
+		//tween->interpolate_method(camera, "set_offset", camera->get_offset(), mouse_offset_target, 0.5f, Tween::TRANS_CUBIC, Tween::EASE_OUT);
+		//tween->start();
+	//}
+}
+
+
+void REDControllerBase::set_mouse_offset_k(const Vector2 &p_max_mouse_offset) {
+	if (camera_zoom_max == p_max_mouse_offset)
+		return;
+	mouse_offset_k = p_max_mouse_offset;
+	update_camera_pos();
+
+	//if(camera_state == CAMERA_STATIC){
+		//tween->stop(camera, "set_position");	
+		//tween->follow_method(camera, "set_position", camera->get_position(), this, "get_target_pos", 0.5f, Tween::TRANS_CUBIC, Tween::EASE_OUT);
+		//tween->start();	
+	//}
+}
+
+Vector2 REDControllerBase::get_mouse_offset_k() const{
+	return mouse_offset_k;
+}
+
+void REDControllerBase::set_zoom_k(const float p_zoom) {
+	if(zoom_k == p_zoom){
 		return;
 	}
-	camera_zoom = p_zoom;
+	zoom_k = p_zoom;
 	update_camera();
 }
 
-float REDControllerBase::get_camera_zoom() const{
-	return camera_zoom;
+float REDControllerBase::get_zoom_k() const{
+	return zoom_k;
 }
 
 void REDControllerBase::update_camera() {
-	if (camera_state == STATIC){
+	if (frame == nullptr)
+		return;
+	if (camera_state == CAMERA_STATIC){
 		camera->set_position(get_target_pos());
 		camera->set_zoom(get_target_zoom());
-		camera->set_offset(get_target_offset());
+		//camera->set_offset(get_target_mouse());
 	}
 }
 
 void REDControllerBase::update_camera_pos() {
-	if (camera_state == STATIC){
+	if (frame == nullptr)
+		return;
+	if (camera_state == CAMERA_STATIC){
 		camera->set_position(get_target_pos());
-	}
-}
-
-void REDControllerBase::update_camera_zoom() {
-	if (camera_state == STATIC){
-		camera->set_zoom(get_target_zoom());
 	}
 }
 
@@ -553,27 +574,13 @@ Vector2 REDControllerBase::get_camera_zoom_max() const{
 }
 
 Vector2 REDControllerBase::get_global_camera_zoom() const{
-	return (frame == nullptr) ? camera_zoom_min + camera_zoom * (camera_zoom_max - camera_zoom_min) : camera_zoom_min + camera_zoom * (camera_zoom_max - camera_zoom_min) * frame->get_camera_zoom();
+	return (frame == nullptr) ? camera_zoom_min + zoom_k * (camera_zoom_max - camera_zoom_min) : camera_zoom_min + zoom_k * (camera_zoom_max - camera_zoom_min) * frame->get_camera_zoom();
 }
 
-Vector2 REDControllerBase::get_mouse_pos() const{
-	return mouse_pos;
-}
 
-void REDControllerBase::set_mouse_pos(const Vector2 &p_mouse_pos) {
-	if (frame == nullptr)
-		return;
-	mouse_pos = p_mouse_pos;
-	if(frame->is_active()){
-		tween->stop(camera, "set_offset");	
-		tween->follow_method(camera, "set_offset", camera->get_offset(), this, "get_target_offset", 0.5f, Tween::TRANS_CUBIC, Tween::EASE_OUT);
-		tween->start();	
 
-		//recalc_mouse();
-		//tween->stop(camera, "set_offset");
-		//tween->interpolate_method(camera, "set_offset", camera->get_offset(), mouse_pos_final, 0.5f, Tween::TRANS_CUBIC, Tween::EASE_OUT);
-		//tween->start();
-	}
+Vector2 REDControllerBase::get_mouse_offset() const{
+	return mouse_offset;
 }
 
 bool REDControllerBase::can_control() const {
@@ -584,6 +591,7 @@ void REDControllerBase::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE:{
 			if (!Engine::get_singleton()->is_editor_hint()) {
+				set_process_input(true);
 				timer = memnew(Timer);
 				add_child(timer);
 				timer->set_owner(this);
@@ -595,24 +603,43 @@ void REDControllerBase::_notification(int p_what) {
 
 				group_name = "__cameras_" + itos(get_viewport()->get_viewport_rid().get_id());
 				add_to_group(group_name);
-				//mouse_pos = get_viewport()->get_size() / 2.0;
 			}
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
-			
+			get_tree()->get_root()->disconnect("size_changed", this, "update_camera");
 			remove_from_group(group_name);
 		} break;
 		case NOTIFICATION_READY: {
 			camera = (Camera2D*)(get_node(camera_path));
+			if (!camera){
+				camera = memnew(Camera2D);
+				add_child(camera);
+				camera->set_owner(this);
+			}
 			get_tree()->get_root()->connect("size_changed", this, "update_camera");
 		} break;
 	}
 }
-void REDControllerBase::_input(Ref<InputEvent> p_event) {
-	Ref<InputEventMouseButton> mb = p_event;
+
+void REDControllerBase::mouse_move(const Vector2 &p_mouse_pos){
+	Vector2 target = p_mouse_pos/get_viewport()->get_size() - Vector2(0.5, 0.5);
+	if (mouse_offset == target)
+		return;
+	tween->stop(this, "set_mouse_offset");	
+	tween->interpolate_method(this, "set_mouse_offset", mouse_offset, target, mouse_offset.distance_to(target), Tween::TRANS_CUBIC, Tween::EASE_OUT);
+	tween->start();	
+}
+
+void REDControllerBase::_input(const Ref<InputEvent> &p_event) {
+	Ref<InputEventMouseMotion> mb = p_event;
 	if (mb.is_valid()) {
-		mouse_pos = mb->get_position();
-		//update_camera_pos();
+		mouse_move(mb->get_position());
+		//tween->stop(this, "set_mouse_offset");	
+		//tween->interpolate_method(this, "set_mouse_offset", mouse_offset, 
+		//						  mb->get_position()/get_viewport()->get_size() - Vector2(0.5, 0.5), 
+		//						  ABS(mouse_offset-camera_mouse_offset_target), Tween::TRANS_CUBIC, Tween::EASE_OUT);
+		//tween->start();	
+		//set_mouse_offset(mb->get_position()/get_viewport()->get_size() - Vector2(0.5, 0.5));
 	}
 }
 
@@ -620,7 +647,8 @@ void REDControllerBase::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_issue_by_path", "issue_path"), &REDControllerBase::set_issue_by_path);
 	ClassDB::bind_method(D_METHOD("frame_start", "old_name", "new_name"), &REDControllerBase::frame_start);
 	ClassDB::bind_method(D_METHOD("frame_end", "old_name", "new_name"), &REDControllerBase::frame_end);
-
+	
+	ClassDB::bind_method(D_METHOD("mouse_move", "mouse_offset"), &REDControllerBase::mouse_move);
 	ClassDB::bind_method(D_METHOD("zoom_out", "zoom_val"), &REDControllerBase::zoom_out);
 	ClassDB::bind_method(D_METHOD("zoom_in", "zoom_val"), &REDControllerBase::zoom_in);
 	ClassDB::bind_method(D_METHOD("to_next"), &REDControllerBase::to_next);
@@ -632,8 +660,8 @@ void REDControllerBase::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_camera_path", "camera_path"), &REDControllerBase::set_camera_path);
 	ClassDB::bind_method(D_METHOD("get_camera_path"), &REDControllerBase::get_camera_path);
 
-	ClassDB::bind_method(D_METHOD("set_camera_zoom", "camera_zoom"), &REDControllerBase::set_camera_zoom);
-	ClassDB::bind_method(D_METHOD("get_camera_zoom"), &REDControllerBase::get_camera_zoom);
+	ClassDB::bind_method(D_METHOD("set_zoom_k", "zoom_k"), &REDControllerBase::set_zoom_k);
+	ClassDB::bind_method(D_METHOD("get_zoom_k"), &REDControllerBase::get_zoom_k);
 	ClassDB::bind_method(D_METHOD("set_camera_zoom_min", "camera_zoom_min"), &REDControllerBase::set_camera_zoom_min);
 	ClassDB::bind_method(D_METHOD("get_camera_zoom_min"), &REDControllerBase::get_camera_zoom_min);
 	ClassDB::bind_method(D_METHOD("set_camera_zoom_max", "camera_zoom_max"), &REDControllerBase::set_camera_zoom_max);
@@ -644,27 +672,33 @@ void REDControllerBase::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_camera_smooth", "camera_smooth"), &REDControllerBase::set_camera_smooth);
 	ClassDB::bind_method(D_METHOD("get_camera_smooth"), &REDControllerBase::get_camera_smooth);
 
-	//ClassDB::bind_method(D_METHOD("update_camera_pos"), &REDControllerBase::update_camera_pos);
+	ClassDB::bind_method(D_METHOD("update_camera_pos"), &REDControllerBase::update_camera_pos);
 	ClassDB::bind_method(D_METHOD("update_camera"), &REDControllerBase::update_camera);
 	ClassDB::bind_method(D_METHOD("update_camera_to_frame"), &REDControllerBase::update_camera);
 
-	ClassDB::bind_method(D_METHOD("set_mouse_pos", "mouse_pos"), &REDControllerBase::set_mouse_pos);
-	ClassDB::bind_method(D_METHOD("get_mouse_pos"), &REDControllerBase::get_mouse_pos);
-	
+	ClassDB::bind_method(D_METHOD("set_mouse_offset", "mouse_offset"), &REDControllerBase::set_mouse_offset);
+	ClassDB::bind_method(D_METHOD("get_mouse_offset"), &REDControllerBase::get_mouse_offset);
+	ClassDB::bind_method(D_METHOD("set_mouse_offset_k", "mouse_offset_k"), &REDControllerBase::set_mouse_offset_k);
+	ClassDB::bind_method(D_METHOD("get_mouse_offset_k"), &REDControllerBase::get_mouse_offset_k);
+
 	ClassDB::bind_method(D_METHOD("_camera_moved"), &REDControllerBase::_camera_moved);
 	ClassDB::bind_method(D_METHOD("_frame_change"), &REDControllerBase::_frame_change);
 	ClassDB::bind_method(D_METHOD("_frame_changed"), &REDControllerBase::_frame_changed);
 	
 	ClassDB::bind_method(D_METHOD("get_target_pos"), &REDControllerBase::get_target_pos);
 	ClassDB::bind_method(D_METHOD("get_target_zoom"), &REDControllerBase::get_target_zoom);
-	ClassDB::bind_method(D_METHOD("get_target_offset"), &REDControllerBase::get_target_offset);
+	ClassDB::bind_method(D_METHOD("get_target_mouse"), &REDControllerBase::get_target_mouse);
 	ClassDB::bind_method(D_METHOD("get_target_parallax"), &REDControllerBase::get_target_parallax);
+
+	ClassDB::bind_method(D_METHOD("_input"), &REDControllerBase::_input);
+
 	ADD_GROUP("Camera", "");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "camera_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Camera2D"), "set_camera_path", "get_camera_path");
 
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "camera_zoom"), "set_camera_zoom", "get_camera_zoom");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "zoom_k"), "set_zoom_k", "get_zoom_k");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "camera_zoom_min"), "set_camera_zoom_min", "get_camera_zoom_min");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "camera_zoom_max"), "set_camera_zoom_max", "get_camera_zoom_max");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "mouse_offset_k"), "set_mouse_offset_k", "get_mouse_offset_k");
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "camera_smooth"), "set_camera_smooth", "get_camera_smooth");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "camera_mode"), "set_camera_mode", "get_camera_mode");
@@ -678,11 +712,10 @@ REDControllerBase::REDControllerBase() {
 
 	camera_mode = true;
 	b_can_control = true;
-	camera_zoom = 0.5;
-	camera_zoom_target = 0.5;
+	zoom_k = 0.5;
+	zoom_k_target = 0.5;
 	camera_zoom_min = Vector2(0.5f, 0.5f);
 	camera_zoom_max = Vector2(4, 4);
-
-	mouse_pos = Vector2(0, 0);
-
+	mouse_offset_k = Vector2(1, 1);
+	mouse_offset = Vector2(0, 0);
 }

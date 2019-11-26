@@ -101,15 +101,13 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::REAL, "main/resolution_width"), 2000.0f));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/update"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/update_only_editor"), true));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/try_to_keep_uv"), false));
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/texture"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/page_height"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/folder_mask"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/folder_pos"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_size"), false));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_pos"), false));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_uv"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "update/layer_pos", PROPERTY_HINT_ENUM, "Ignore, Move, New UV, Keep UV"), 1));
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/root", PROPERTY_HINT_ENUM, "Node2D, Page"), 1));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/second_level", PROPERTY_HINT_ENUM, "Node2D, Page, Frame, Frame external, Parallax"), 3));
@@ -619,7 +617,6 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				Point2 global_pos = Point2(layer->left * resolution_width / context->width, layer->top * resolution_width / context->width);
 
 				float k = layer->height/layer->width;
-				Vector2 offset = Vector2(0.0f, 0.0f);
 				if (need_create){
 					Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
 					PoolVector<Vector2> uv;
@@ -643,7 +640,6 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						uv.append(texture_size);
 						uv.append(Vector2(0, texture_size.y));
 						poly->set_uv(uv);
-						offset = poly->get_offset();
 					}
 					else{
 						REDPolygon *poly = memnew(REDPolygon);
@@ -656,7 +652,6 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						uv.append(Vector2(1, 1));
 						uv.append(Vector2(0, 1));
 						poly->set_uv(uv);
-						offset = poly->get_offset();
 					}
 					switch(layer->blend_mode){
 						case psd_blend_mode_multiply:{
@@ -711,12 +706,15 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					node->set_name(name);
 					node->set_draw_behind_parent(true);
 				}
-				else if (updateble){
+				else {
 					node = (Node2D*)(parent->get_node(NodePath(name)));
-					if (mode==LAYER_POLYGON2D){
+				}
+				if (!need_create && updateble && p_options["update/layer_size"]){
+					node = (Node2D*)(parent->get_node(NodePath(name)));
+					{
 						Polygon2D *poly = (Polygon2D*)node;
-						if (poly != nullptr){
-							if (p_options["update/layer_size"]){
+						if (poly){
+							if (poly != nullptr){
 								PoolVector<Vector2> uvs = poly->get_uv();
 								if (uvs.size() > 0){
 									Vector2 real_size = poly->_edit_get_rect().get_size();
@@ -739,103 +737,116 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 									poly->set_polygon(new_pool);
 								}
 							}
-							offset = poly->get_offset();
 						}
 					}
-					else{
+					{
 						REDPolygon *poly = (REDPolygon*)node;
-						if (poly != nullptr){
-							if (p_options["update/layer_size"]){
-								PoolVector<Vector2> uvs = poly->get_uv();
-								if (uvs.size() > 0){
-									Vector2 real_size = poly->_edit_get_rect().get_size();
-									PoolVector<Vector2>::Read uvr = uvs.read();
-									Vector2 uv_min = uvr[0];
-									Vector2 uv_max = uv_min;
-									for (int i = 0; i < poly->get_uv().size(); i++)
-									{
-										Vector2 uv = uvr[i];
-										uv_min.x = MIN(uv.x, uv_min.x);
-										uv_max.x = MAX(uv.x, uv_max.x);
-										uv_min.y = MIN(uv.y, uv_min.y);
-										uv_max.y = MAX(uv.y, uv_max.y);
-									}
-									Vector2 resizer = (uv_max - uv_min)*polygon_size/real_size;
-									PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
-									PoolVector<Vector2> new_pool;
-									for (int i = 0; i < poly->get_polygon().size(); i++)
-										new_pool.append(polyr[i] * resizer);
-									poly->set_polygon(new_pool);
+						if (poly){
+							PoolVector<Vector2> uvs = poly->get_uv();
+							if (uvs.size() > 0){
+								Vector2 real_size = poly->_edit_get_rect().get_size();
+								PoolVector<Vector2>::Read uvr = uvs.read();
+								Vector2 uv_min = uvr[0];
+								Vector2 uv_max = uv_min;
+								for (int i = 0; i < poly->get_uv().size(); i++)
+								{
+									Vector2 uv = uvr[i];
+									uv_min.x = MIN(uv.x, uv_min.x);
+									uv_max.x = MAX(uv.x, uv_max.x);
+									uv_min.y = MIN(uv.y, uv_min.y);
+									uv_max.y = MAX(uv.y, uv_max.y);
 								}
-							}
-							offset = poly->get_offset();
-						}
-					}
-				}
-				if (node != nullptr && (updateble || need_create)){
-					if (p_options["update/layer_pos"] || need_create){
-						if (mode==LAYER_POLYGON){
-							REDPolygon *poly = (REDPolygon*)node;
-							node->set_position(global_pos - parent_pos - offset - poly->get_psd_offset() + poly->get_psd_offset());
-						}
-						else{
-							node->set_position(global_pos - parent_pos - offset);
-						}
-					}
-					else if (p_options["update/layer_uv"]){
-						if (mode==LAYER_POLYGON){
-							REDPolygon *poly = (REDPolygon*)node;
-							MeshData data;
-							
-							Vector2 real_size = poly->_edit_get_rect().get_size();
-							
-							Vector2 old_psd_offset = poly->get_psd_uv_offset();
-
-							poly->set_position(poly->get_position() - poly->get_psd_applied_offset());
-							Vector2 psd_offset = global_pos - poly->get_position() - parent_pos - poly->get_offset();
-							poly->set_psd_uv_offset(psd_offset);
-							poly->_change_notify("psd_uv_offset");
-
-							Vector2 old_psd_scale = poly->get_psd_uv_scale();
-							poly->set_psd_uv_scale(real_size/polygon_size);
-							poly->_change_notify("psd_uv_scale");
-							Vector2 psd_offset_uv = psd_offset/polygon_size;
-							Vector2 psd_scale_uv = real_size/polygon_size;
-							{
-								Vector<Vector2> uv_temp;
-								if (poly->get_uv().size() != poly->get_polygon().size() || !p_options["main/try_to_keep_uv"]){
-									PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
-									for (int i = 0; i < poly->get_polygon().size(); i++)
-										uv_temp.push_back(polyr[i]/real_size);
-								}
-								else{
-									data.calc(poly, true, true);
-									PoolVector<Vector2>::Read uvr = poly->get_uv().read();
-									for (int i = 0; i < poly->get_uv().size(); i++)
-										uv_temp.push_back(uvr[i]/old_psd_scale+old_psd_offset/polygon_size);
-								}
-								PoolVector<Vector2> new_uv;
-								for (int i = 0; i < uv_temp.size(); i++)
-									new_uv.append(uv_temp[i] * psd_scale_uv - psd_offset_uv);
-								poly->set_uv(new_uv);
-							}
-							/*
-							{
+								Vector2 resizer = (uv_max - uv_min)*polygon_size/real_size;
 								PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
 								PoolVector<Vector2> new_pool;
-								count = poly->get_polygon().size();
-								for (int i = 0; i < count; i++)
-									new_pool.append(polyr[i] - psd_offset);
+								for (int i = 0; i < poly->get_polygon().size(); i++)
+									new_pool.append(polyr[i] * resizer);
 								poly->set_polygon(new_pool);
 							}
-							*/
-							poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset + poly->get_psd_offset());
-							poly->set_psd_applied_offset(poly->get_psd_offset());
-							poly->_change_notify("psd_applied_offset");
 						}
 					}
 				}
 
+				int update_pos_mode = need_create ? LAYER_POS_MOVE : updateble ? p_options["update/layer_pos"] : LAYER_POS_IGNORE;
+				if (node != nullptr && update_pos_mode != LAYER_POS_IGNORE){
+					if (update_pos_mode==LAYER_POS_MOVE){
+						{
+							Polygon2D *poly = (Polygon2D*)node;
+							if (poly){
+								node->set_position(global_pos - parent_pos - poly->get_offset());
+							}
+						}
+						{
+							REDPolygon *poly = (REDPolygon*)node;
+							if (poly){
+								node->set_position(global_pos - parent_pos - poly->get_offset() + poly->get_psd_offset());
+							}
+						}
+					}
+					else if (update_pos_mode == LAYER_POS_NEW_UV || update_pos_mode == LAYER_POS_KEEP_UV){
+						{
+							Polygon2D *poly = (Polygon2D*)node;
+							if (poly && update_pos_mode == LAYER_POS_NEW_UV){
+								Vector2 real_size = poly->_edit_get_rect().get_size();
+								Vector2 psd_offset = global_pos - poly->get_position() - parent_pos - poly->get_offset();
+								{
+									Vector<Vector2> uv_temp;
+									if (poly->get_uv().size() != poly->get_polygon().size() || update_pos_mode==LAYER_POS_NEW_UV){
+										PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+										for (int i = 0; i < poly->get_polygon().size(); i++)
+											uv_temp.push_back(polyr[i]/real_size);
+									}
+									else{
+
+									}
+									PoolVector<Vector2> new_uv;
+									for (int i = 0; i < uv_temp.size(); i++)
+										new_uv.append(uv_temp[i] *  real_size/polygon_size - psd_offset/polygon_size);
+									poly->set_uv(new_uv);
+								}
+								poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset);
+							}
+						}
+						{
+							REDPolygon *poly = (REDPolygon*)node;
+							if (poly){
+								Vector2 real_size = poly->_edit_get_rect().get_size();
+								Vector2 old_psd_offset = poly->get_psd_uv_offset();
+
+								poly->set_position(poly->get_position() - poly->get_psd_applied_offset());
+								Vector2 psd_offset = global_pos - poly->get_position() - parent_pos - poly->get_offset();
+								poly->set_psd_uv_offset(psd_offset);
+								poly->_change_notify("psd_uv_offset");
+
+								Vector2 old_psd_scale = poly->get_psd_uv_scale();
+								poly->set_psd_uv_scale(real_size/polygon_size);
+								poly->_change_notify("psd_uv_scale");
+								Vector2 psd_offset_uv = psd_offset/polygon_size;
+								Vector2 psd_scale_uv = real_size/polygon_size;
+								{
+									Vector<Vector2> uv_temp;
+									if (poly->get_uv().size() != poly->get_polygon().size() || update_pos_mode==LAYER_POS_KEEP_UV){
+										PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+										for (int i = 0; i < poly->get_polygon().size(); i++)
+											uv_temp.push_back(polyr[i]/real_size);
+									}
+									else{
+										PoolVector<Vector2>::Read uvr = poly->get_uv().read();
+										for (int i = 0; i < poly->get_uv().size(); i++)
+											uv_temp.push_back(uvr[i]/old_psd_scale+old_psd_offset/polygon_size);
+									}
+									PoolVector<Vector2> new_uv;
+									for (int i = 0; i < uv_temp.size(); i++)
+										new_uv.append(uv_temp[i] * psd_scale_uv - psd_offset_uv);
+									poly->set_uv(new_uv);
+								}
+								poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset + poly->get_psd_offset());
+								poly->set_psd_applied_offset(poly->get_psd_offset());
+								poly->_change_notify("psd_applied_offset");
+							}
+						}
+					}
+				}
 			} break;
 			case psd_layer_type::psd_layer_type_hidden:{
 				Node *node_external = nullptr;

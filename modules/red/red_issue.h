@@ -12,7 +12,7 @@ class REDIssue : public REDElement {
 	GDCLASS(REDIssue, REDElement);
 	Vector<Ref<PackedScene> > page_scenes;
     Vector<REDPage*> pages;
-    Vector<bool> instanced_list;
+    //Vector<bool> instanced_list;
 
     Vector<Vector2> pages_pos;
 
@@ -41,7 +41,7 @@ public:
     int get_instance_count() const;
     void set_instance_count(const int &p_instance_count);
 
-    bool get_instanced_list (int p_id);
+    //bool get_instanced_list (int p_id);
     REDPage *get_page (int p_id);
     void set_page (int p_id, bool is_prev=false, const Vector2 &p_zoom=Vector2(1.0, 1.0));
     void set_page_scenes(const Array &pages_new);

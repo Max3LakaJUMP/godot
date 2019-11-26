@@ -100,6 +100,13 @@ public:
 		FOLDER_PARALLAX,
 	};
 
+	enum UpdateLayerPos {
+		LAYER_POS_IGNORE,
+		LAYER_POS_MOVE,
+		LAYER_POS_NEW_UV,
+		LAYER_POS_KEEP_UV,
+	};
+
 	virtual String get_importer_name() const;
 	virtual String get_visible_name() const;
 	virtual void get_recognized_extensions(List<String> *p_extensions) const;

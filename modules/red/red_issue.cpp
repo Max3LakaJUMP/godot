@@ -40,19 +40,11 @@ REDPage *REDIssue::get_page (int p_id){
     return pages[p_id];
 }
 
-bool REDIssue::get_instanced_list (int p_id){
-    if (instanced_list.size() == 0)
-        return false;
-    int last_id = instanced_list.size() - 1;
-    p_id = MAX(MIN(p_id, last_id), 0);
-    return instanced_list[p_id];
-}
-
 void REDIssue::resize_instanced_list(int p_size){
-    int old_size = instanced_list.size();
-    instanced_list.resize(p_size);
+    int old_size = pages.size();
+    pages.resize(p_size);
     for (int i = old_size; i < p_size; i++){
-        instanced_list.write[i] = false;
+        pages.write[i] = nullptr;
     }
 }
 
@@ -60,8 +52,7 @@ void REDIssue::set_page (int p_id, bool is_prev, const Vector2 &p_zoom){
     int count = get_page_scenes_count();
     int last_id = count - 1;
     p_id = MAX(MIN(p_id, last_id), 0);
-    pages.resize(MAX(count, pages.size()));
-    resize_instanced_list(MAX(count, instanced_list.size()));
+    resize_instanced_list(count);
 
     int start = 0;
     int end = p_id - instance_count;
@@ -102,6 +93,9 @@ void REDIssue::run() {
             controller->set_issue(this);
         }
     }
+    else{
+        //set_page (0, false);
+    }
 }
 
 void REDIssue::update_camera_pos(const Vector2 &p_camera_pos) const {
@@ -116,9 +110,9 @@ void REDIssue::update_camera_zoom(const Vector2 &p_camera_zoom) {
     if (!Engine::get_singleton()->is_editor_hint()) {
         if (is_inside_tree()){
             int count = get_pages_count();
-            resize_instanced_list(MAX(count, instanced_list.size()));
+            resize_instanced_list(MAX(count, pages.size()));
             for (int i = 0; i < count; i++){
-                if (instanced_list[i]){
+                if (pages[i] != nullptr){
                     pages.write[i]->update_camera_zoom(p_camera_zoom);
                 }
             }
@@ -136,7 +130,7 @@ int REDIssue::get_page_scenes_count() {
 
 void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_camera_zoom) {
     REDIssue *issue = this;
-    if (instanced_list[p_id]) {
+    if (pages[p_id] != nullptr) {
         return;
     }
 	if (p_id < 0 || p_id >= issue->get_pages_count())
@@ -150,8 +144,9 @@ void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_camera_zoom) {
 
 	Node2D *node2d = (Node2D*)scene->instance();
 	add_child(node2d);
-	node2d->set_owner(this);
-
+    if (!Engine::get_singleton()->is_editor_hint()) {
+	    node2d->set_owner(this);
+    }
 	
 
 	Node *child = node2d->get_child(0);
@@ -199,16 +194,12 @@ void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_camera_zoom) {
     page->pause_frames();
     
     pages.write[p_id] = page;
-    instanced_list.write[p_id] = true;
 }
 
 void REDIssue::unload_page(int p_id) {
-    print_line("UnLoad id");
-    print_line(std::to_string(p_id).c_str());
-	if (instanced_list[p_id]) {
+	if (pages[p_id] != nullptr) {
         pages[p_id]->get_parent()->queue_delete();
         pages.write[p_id] = nullptr;
-        instanced_list.write[p_id] = false;
         print_line("UnLoaded id");
         print_line(std::to_string(p_id).c_str());
 	}
@@ -260,7 +251,6 @@ void REDIssue::to_next() {
     set_id(old_id + 1);
 	int new_id = get_id();
 	if (old_id != new_id) {
-        print_line("bug in issue file");
         if (!prev.is_empty()) {
             unload_page(get_node(prev));
         }
@@ -350,6 +340,7 @@ void REDIssue::set_pages_pos(const Array &new_y) {
 
 void REDIssue::set_id(const int &p_id) {
     id = p_id;
+
 	//if (num < 0) {
 	//	id = 0;
 	//} else if (num >= pages.size()) {
