@@ -17,6 +17,7 @@
 #include "red_shape.h"
 #include "red_clipper.h"
 #include "red_parallax_folder.h"
+#include "red_target.h"
 
 void register_red_types() {
 	ClassDB::register_virtual_class<REDShape>();
@@ -32,6 +33,7 @@ void register_red_types() {
 	ClassDB::register_virtual_class<REDControllerBase>();
 	ClassDB::register_class<REDController>();
 	ClassDB::register_class<REDParallaxFolder>();
+	ClassDB::register_class<REDTarget>();
 	ClassDB::register_class<RED>();
 }
 

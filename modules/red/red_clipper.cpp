@@ -188,8 +188,7 @@ void REDClipper::_update_stencil() {
 	}
 
 	for (int i = 0; i < polygon_size; i++) {
-		Vector2 screen_coord = tr.xform(get_polygon()[i]);
-		screen_coords.write[i] = screen_coord;
+		screen_coords.write[i] = tr.xform(get_polygon()[i]+get_offset());
 	}
 	if (space == SCREEN){
 		Size2 res = get_viewport()->get_size();
@@ -331,6 +330,14 @@ void REDClipper::_update_stencil() {
 
 void REDClipper::_notification(int p_what) {
 	switch (p_what) {
+		case NOTIFICATION_TRANSFORM_CHANGED:{
+			if (material_objects.size()>0 && is_inside_tree()){
+				_clip();
+			}
+		} break;
+		case NOTIFICATION_ENTER_TREE: {
+			set_notify_transform(clip_enable);
+		} break;
 		case NOTIFICATION_READY: {
 			_update_materials();
 		} break;
@@ -405,6 +412,7 @@ void REDClipper::set_split(bool p_split){
 	_update_materials();
 	update();
 }
+
 bool REDClipper::get_split() const{
 	return split;
 }
@@ -437,6 +445,7 @@ bool REDClipper::get_rotation_enable() const{
 
 void REDClipper::set_clip_enable(bool p_clip){
 	clip_enable = p_clip;
+	set_notify_transform(p_clip);
 	update();
 }
 

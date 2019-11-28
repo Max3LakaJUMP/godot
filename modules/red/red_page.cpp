@@ -221,7 +221,7 @@ void REDPage::set_frame(int p_id, bool force_inactive, bool ended) {
             if (ended)
                 frame->_ended();
             else {
-                frame->_pre_starting();
+                frame->_start_loop();
             }
         }
     }*/
@@ -229,9 +229,6 @@ void REDPage::set_frame(int p_id, bool force_inactive, bool ended) {
     p_id = MAX(MIN(p_id, last_id), 0);
 
     if (id == p_id){
-        if (frame != nullptr){
-            //frame->_starting();
-        }
         return;
     }
     set_id(p_id);
@@ -240,7 +237,7 @@ void REDPage::set_frame(int p_id, bool force_inactive, bool ended) {
             if (ended)
                 frame->_ended();
             else {
-                frame->_pre_starting();
+                frame->_start_loop();
             }
         }
     }*/
@@ -317,8 +314,6 @@ Array REDPage::get_frames() const {
 }
 
 void REDPage::set_id(int p_id) {
-    print_line("SET id");
-    print_line(std::to_string(p_id).c_str());
     id = p_id;
     /*
     int last_id = frames.size() - 1;

@@ -60,12 +60,16 @@ PoolVector<float> pool_real_array(Array &p_arr);
 String globalize(String &p_path);
 String localize(String &p_path);
 template <class T>
-T *create_node(Node *parent=nullptr, const String &name="", Node *owner=nullptr){
-	T *node = memnew(T);
-	if (name != ""){
-		node->set_name(name);
-	}
-	if (parent!=nullptr){
+T *create_node(Node *parent, const String &name="", Node *owner=nullptr){
+	if (parent){
+		NodePath p(name);
+		if (parent->has_node(p)){
+			return Object::cast_to<T>(parent->get_node(p));
+		}
+		T *node = memnew(T);
+		if (name != ""){
+			node->set_name(name);
+		}
 		if (owner==nullptr){
 			owner = parent->get_owner();
 			if (!owner){
@@ -74,8 +78,9 @@ T *create_node(Node *parent=nullptr, const String &name="", Node *owner=nullptr)
 		}
 		parent->add_child(node);
 		node->set_owner(owner);
+		return node;
 	}
-    return node;
+	return NULL;
 }
 
 template <class T>

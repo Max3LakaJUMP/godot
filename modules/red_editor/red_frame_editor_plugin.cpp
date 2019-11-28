@@ -45,6 +45,11 @@ bool REDFrameEditor::_is_line() const {
 	return false;
 }
 
+Vector2 REDFrameEditor::_get_offset(int p_idx) const {
+
+	return node->get_offset();
+}
+
 Variant REDFrameEditor::_get_polygon(int p_idx) const {
 	return _get_node()->get("polygon");
 }

@@ -15,12 +15,14 @@ class REDControllerBase : public Node {
 	REDIssue *issue;
     REDPage *page;
 	REDFrame *frame;
-
 	NodePath camera_path;
 	Camera2D *camera;
-	Timer *timer;
+	Timer *frame_timer;
+	Timer *camera_timer;
 	Tween *tween;
 	String group_name;
+
+	bool reset_camera_on_frame_change;
 	bool camera_mode;
 	bool camera_smooth;
 	bool b_can_control;
@@ -28,22 +30,28 @@ class REDControllerBase : public Node {
 	Vector2 camera_zoom_max;
 	float zoom_k;
 	float zoom_k_target;
-
-
+	int target_id;
+	Vector2 frame_expand;
 	Vector2 mouse_offset_k;
 	Vector2 mouse_offset_target;
 	Vector2 mouse_offset;
+	Vector2 frame_parallax_pos;
 	Vector2 frame_pos_local;
 	Vector2 frame_pos_global;
 	Vector2 frame_zoom;
 	Vector2 frame_parallax;
-
+	bool frame_changing;
 	bool init_parallax_tween;
 	bool frame_timer_connected;
-
-
+	bool frame_next_timer_connected;
+	bool frame_prev_timer_connected;
 
 public:
+	enum ControllerDirrection{
+		DIRRECTION_NONE,
+		DIRRECTION_FORWARD,
+		DIRRECTION_BACKWARD,
+	};
 	enum CameraState{
 		CAMERA_STATIC,
 		CAMERA_LOCKED,
@@ -51,6 +59,8 @@ public:
 	};
 private:
 	CameraState camera_state;
+	ControllerDirrection dirrection;
+	ControllerDirrection last_dirrection;
 	void _input(const Ref<InputEvent> &p_event);
 
 protected:
@@ -59,8 +69,18 @@ protected:
 	void _notification(int p_what);
 
 public:
-	void frame_start(StringName old_name, StringName new_name);
-	void frame_end(StringName old_name, StringName new_name);
+	void set_zoom_k_target(const float p_val);
+
+	void set_reset_camera_on_frame_change(bool p_reset_camera);
+	bool is_reset_camera_on_frame_change() const;
+
+	void set_frame_scale(const Vector2 &p_scale_factor);
+
+	void set_frame_expand(const Vector2 &p_frame_expand);
+	Vector2 get_frame_expand() const;
+
+
+
 	//void update_camera();
 	//void update_camera_pos();
 
@@ -90,7 +110,7 @@ public:
 	void set_page(REDPage *p_page);
 	void set_page(int p_id, bool is_prev=false);
 	REDPage *get_page() const;
-	void set_frame(int p_id, bool ended=true);
+	void set_frame(int p_id, bool to_next=true);
 	REDFrame *get_frame() const;
 	void set_state(int p_id);
 
@@ -125,10 +145,15 @@ public:
 	void _frame_change();
 	void _frame_changed();
 
+	void _frame_start();
+	void _frame_end();
+
 	void update_camera();
 	void update_camera_pos();
-	void update_camera_to_frame(bool reset_zoom=true, const bool first_frame=false);
-	void zoom_reset(const float reset_duration=0.5f);
+	void update_camera_parallax();
+	void update_camera_to_frame(const bool first_frame=false);
+
+	void zoom_reset();
 
 	Vector2 get_target_pos();
 	Vector2 get_target_zoom();

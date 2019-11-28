@@ -327,11 +327,25 @@ void REDShape::_edit_set_state(const Dictionary &p_state) {
 void REDShape::_edit_set_pivot(const Point2 &p_pivot) {
 	set_position(get_transform().xform(p_pivot));
 	set_offset(get_offset() - p_pivot);
+
+	//PoolVector<Vector2>::Write w = polygon.write();
+	//for (int i = 0; i < polygon.size(); i++)
+	//{
+	//	w[i] -= p_pivot;
+	//}
+	//set_position(get_transform().xform(p_pivot));
+	//for (int i = 0; i < get_child_count(); i++)
+	//{
+	//	Node2D *node = Object::cast_to<Node2D>(get_child(i));
+	//	if (node)
+	//		node->set_position(node->get_position()-p_pivot);
+	//}
 }
 
 Point2 REDShape::_edit_get_pivot() const {
 	return Vector2();
 }
+
 
 bool REDShape::_edit_use_pivot() const {
 	return true;

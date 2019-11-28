@@ -94,10 +94,10 @@ public:
 
 	enum FolderType {
 		FOLDER_NODE2D,
+		FOLDER_PARALLAX,
 		FOLDER_PAGE,
 		FOLDER_FRAME,
 		FOLDER_FRAME_EXTERNAL,
-		FOLDER_PARALLAX,
 	};
 
 	enum UpdateLayerPos {
@@ -105,6 +105,11 @@ public:
 		LAYER_POS_MOVE,
 		LAYER_POS_NEW_UV,
 		LAYER_POS_KEEP_UV,
+	};
+
+	enum Anchor {
+		ANCHOR_CENTER,
+		ANCHOR_TOP_LEFT,
 	};
 
 	virtual String get_importer_name() const;
@@ -127,9 +132,9 @@ public:
 	void create_polygon(_psd_layer_record *layer, Ref<ShaderMaterial> material, Vector2 polygon_size, String png_path, Node2D *parent);
 
 	int load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 
-					Node *parent, Vector2 parent_pos, const Map<StringName, Variant> &p_options, bool force_save=false, int counter=0, int folder_level=-1, REDClipper *parent_clipper=nullptr);
+					Node *parent, Vector2 parent_post, Vector2 parent_offset, const Map<StringName, Variant> &p_options, bool force_save=false, int counter=0, int folder_level=-1, REDClipper *parent_clipper=nullptr);
 	
-	void _mask_to_node(_psd_layer_record *layer, float target_width, int psd_width, REDClipper *clipper, _psd_context *context);
+	Size2 _mask_to_node(_psd_layer_record *layer, float target_width, Node2D *node2d, _psd_context *context, int anchor_second_level);
 	Node *_get_root(_psd_context *context, const String &target_dir, bool &force_save, const Map<StringName, Variant> &p_options) const;
 	Node *get_edited_scene_root(String p_path) const;
 	ResourceImporterPSD();

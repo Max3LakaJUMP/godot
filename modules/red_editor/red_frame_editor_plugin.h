@@ -44,8 +44,8 @@ class REDFrameEditor : public AbstractPolygon2DEditor {
 protected:
 	virtual Node2D *_get_node() const;
 	virtual void _set_node(Node *p_line);
-
 	virtual bool _is_line() const;
+	virtual Vector2 _get_offset(int p_idx) const;
 	virtual Variant _get_polygon(int p_idx) const;
 	virtual void _set_polygon(int p_idx, const Variant &p_polygon) const;
 	virtual void _action_set_polygon(int p_idx, const Variant &p_previous, const Variant &p_polygon);

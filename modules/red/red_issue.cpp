@@ -173,6 +173,7 @@ void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_camera_zoom) {
 		REDFrame *child_frame = page->get_frame(i);
 		if (child_frame!=nullptr){
             child_frame->set_active(false);
+            child_frame->update_origin_pos_gl();
 		}
 	}
 
