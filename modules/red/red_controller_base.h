@@ -28,23 +28,37 @@ class REDControllerBase : public Node {
 	bool b_can_control;
 	Vector2 camera_zoom_min;
 	Vector2 camera_zoom_max;
+	
+	
 	float zoom_k;
 	float zoom_k_target;
 	int target_id;
 	Vector2 frame_expand;
 	Vector2 mouse_offset_k;
-	Vector2 mouse_offset_target;
+
 	Vector2 mouse_offset;
-	Vector2 frame_parallax_pos;
-	Vector2 frame_pos_local;
+
 	Vector2 frame_pos_global;
-	Vector2 frame_zoom;
-	Vector2 frame_parallax;
+
 	bool frame_changing;
 	bool init_parallax_tween;
 	bool frame_timer_connected;
 	bool frame_next_timer_connected;
 	bool frame_prev_timer_connected;
+	
+	
+	
+	mutable Vector2 frame_parallax_zoom;
+	mutable Vector2 frame_pos_local;
+	mutable Vector2 mouse_offset_target;
+	mutable Vector2 frame_parallax;
+
+	mutable bool target_pos_local_dirty;
+	mutable bool target_zoom_dirty;
+	mutable bool target_parallax_dirty;
+	mutable bool target_mouse_dirty;
+
+	Vector2 old_camera_zoom;
 
 public:
 	enum ControllerDirrection{
@@ -79,8 +93,6 @@ public:
 	void set_frame_expand(const Vector2 &p_frame_expand);
 	Vector2 get_frame_expand() const;
 
-
-
 	//void update_camera();
 	//void update_camera_pos();
 
@@ -100,7 +112,7 @@ public:
 	void to_next();
 	void to_prev();
 
-	void mouse_move(const Vector2 &p_mouse_pos);
+	void _mouse_moved(const Vector2 &p_mouse_pos);
 	void zoom_in(const float &p_val=0.25f);
 	void zoom_out(const float &p_val=0.25f);
 	void set_issue(REDIssue *p_issue);
@@ -150,16 +162,23 @@ public:
 
 	void update_camera();
 	void update_camera_pos();
+	void update_camera_zoom();
 	void update_camera_parallax();
 	void update_camera_to_frame(const bool first_frame=false);
 
 	void zoom_reset();
 
-	Vector2 get_target_pos();
-	Vector2 get_target_zoom();
-	Vector2 get_target_mouse();
-	Vector2 get_target_parallax();
+	Vector2 get_target_pos_local() const;
+	Vector2 get_target_pos_global() const;
+	Vector2 get_target_zoom() const;
+	Vector2 get_target_camera_zoom() const;
+	Vector2 get_target_mouse() const;
+	Vector2 get_target_parallax() const;
+	Vector2 get_target_parallax_zoom() const;
 
+	void _target_pos_moved();
+	void _target_parallax_moved();
+	void _frame_zoom_changed();
 	REDControllerBase();
 };
 

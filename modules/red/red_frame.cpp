@@ -145,39 +145,39 @@ NodePath REDFrame::get_parallax_pos_out_path() const{
 }
 //////////////////////
 
-void REDFrame::_target_moved_parallax(){
-	emit_signal("_target_moved_parallax");
+void REDFrame::_target_parallax_moved(){
+	emit_signal("_target_parallax_moved");
 };
 
-void REDFrame::_target_moved_pos(){
-	emit_signal("_target_moved_pos");
+void REDFrame::_target_pos_moved(){
+	emit_signal("_target_pos_moved");
 };
 
 void REDFrame::set_camera_pos(const Transform2D &p_pos){
 	camera_pos = p_pos;
-	//_target_moved_pos();
+	emit_signal("_target_pos_moved");
 };
 void REDFrame::set_camera_pos_in(const Transform2D &p_pos){
 	camera_pos_in = p_pos;
-	_target_moved_pos();
+	emit_signal("_target_pos_moved");
 };
 void REDFrame::set_camera_pos_out(const Transform2D &p_pos){
 	camera_pos_out = p_pos;
-	_target_moved_pos();
+	emit_signal("_target_pos_moved");
 };
 void REDFrame::set_parallax_pos(const Transform2D &p_pos){
 	parallax_pos = p_pos;
-	_target_moved_parallax();
+	emit_signal("_target_parallax_moved");
 };
 
 void REDFrame::set_parallax_pos_in(const Transform2D &p_pos){
 	parallax_pos_in = p_pos;
-	_target_moved_parallax();
+	emit_signal("_target_parallax_moved");
 };
 
 void REDFrame::set_parallax_pos_out(const Transform2D &p_pos){
 	parallax_pos_out = p_pos;
-	_target_moved_parallax();
+	emit_signal("_target_parallax_moved");
 };
 
 ///////////////////////////////////////////
@@ -220,17 +220,17 @@ Point2 REDFrame::get_origin_pos_gl() const{
 };
 
 
-void REDFrame::set_offset_motion_scale(const Vector2 &p_motion_scale){
-	Vector2 new_offset = parallax * p_motion_scale;
+void REDFrame::set_parallax_factor(const Vector2 &p_factor){
+	Vector2 new_offset = parallax * p_factor;
 	if (old_offset != new_offset){
 		set_offset(get_offset() - old_offset + new_offset);
 		old_offset = new_offset;
 	}
-	offset_motion_scale = p_motion_scale;
+	parallax_factor = p_factor;
 };
 
-Vector2 REDFrame::get_offset_motion_scale() const{
-	return offset_motion_scale;
+Vector2 REDFrame::get_parallax_factor() const{
+	return parallax_factor;
 };
 
 void REDFrame::revert_z_index(){
@@ -259,84 +259,68 @@ float REDFrame::get_end_delay() const{
 };
 
 // Parallax, const Vector2 &p_parallax_pos, const Vector2 &p_scale
-void REDFrame::set_parallax(const Vector2 &p_parallax){
+void REDFrame::set_parallax_offset(const Point2 &p_parallax_offset){
 	if (!is_inside_tree())
 		return;
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
-	int count = get_child_count();
+	if (parallax_offset != p_parallax_offset){
+		parallax_offset = p_parallax_offset;
+		apply_parallax();
+	}
+	//emit_signal("parallax_changed");
+};
 
-	Vector2 new_offset = p_parallax * offset_motion_scale;
+Point2 REDFrame::get_parallax_offset() const{
+	return parallax_offset;
+};
+
+void REDFrame::set_parallax_zoom(const Vector2 &p_zoom){
+	if (!is_inside_tree())
+		return;
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
+	if (parallax_zoom != p_zoom){
+		parallax_zoom = p_zoom;
+		apply_parallax();
+	}
+	//emit_signal("parallax_changed");
+};
+
+Vector2 REDFrame::get_parallax_zoom(){
+	return parallax_zoom;
+};
+
+void REDFrame::apply_parallax(){
+	Vector2 new_offset = parallax_offset * parallax_factor;
 	if (old_offset != new_offset){
 		set_offset(get_offset() - old_offset + new_offset);
 		old_offset = new_offset;
 	}
-	//set_scale(Vector2(1, 1) * p_scale * origin_scale);
+	int count = get_child_count();
 	for (int i = 0; i < count; i++)
 	{
 		REDParallaxFolder *folder = Object::cast_to<REDParallaxFolder>(get_child(i));
 		if (!folder)
 			continue;
-		folder->set_base_offset_and_scale(p_parallax, get_scroll_scale(), Point2(0, 0));
+		folder->set_camera_zoom(parallax_zoom);
+		folder->set_camera_offset(parallax_offset);
 	}
-	parallax = p_parallax;
 	//emit_signal("parallax_changed");
-};
-/*
-void REDFrame::set_position_motion_scale(const Vector2 &p_motion_scale){
-	Vector2 new_postion_offset = (scale_parallax_pos - 1.0) * p_motion_scale;
-	if (old_position_offset != new_postion_offset){
-		set_position(get_position() - old_position_offset + new_postion_offset);
-		old_position_offset = new_postion_offset;
-	} 
-	position_motion_scale = p_motion_scale;
-};
-
-Vector2 REDFrame::get_position_motion_scale() const{
-	return position_motion_scale;
-};*/
-
-void REDFrame::set_scale_pos(const Vector2 &p_scale_pos){
-	scale_pos = p_scale_pos;
 };
 
 void REDFrame::set_frame_scale(const Vector2 &p_scale_factor){
-	
-	//Transform2D tr;
-	//tr.set_origin(camera_pos);
-	//tr
-	//set_position(Vector2(0.0,0.0));
-	//set_scale(Vector2(1.0,1.0));
-
-	//Transform2D tr = get_transform();
-	//tr.set_origin(-camera_pos_zoom_out);
-	//tr.set_scale(p_scale_factor);
-	////set_transform(tr);
-	//set_transform(tr*get_transform());
-	if (anchor==FRAME_ANCHOR_TOP_LEFT){
-		Vector2 new_scale_offset =(p_scale_factor*_edit_get_rect().size-_edit_get_rect().size)*0.5;
-		if (old_scale_offset != new_scale_offset){
-			set_position(get_position() + old_scale_offset - new_scale_offset);
-			//origin_pos_gl = origin_pos_gl + old_scale_offset- new_scale_offset;
-			old_scale_offset = new_scale_offset;
-			set_scale(p_scale_factor);
-		} 
-	}
-	else{
-		set_scale(p_scale_factor);
-	}
+	set_scale(get_scale() * p_scale_factor / frame_scale_factor);
+	frame_scale_factor = p_scale_factor;
 };
 
 Vector2 REDFrame::get_scale_offset() const{
 	return old_scale_offset;
 };
 
-Vector2 REDFrame::get_parallax() const{
-	return parallax;
-};
 
-float REDFrame::get_scroll_scale() const{
-	return 1.0;
+Vector2 REDFrame::get_scroll_scale() const{
+	return scroll_scale;
 };
 
 void REDFrame::set_parallax_pos_current(const Vector2 &p_parallax_pos){
@@ -352,13 +336,14 @@ Vector2 REDFrame::get_parallax_pos_current() const{
 void REDFrame::set_camera_zoom(const Vector2 &p_camera_zoom){
 	if (camera_zoom != p_camera_zoom){
 		camera_zoom = p_camera_zoom;
-		emit_signal("update_camera_zoom");
+		emit_signal("_frame_zoom_changed");
 	}
 };
 
 Vector2  REDFrame::get_camera_zoom() const{
 	return camera_zoom;
 };
+
 void REDFrame::update_camera_zoom_and_child(const Vector2 &p_camera_zoom){
 	update_camera_zoom(p_camera_zoom);
 	int count = get_child_count();
@@ -776,15 +761,18 @@ void REDFrame::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_parallax_pos_out", "parallax_pos_out"), &REDFrame::set_parallax_pos_out);
 	ClassDB::bind_method(D_METHOD("get_parallax_pos_out"), &REDFrame::get_parallax_pos_out);
 
-	ClassDB::bind_method(D_METHOD("update_camera_zoom"), &REDFrame::update_camera_zoom);
-	ClassDB::bind_method(D_METHOD("_target_moved_parallax"), &REDFrame::_target_moved_parallax);
-	ClassDB::bind_method(D_METHOD("_target_moved_pos"), &REDFrame::_target_moved_pos);
+	ClassDB::bind_method(D_METHOD("frame_zoom_changed"), &REDFrame::update_camera_zoom);
+	ClassDB::bind_method(D_METHOD("_target_parallax_moved"), &REDFrame::_target_parallax_moved);
+	ClassDB::bind_method(D_METHOD("_target_pos_moved"), &REDFrame::_target_pos_moved);
 
 	ClassDB::bind_method(D_METHOD("set_frame_scale", "frame_scale"), &REDFrame::set_frame_scale);
-	ClassDB::bind_method(D_METHOD("set_parallax", "parallax"), &REDFrame::set_parallax);
-	ClassDB::bind_method(D_METHOD("get_parallax"), &REDFrame::get_parallax);
-	ClassDB::bind_method(D_METHOD("set_offset_motion_scale", "offset_motion_scale"), &REDFrame::set_offset_motion_scale);
-	ClassDB::bind_method(D_METHOD("get_offset_motion_scale"), &REDFrame::get_offset_motion_scale);
+
+	ClassDB::bind_method(D_METHOD("set_parallax_zoom", "parallax_zoom"), &REDFrame::set_parallax_zoom);
+	ClassDB::bind_method(D_METHOD("get_parallax_zoom"), &REDFrame::get_parallax_zoom);
+	ClassDB::bind_method(D_METHOD("set_parallax_offset", "parallax_offset"), &REDFrame::set_parallax_offset);
+	ClassDB::bind_method(D_METHOD("get_parallax_offset"), &REDFrame::get_parallax_offset);
+	ClassDB::bind_method(D_METHOD("set_parallax_factor", "parallax_factor"), &REDFrame::set_parallax_factor);
+	ClassDB::bind_method(D_METHOD("get_parallax_factor"), &REDFrame::get_parallax_factor);
 	ClassDB::bind_method(D_METHOD("set_anchor", "anchor"), &REDFrame::set_anchor);
     ClassDB::bind_method(D_METHOD("get_anchor"), &REDFrame::get_anchor);
 
@@ -808,7 +796,7 @@ void REDFrame::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "parallax_pos_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTarget"), "set_parallax_pos_path", "get_parallax_pos_path");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "parallax_pos_in_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTarget"), "set_parallax_pos_in_path", "get_parallax_pos_in_path");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "parallax_pos_out_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTarget"), "set_parallax_pos_out_path", "get_parallax_pos_out_path");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset_motion_scale"), "set_offset_motion_scale", "get_offset_motion_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "parallax_factor"), "set_parallax_factor", "get_parallax_factor");
 	
 	ADD_GROUP("Animation", "");
  	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "anim_tree", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "AnimationTree"), "set_anim_tree", "get_anim_tree");
@@ -833,9 +821,9 @@ void REDFrame::_bind_methods() {
     BIND_VMETHOD(MethodInfo("_ending"));
     BIND_VMETHOD(MethodInfo("_ended"));
 	*/
-	ADD_SIGNAL(MethodInfo("update_camera_zoom", PropertyInfo(Variant::VECTOR2, "zoom_val")));
-	ADD_SIGNAL(MethodInfo("_target_moved_parallax", PropertyInfo(Variant::VECTOR2, "camera_val")));
-	ADD_SIGNAL(MethodInfo("_target_moved_pos", PropertyInfo(Variant::VECTOR2, "camera_val")));
+	ADD_SIGNAL(MethodInfo("_frame_zoom_changed", PropertyInfo(Variant::VECTOR2, "zoom_val")));
+	ADD_SIGNAL(MethodInfo("_target_parallax_moved", PropertyInfo(Variant::VECTOR2, "camera_val")));
+	ADD_SIGNAL(MethodInfo("_target_pos_moved", PropertyInfo(Variant::VECTOR2, "camera_val")));
     //BIND_VMETHOD(MethodInfo("_state_changed"));
 
 	BIND_ENUM_CONSTANT(FRAME_ANCHOR_CENTER);
@@ -843,6 +831,7 @@ void REDFrame::_bind_methods() {
 }
 
 REDFrame::REDFrame() {
+	frame_scale_factor = Vector2(1, 1);
 	start_immediate = false;
 	anchor = FRAME_ANCHOR_CENTER;
 	start_delay = 0.0f;
@@ -850,7 +839,7 @@ REDFrame::REDFrame() {
 	old_scale_offset = Vector2(0.f, 0.f);
 	old_offset = Vector2(0.f, 0.f);
 	position_motion_scale = Vector2(0.f, 0.f);
-	offset_motion_scale = Vector2(0.f, 0.f);
+	parallax_factor = Vector2(0.f, 0.f);
 
 	camera_zoom = Vector2(1.f, 1.f);
     

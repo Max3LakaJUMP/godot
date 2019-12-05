@@ -18,30 +18,131 @@
 #include <string>
 #include "scene/animation/animation_tree.h"
 #include "scene/scene_string_names.h"
+#include "core/math/random_pcg.h"
 
-void REDClipper::_clip() {
-	if (clip_enable){
-		_update_stencil();
-		_send_stencil();
+
+
+void REDClipper::_move_points(const float deltatime){
+	int count = get_polygon().size();
+	int offsets_count = offsets.size();
+	RandomPCG randbase;
+	randbase.randomize();
+	if (offsets_count == count){
+		for (int i = 0; i < count; i++){
+			if (deformation_state = DEFORMATION_END){
+				deformation_state = DEFORMATION_ENDING;
+				targets_old.write[i] = targets[i].linear_interpolate(targets_old[i], (timers[i]) / times[i]);
+				targets.write[i] = Vector2(0.0, 0.0);
+				timers.write[i] = deltatime;
+				times.write[i] = 0.5f;
+				offsets.write[i] = targets_old[i];
+			}else if (timers[i] <= times[i]){
+				offsets.write[i] = targets_old[i].linear_interpolate(targets[i], (timers[i]) / times[i]);
+				timers.write[i] += deltatime;
+			}else{
+				if (deformation_state = DEFORMATION_ENDING){
+					deformation_state = DEFORMATION_ENDED;
+					break;
+				}
+				targets_old.write[i] = targets[i];
+				targets.write[i] = Vector2(randbase.random(-deformation_offset, deformation_offset), randbase.random(-deformation_offset, deformation_offset));
+				timers.write[i] = deltatime;
+				times.write[i] = targets_old[i].distance_to(targets[i]) / deformation_speed;
+				offsets.write[i] = targets_old[i];
+			}
+		}
+	}else{
+		targets_old.resize(count);
+		targets.resize(count);
+		timers.resize(count);
+		times.resize(count);
+		offsets.resize(count);
+		for (int i = 0; i < count; i++){
+			targets_old.write[i] = Vector2(0, 0);
+			targets.write[i] = Vector2(randbase.random(-deformation_offset, deformation_offset), randbase.random(-deformation_offset, deformation_offset));
+			timers.write[i] = deltatime;
+			times.write[i] = targets_old[i].distance_to(targets[i]) / deformation_speed;
+			offsets.write[i] = targets_old[i];
+		}
+	} 
+	
+	if (deformation_state = DEFORMATION_ENDED){
+		for (int i = 0; i < count; i++){
+			offsets.write[i] = Vector2(0, 0);
+		}
+		deformation_shape = false;
+	}
+	outline_dirty = true;
+	stencil_dirty = true;
+	update();
+}
+
+void REDClipper::set_deformation_speed(float p_deformation_speed){
+	if (deformation_speed == p_deformation_speed)
+		return;
+	deformation_speed = p_deformation_speed;
+	if (deformation_shape){
+		outline_dirty = true;
+		stencil_dirty = true;
+		update();
 	}
 }
 
-void REDClipper::_rotate() {
-	if (rotation_enable){
-		_send_rotation();
+float REDClipper::get_deformation_speed() const{
+	return deformation_speed;
+}
+
+void REDClipper::set_deformation_offset(float p_deformation_offset){
+	if (deformation_offset == p_deformation_offset)
+		return;
+	deformation_offset = p_deformation_offset;
+	if (deformation_shape){
+		outline_dirty = true;
+		stencil_dirty = true;
+		update();
 	}
 }
 
-void REDClipper::_draw_clipper_outline(){
-	if (get_use_outline()){
-		Vector<Vector2> points;
-		int count = get_polygon().size();
-		points.resize(count);
-		PoolVector<Vector2>::Read polyr = get_polygon().read();
-		for (int i = 0; i < count; i++)
-			points.write[i] = polyr[i] + get_offset();
-		_draw_outline(points);
+float REDClipper::get_deformation_offset() const{
+	return deformation_offset;
+}
+
+void REDClipper::set_deformation_shape(bool p_deformate){
+	if (deformation_shape == p_deformate)
+		return;
+	if (p_deformate){
+		deformation_state = DEFORMATION_NORMAL;
+		deformation_shape = true;
+	}else{
+		deformation_state = DEFORMATION_END;
 	}
+	outline_dirty = true;
+	stencil_dirty = true;
+	update();
+}
+
+bool REDClipper::get_deformation_shape() const{
+	return deformation_shape;
+}
+
+Vector<Vector2> REDClipper::get_offsets(){
+	return offsets;
+}
+
+void REDClipper::get_points(Vector<Vector2> &p_points) const{
+	PoolVector<Vector2>::Read polyr = get_polygon().read();
+	int count = get_polygon().size();
+	p_points.resize(count);
+	if (deformation_state){
+		int offsets_count = offsets.size();
+		if (offsets_count == count){
+			for (int i = 0; i < count; i++)
+				p_points.write[i] = polyr[i] + get_offset() + offsets[i];
+			return;
+		}
+	}
+	for (int i = 0; i < count; i++)
+		p_points.write[i] = polyr[i] + get_offset();
 }
 
 void REDClipper::_update_materials() {
@@ -74,6 +175,8 @@ void REDClipper::_update_materials() {
 }
 
 void REDClipper::_send_stencil() {
+	if (!(send_stencil_dirty&&clip_enable&&material_objects.size()>0 && is_inside_tree()))
+		return;
 	int count = cached_materials.size();
 	int pos_count = screen_coords.size();
 	for (int i = 0; i < count; i++){
@@ -135,19 +238,30 @@ void REDClipper::_send_stencil() {
 void REDClipper::set_rotation1(const Vector2 &p_rotation){
 	rotation1 = p_rotation;
 	update();
+	if (rotation_enable){
+		send_rotation_dirty = true;
+		update();
+	}
 }
 Vector2 REDClipper::get_rotation1() const{
 	return rotation1;
 }
 void REDClipper::set_rotation2(const Vector2 &p_rotation){
 	rotation2 = p_rotation;
-	update();
+	if (rotation_enable){
+		send_rotation_dirty = true;
+		update();
+	}
 }
 Vector2 REDClipper::get_rotation2() const{
 	return rotation2;
 }
 
 void REDClipper::_send_rotation() {
+	if (!(send_rotation_dirty && rotation_enable && material_objects.size()>0 && is_inside_tree())){
+		return;
+	}
+	send_rotation_dirty = false;
 	int count = cached_materials.size();
 	for (int i = 0; i < count; i++){
 		if (!cached_materials[i].is_valid()){
@@ -165,12 +279,16 @@ void REDClipper::_send_rotation() {
 	}
 }
 
-void REDClipper::_update_stencil() {
+void REDClipper::_update_stencil(const Vector<Vector2> &p_points) {
+	if (!(stencil_dirty&&clip_enable&&material_objects.size()>0 && is_inside_tree()))
+		return;
+	stencil_dirty = false;
+	send_stencil_dirty = true;
 	int count = cached_materials.size();
 	if (count == 0)
 		return;
-	int polygon_size = get_polygon().size();
-	if (polygon_size!=3 && polygon_size!=4 && polygon_size!=8)
+	int polygon_size = p_points.size();
+	if (polygon_size != 3 && polygon_size != 4 && polygon_size != 8)
 		return;
 
 	screen_coords.resize(polygon_size);
@@ -186,10 +304,11 @@ void REDClipper::_update_stencil() {
 	default:
 		tr = get_transform();
 	}
-
+	int offsets_count = offsets.size();
 	for (int i = 0; i < polygon_size; i++) {
-		screen_coords.write[i] = tr.xform(get_polygon()[i]+get_offset());
+		screen_coords.write[i] = tr.xform(p_points[i]);
 	}
+
 	if (space == SCREEN){
 		Size2 res = get_viewport()->get_size();
 		for (int i = 0; i < polygon_size; i++) {
@@ -330,9 +449,19 @@ void REDClipper::_update_stencil() {
 
 void REDClipper::_notification(int p_what) {
 	switch (p_what) {
+		case NOTIFICATION_PROCESS: {
+			if (deformation_shape){
+				_move_points(get_process_delta_time());
+			}
+		} break;
 		case NOTIFICATION_TRANSFORM_CHANGED:{
 			if (material_objects.size()>0 && is_inside_tree()){
-				_clip();
+				if (clip_enable){
+					Vector<Vector2> points;
+					get_points(points);
+					_update_stencil(points);
+					_send_stencil();
+				}
 			}
 		} break;
 		case NOTIFICATION_ENTER_TREE: {
@@ -343,11 +472,16 @@ void REDClipper::_notification(int p_what) {
 		} break;
 		case NOTIFICATION_DRAW: {
 			VisualServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), clip_rect_enable);
-			if (material_objects.size()>0 && is_inside_tree()){
-				_clip();
-				_rotate();
+			if ((stencil_dirty && clip_enable) || (outline_dirty && get_use_outline())){
+				Vector<Vector2> points;
+				get_points(points);
+				if (material_objects.size()>0 && is_inside_tree()){
+					_update_stencil(points);
+					_send_stencil();
+				}
+				_draw_outline(points);
 			}
-			_draw_clipper_outline();
+			_send_rotation();	
 		} break;
 	}
 }
@@ -386,11 +520,24 @@ void REDClipper::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("update_stencil"), &REDClipper::_update_stencil);
 	ClassDB::bind_method(D_METHOD("send_stencil"), &REDClipper::_send_stencil);
 
+	ClassDB::bind_method(D_METHOD("set_deformation_shape", "deformation_shape"), &REDClipper::set_deformation_shape);
+    ClassDB::bind_method(D_METHOD("get_deformation_shape"), &REDClipper::get_deformation_shape);
+	ClassDB::bind_method(D_METHOD("set_deformation_offset", "deformation_offset"), &REDClipper::set_deformation_offset);
+    ClassDB::bind_method(D_METHOD("get_deformation_offset"), &REDClipper::get_deformation_offset);
+	ClassDB::bind_method(D_METHOD("set_deformation_speed", "deformation_speed"), &REDClipper::set_deformation_speed);
+    ClassDB::bind_method(D_METHOD("get_deformation_speed"), &REDClipper::get_deformation_speed);
+	
+	ADD_GROUP("Deformation", "");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "deformation_shape"), "set_deformation_shape", "get_deformation_shape");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "deformation_offset"), "set_deformation_offset", "get_deformation_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "deformation_speed"), "set_deformation_speed", "get_deformation_speed");
+
 	ADD_GROUP("Rotator", "");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "rotation_enable"), "set_rotation_enable", "get_rotation_enable");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "rotation1"), "set_rotation1", "get_rotation1");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "rotation2"), "set_rotation2", "get_rotation2");
 	ADD_GROUP("Clipper", "");
+
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_enable"), "set_clip_enable", "get_clip_enable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_rect_enable"), "set_clip_rect_enable", "get_clip_rect_enable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "split"), "set_split", "get_split");
@@ -409,8 +556,10 @@ void REDClipper::_bind_methods() {
 
 void REDClipper::set_split(bool p_split){
 	split = p_split;
-	_update_materials();
-	update();
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
 }
 
 bool REDClipper::get_split() const{
@@ -419,7 +568,10 @@ bool REDClipper::get_split() const{
 
 void REDClipper::set_split_angle(float p_split_angle){
 	split_angle = p_split_angle;
-	update();
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
 }
 float REDClipper::get_split_angle() const{
 	return split_angle;
@@ -427,7 +579,10 @@ float REDClipper::get_split_angle() const{
 
 void REDClipper::set_split_offset(const Vector2 &p_split_offset){
 	split_offset = p_split_offset;
-	update();
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
 }
 
 Vector2 REDClipper::get_split_offset() const{
@@ -436,7 +591,10 @@ Vector2 REDClipper::get_split_offset() const{
 
 void REDClipper::set_rotation_enable(bool p_rotation){
 	rotation_enable = p_rotation;
-	update();
+	if(rotation_enable){
+		send_rotation_dirty = true;
+		update();
+	}
 }
 
 bool REDClipper::get_rotation_enable() const{
@@ -446,7 +604,10 @@ bool REDClipper::get_rotation_enable() const{
 void REDClipper::set_clip_enable(bool p_clip){
 	clip_enable = p_clip;
 	set_notify_transform(p_clip);
-	update();
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
 }
 
 bool REDClipper::get_clip_enable() const{
@@ -464,7 +625,10 @@ bool REDClipper::get_clip_rect_enable() const{
 
 void REDClipper::set_space(REDClipper::Space p_space){
 	space = p_space;
-	_clip();
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
 }
 
 REDClipper::Space REDClipper::get_space() const{
@@ -478,11 +642,14 @@ void REDClipper::set_material_objects(const Array &p_material_objects) {
 	for (int i = 0; i < count; i++) {
 		material_objects.write[i] = p_material_objects[i];
 	}
+	
 	if (is_inside_tree() && count>0){
+		send_stencil_dirty = true;
+		send_rotation_dirty = true;
 		_update_materials();
 		if (old_count == 0)
-			_update_stencil();
-		_send_stencil();
+			stencil_dirty = true;
+		update();
 	}
 }
 
@@ -504,10 +671,12 @@ void REDClipper::set_material_objects2(const Array &p_material_objects2) {
 		material_objects2.write[i] = p_material_objects2[i];
 	}
 	if (is_inside_tree() && count>0){
+		send_stencil_dirty = true;
+		send_rotation_dirty = true;
 		_update_materials();
 		if (old_count == 0)
-			_update_stencil();
-		_send_stencil();
+			stencil_dirty = true;
+		update();
 	}
 }
 Array REDClipper::get_material_objects2() const {
@@ -525,6 +694,16 @@ Vector<Ref<ShaderMaterial> > REDClipper::get_cached_materials() const {
 }
 
 REDClipper::REDClipper() {
+	deformation_state= DEFORMATION_NORMAL;
+	deformation_offset = 200.0f;
+	deformation_speed = 200.0f;
+	deformation_shape = false;
+	outline_dirty = true;
+	send_stencil_dirty = true;
+	send_rotation_dirty = true;
+	materials_dirty = true;
+	stencil_dirty = true;
+	deformation_shape = true;
 	rotation1 = Vector2(0, 0);
 	rotation2 = Vector2(0, 0);
 	rotation_enable = true;

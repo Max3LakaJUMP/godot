@@ -16,12 +16,13 @@ class REDFrame : public REDClipper {
 	float start_delay;
 	float end_delay;
 
+	Vector2 scroll_scale;
 
-	Vector2 scale_pos;
+	Vector2 frame_scale_factor;
 	Vector2 scale_parallax_pos;
 	Vector2 old_scale_offset;
 	Vector2 old_offset;
-	Vector2 offset_motion_scale;
+	Vector2 parallax_factor;
 	Vector2 position_motion_scale;
 
 	Point2 origin_pos_gl;
@@ -32,7 +33,8 @@ class REDFrame : public REDClipper {
 	Vector2 parallax;
 
 	Vector2 parallax_pos_current;
-
+	Vector2 parallax_zoom;
+	Vector2 parallax_offset;
 
 	Vector2 camera_zoom;
 
@@ -73,8 +75,8 @@ public:
 	Transform2D load_target(const NodePath &p_path, StringName function);
 	void load_targets();
 	void unload_targets();
-	void _target_moved_parallax();
-	void _target_moved_pos();
+	void _target_parallax_moved();
+	void _target_pos_moved();
 
 	void set_camera_pos_path(const NodePath &p_camera_pos_path);
 	NodePath get_camera_pos_path() const;
@@ -124,17 +126,21 @@ public:
 	void set_position_motion_scale(const Vector2 &p_motion_scale);
 	Vector2 get_position_motion_scale() const;
 	*/
-	void set_offset_motion_scale(const Vector2 &p_motion_scale);
-	Vector2 get_offset_motion_scale() const;
+	void set_parallax_factor(const Vector2 &p_motion_scale);
+	Vector2 get_parallax_factor() const;
 
 	void update_origin_pos_gl();
 	void set_origin_pos_gl(const Point2 &p_origin_pos_gl);
 	Point2 get_origin_pos_gl() const;
 
+// Parallax, const Vector2 &p_parallax_pos, const Vector2 &p_scale
+	void set_parallax_offset(const Point2 &p_parallax);
+	void set_parallax_zoom(const Vector2 &p_zoom);
+	Vector2 get_parallax_zoom();
+	void apply_parallax();
 
-	void set_parallax(const Vector2 &p_parallax);
-	Vector2 get_parallax() const;
-	float  get_scroll_scale() const;
+	Point2 get_parallax_offset() const;
+	Vector2 get_scroll_scale() const;
 
 	void set_parallax_pos_current(const Vector2 &p_parallax_pos);
 	Vector2 get_parallax_pos_current() const;
@@ -142,7 +148,6 @@ public:
 
 	void set_camera_zoom(const Vector2 &p_camera_zoom);
 	Vector2 get_camera_zoom() const;
-
 
 //line
 public:

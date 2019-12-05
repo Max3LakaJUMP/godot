@@ -37,7 +37,7 @@ void REDShape::_notification(int p_what) {
 
 void REDShape::set_use_outline(const bool b) {
     use_outline = b;
-	update_outline = b;
+	outline_dirty = b;
 	update();
 }
 
@@ -57,7 +57,7 @@ void REDShape::set_width(float p_width) {
 	if (p_width < 0.0)
 		p_width = 0.0;
 	width = p_width;
-	update_outline = true;
+	outline_dirty = true;
 	update();
 
 }
@@ -78,7 +78,7 @@ void REDShape::set_width_curve(const Ref<Curve> &p_width_curve) {
 	if (width_curve.is_valid()) {
 		width_curve->connect(CoreStringNames::get_singleton()->changed, this, "_width_curve_changed");
 	}
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
@@ -88,7 +88,7 @@ Ref<Curve> REDShape::get_width_curve() const {
 
 void REDShape::set_default_color(Color p_color) {
 	default_color = p_color;
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
@@ -109,7 +109,7 @@ void REDShape::set_gradient(const Ref<Gradient> &p_gradient) {
 	if (gradient.is_valid()) {
 		gradient->connect(CoreStringNames::get_singleton()->changed, this, "_gradient_changed");
 	}
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
@@ -119,7 +119,7 @@ Ref<Gradient> REDShape::get_gradient() const {
 
 void REDShape::set_line_texture(const Ref<Texture> &p_texture) {
 	texture = p_texture;
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
@@ -129,7 +129,7 @@ Ref<Texture> REDShape::get_line_texture() const {
 
 void REDShape::set_texture_mode(const LineTextureMode p_mode) {
 	texture_mode = p_mode;
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
@@ -139,7 +139,7 @@ REDShape::LineTextureMode REDShape::get_texture_mode() const {
 
 void REDShape::set_joint_mode(REDShape::LineJointMode p_mode) {
 	joint_mode = p_mode;
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
@@ -151,7 +151,7 @@ void REDShape::set_sharp_limit(float p_limit) {
 	if (p_limit < 0.f)
 		p_limit = 0.f;
 	sharp_limit = p_limit;
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
@@ -163,7 +163,7 @@ void REDShape::set_round_precision(int p_precision) {
 	if (p_precision < 1)
 		p_precision = 1;
 	round_precision = p_precision;
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
@@ -179,6 +179,8 @@ void REDShape::update_camera_zoom(Vector2 p_camera_zoom) {
 }
 
 void REDShape::_draw_outline(Vector<Vector2> &p_points) {
+	if (!(outline_dirty && use_outline))
+		return;
 	int len = p_points.size();
 
 	/*Vector<Vector2> p_points;
@@ -271,7 +273,7 @@ void REDShape::_draw_outline(Vector<Vector2> &p_points) {
 			lb.uvs, Vector<int>(), Vector<float>(),
 
 			texture_rid);
-	update_outline = false;
+	outline_dirty = false;
 	/*Draw wireframe
 		if(lb.indices.size() % 3 == 0) {
 			Color col(0,0,0);
@@ -293,19 +295,19 @@ void REDShape::_draw_outline(Vector<Vector2> &p_points) {
 }
 
 void REDShape::_gradient_changed() {
-	update_outline = true;
+	outline_dirty = true;
 	update();
 
 }
 
 void REDShape::_width_curve_changed() {
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
 void REDShape::set_width_list(const PoolVector<float> &p_width_list) {
     width_list = p_width_list;
-	update_outline = true;
+	outline_dirty = true;
     update();
 }
 
@@ -382,7 +384,8 @@ bool REDShape::_edit_is_selected_on_click(const Point2 &p_point, double p_tolera
 void REDShape::set_polygon(const PoolVector<Vector2> &p_polygon) {
 	polygon = p_polygon;
 	rect_cache_dirty = true;
-	update_outline = true;
+	outline_dirty = true;
+	stencil_dirty = true;
 	update();
 }
 
@@ -394,7 +397,7 @@ PoolVector<Vector2> REDShape::get_polygon() const {
 void REDShape::set_antialiased(bool p_antialiased) {
 
 	antialiased = p_antialiased;
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 bool REDShape::get_antialiased() const {
@@ -404,7 +407,7 @@ bool REDShape::get_antialiased() const {
 
 void REDShape::set_closed(const bool p_closed) {
 	closed = p_closed;
-	update_outline = true;
+	outline_dirty = true;
 	update();
 }
 
@@ -416,7 +419,9 @@ void REDShape::set_offset(const Vector2 &p_offset) {
 
 	offset = p_offset;
 	rect_cache_dirty = true;
-	update_outline = true;
+	outline_dirty = true;
+	stencil_dirty = true;
+	
 	update();
 	_change_notify("offset");
 }
@@ -517,7 +522,8 @@ REDShape::REDShape() {
 	camera_zoom = Vector2(1.f, 1.0f);
 
 	use_outline = true;
-	update_outline = true;
+	outline_dirty = true;
+	stencil_dirty = true;
 	outline_width_constant = true;
 	closed = true;
 

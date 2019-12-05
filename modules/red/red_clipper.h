@@ -7,6 +7,13 @@
 
 class REDClipper : public REDShape {
 	GDCLASS(REDClipper, REDShape);
+	Vector<Vector2> targets;
+	Vector<Vector2> offsets;
+	Vector<Vector2> targets_old;
+	Vector<float> times;
+	Vector<float> timers;
+	Vector<float> lerps;
+
 	Vector2 rotation1;
 	Vector2 rotation2;
 
@@ -17,7 +24,6 @@ class REDClipper : public REDShape {
 	Vector<NodePath> material_objects;
 	Vector<NodePath> material_objects2;
 	Vector<Ref<ShaderMaterial> > cached_materials;
-
 	int second_split_start_material_id;
 	bool clip_enable;
 	bool rotation_enable;
@@ -27,6 +33,13 @@ class REDClipper : public REDShape {
 	Vector2 split_offset;
 
 	Vector<Vector3> output;
+	bool materials_dirty;
+	bool send_rotation_dirty;
+	bool send_stencil_dirty;
+
+	bool deformation_shape;
+	float deformation_offset;
+	float deformation_speed;
 
 protected:
 	void _notification(int p_what);
@@ -37,13 +50,27 @@ public:
 		LOCAL,
 		SCREEN
 	} space;
-	void _draw_clipper_outline();
-	void _clip();
-	void _rotate();
+	enum DeformationState{
+		DEFORMATION_NORMAL,
+		DEFORMATION_END,
+		DEFORMATION_ENDING,
+		DEFORMATION_ENDED,
+	} deformation_state;
+	
+	void set_deformation_shape(bool p_deformate);
+	bool get_deformation_shape() const;
+	void set_deformation_offset(float p_deformation_offset);
+	float get_deformation_offset() const;
+	void set_deformation_speed(float p_deformation_speed);
+	float get_deformation_speed() const;
+	
+	void get_points(Vector<Vector2> &p_points) const;
 	void _update_materials();
-	void _update_stencil();
+	void _update_stencil(const Vector<Vector2> &p_points) ;
 	void _send_stencil();
 	void _send_rotation();
+	void _move_points(const float deltatime);
+	Vector<Vector2> get_offsets();
 
 	void set_rotation1(const Vector2 &p_rotation);
 	Vector2 get_rotation1() const;

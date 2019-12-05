@@ -22,7 +22,7 @@ public:
 private:
 	PoolVector<Vector2> polygon;
 	bool outline_width_constant;
-	bool update_outline;
+
 	bool antialiased;
 
 	Vector2 camera_zoom;
@@ -43,6 +43,8 @@ private:
 	LineTextureMode texture_mode;
 	float sharp_limit;
 	int round_precision;
+
+
 	void _gradient_changed();
 	void _width_curve_changed();
 
@@ -50,6 +52,8 @@ protected:
 
     static void _bind_methods();
 	void _notification(int p_what);
+	bool stencil_dirty;
+	bool outline_dirty;
 
 public:
 	virtual Dictionary _edit_get_state() const;

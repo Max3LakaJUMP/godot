@@ -106,13 +106,14 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/texture"), false));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/page_height"), true));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/frame_targets"), false));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/frame_targets"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/folder_mask"), true));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/folder_pos"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_size"), false));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "update/folder_pos", PROPERTY_HINT_ENUM, "Ignore, Reset, Move layers"), 2));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "update/layer_pos", PROPERTY_HINT_ENUM, "Ignore, Move, New UV, Keep UV"), 1));
 
-	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "anchor/second_level", PROPERTY_HINT_ENUM, "Center, Left-top"), 0));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "anchor/second_level", PROPERTY_HINT_ENUM, "Top left, Center"), 1));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "anchor/folder", PROPERTY_HINT_ENUM, "Top left, Center"), 0));
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/root", PROPERTY_HINT_ENUM, "Node2D, Parallax, Page, Frame"), 2));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/second_level", PROPERTY_HINT_ENUM, "Node2D, Parallax, Page, Frame, Frame external"), 4));
@@ -271,14 +272,13 @@ void ResourceImporterPSD::save_png(_psd_layer_record *layer, String png_path, in
 	}
 }
 
-Size2 ResourceImporterPSD::_mask_to_node(_psd_layer_record *layer, float target_width, Node2D *node2d, _psd_context *context, int anchor_second_level){
+void ResourceImporterPSD::_mask_to_node(_psd_layer_record *layer, float target_width, Node2D *node2d, _psd_context *context, int anchor_second_level){
 	Vector<Vector2> polygon = load_polygon_from_mask(layer, target_width, context->width);
 	if (polygon.size()>3)
 		simplify_polygon(polygon);
 	if (polygon.size()<3){
 		float width = target_width;
 		float height = (target_width*(float)context->height)/context->width;
-
 		polygon.clear();
 		polygon.push_back(Vector2(0, 0));
 		polygon.push_back(Vector2(width, 0));
@@ -295,38 +295,40 @@ Size2 ResourceImporterPSD::_mask_to_node(_psd_layer_record *layer, float target_
 		else
 			item_rect.expand_to(pos);
 	}
-	Point2 center_pos = item_rect.size/2.0f;
-
-	Point2 output_offset = Point2(0, 0);
 
 	REDClipper *clipper = Object::cast_to<REDClipper>(node2d);	
 	if (clipper){
 		clipper->set_polygon(polygon_pool);
 	}
-
+	/*
+	Point2 center_pos = item_rect.size/2.0f;
+	Point2 output_offset = Point2(0, 0);
 	Vector2 move_val = -node2d->get_position();
 	switch (anchor_second_level){
 		case ANCHOR_CENTER:{
-			if (clipper){
-				clipper->set_offset(-center_pos);
-			}
-			node2d->set_position(center_pos);
 			output_offset = center_pos;
+
+			//node2d->set_position(center_pos);
+
 		} break;
 		case ANCHOR_TOP_LEFT:
+			output_offset = Point2(0, 0);
 		default:{
 		}break;
 	}
-	move_val += node2d->get_position();
-	if (move_val.length() > 0){
-		for (int i = 0; i < node2d->get_child_count(); i++)
-		{
-			Node2D *child = Object::cast_to<Node2D>(node2d->get_child(i));
-			if (child)
-				child->set_position(child->get_position()-move_val);
-		}
+	if (clipper){
+		clipper->set_offset(-center_pos);
 	}
-	return output_offset;
+	//move_val += node2d->get_position();
+	//if (move_val.length() > 0){
+	//	for (int i = 0; i < node2d->get_child_count(); i++)
+	//	{
+	//		Node2D *child = Object::cast_to<Node2D>(node2d->get_child(i));
+	//		if (child)
+	//			child->set_position(child->get_position()-move_val);
+	//	}
+	//}
+	*/
 }
 
 
@@ -924,12 +926,17 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				}
 				String folder_name = reinterpret_cast<char const*>(layer_folder->layer_name);
 				int mode = 0;
+				int anchor = ANCHOR_TOP_LEFT;
 				if(new_folder_level==0)
 					mode = p_options["types/root"];
-				else if (new_folder_level==1)
+				else if (new_folder_level==1){
 					mode = p_options["types/second_level"];
-				else
+					anchor = p_options["anchor/second_level"];
+				}
+				else{
 					mode = p_options["types/folder"];
+					anchor = p_options["anchor/folder"];
+				}
 				if (folder_name == ""){
 					folder_name = "root";
 				}
@@ -943,6 +950,11 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					{
 						mode = FOLDER_FRAME_EXTERNAL;
 						folder_name = folder_name.replace_first("_external", "");
+					}
+					if (folder_name.find("_center") != -1)
+					{
+						anchor = ANCHOR_CENTER;
+						folder_name = folder_name.replace_first("_center", "");
 					}
 				}
 				String new_target_dir = target_dir;
@@ -1025,55 +1037,65 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					} break;
 				}
 				Vector2 new_parent_pos = parent_pos;
-				Vector2 new_parent_offset = parent_offset;
-				if (node_2d != nullptr){
-					float offset_x = layer_folder->layer_mask_info.left * resolution_width / context->width;
-					float offset_y = layer_folder->layer_mask_info.top * resolution_width / context->width;
-					Vector2 local_pos = Vector2(offset_x, offset_y);
-					if ((updateble && p_options["update/folder_pos"]) || need_create){
-						node_2d->set_position(local_pos - parent_pos);
+				Vector2 new_parent_offset = Vector2(0, 0);
+
+				
+				if (anchor_object){
+					if (((updateble && p_options["update/folder_mask"]) || need_create) && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
+						_mask_to_node(layer_folder, resolution_width, anchor_object, context, anchor);
 					}
-					new_parent_pos += local_pos;
 				}
+				float offset_x = layer_folder->layer_mask_info.left * resolution_width / context->width;
+				float offset_y = layer_folder->layer_mask_info.top * resolution_width / context->width;
+				Vector2 local_pos = Vector2(offset_x, offset_y);
+				Vector2 half_frame = (clipper) ? clipper->_edit_get_rect().size/2 : Vector2(0,0);
+				Vector2 frame_anchor_offset = (anchor==ANCHOR_CENTER) ? -half_frame : Vector2(0,0);
+				new_parent_pos += local_pos;
+				new_parent_offset = -frame_anchor_offset;
+
+				int folder_update_mode = p_options["update/folder_pos"];
+
+
+				if ((updateble && folder_update_mode == FOLDER_POS_RESET) || need_create){
+					if (clipper && mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL){
+						clipper->set_offset(frame_anchor_offset);
+						clipper->set_position(-frame_anchor_offset);
+					}
+					if (node_2d){
+						node_2d->set_position(local_pos - parent_pos - parent_offset - frame_anchor_offset);
+					}
+				}
+				else if (folder_update_mode == FOLDER_MOVE_LAYERS && node_2d){
+					new_parent_pos -= (local_pos - parent_pos - parent_offset - frame_anchor_offset)-node_2d->get_position();
+				}
+
 				if (((updateble &&p_options["update/page_height"]) || need_create) && mode == FOLDER_PAGE){
 					page->set_size(Size2(resolution_width, ((float)context->height) / context->width*resolution_width));
 				}
-				if (anchor_object){
-					if (((updateble && p_options["update/folder_mask"]) || need_create) && new_folder_level == 1){
-						new_parent_offset = _mask_to_node(layer_folder, resolution_width, anchor_object, context, p_options["anchor/second_level"]);
-						//new_parent_pos += offset;
-					}
-				}
 
 				if (((updateble &&p_options["update/frame_targets"]) || need_create) && frame != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
-					if (clipper != nullptr){
-						Node2D *targets2d = red::create_node<Node2D>(anchor_object, "targets");
-						Node *targets = red::create_node<Node>(anchor_object, "targets");
-						if(targets){
-							REDTarget *camera_pos = red::create_node<REDTarget>(targets, "camera_pos");
-							REDTarget *camera_pos_in = red::create_node<REDTarget>(targets, "camera_pos_in");
-							REDTarget *camera_pos_out = red::create_node<REDTarget>(targets, "camera_pos_out");
-							REDTarget *parallax_pos = red::create_node<REDTarget>(targets, "parallax_pos");
-							REDTarget *parallax_pos_in = red::create_node<REDTarget>(targets, "parallax_pos_in");
-							REDTarget *parallax_pos_out = red::create_node<REDTarget>(targets, "parallax_pos_out");
+					Node2D *targets2d = red::create_node<Node2D>(anchor_object, "targets");
+					Node *targets = red::create_node<Node>(anchor_object, "targets");
+					if(targets){
+						REDTarget *camera_pos = red::create_node<REDTarget>(targets, "camera_pos");
+						REDTarget *camera_pos_in = red::create_node<REDTarget>(targets, "camera_pos_in");
+						REDTarget *camera_pos_out = red::create_node<REDTarget>(targets, "camera_pos_out");
+						REDTarget *parallax_pos = red::create_node<REDTarget>(targets, "parallax_pos");
+						REDTarget *parallax_pos_in = red::create_node<REDTarget>(targets, "parallax_pos_in");
+						REDTarget *parallax_pos_out = red::create_node<REDTarget>(targets, "parallax_pos_out");
 
-							frame->set_camera_pos_path(frame->get_path_to(camera_pos));
-							frame->set_camera_pos_in_path(frame->get_path_to(camera_pos_in));
-							frame->set_camera_pos_out_path(frame->get_path_to(camera_pos_out));
-							frame->set_parallax_pos_path(frame->get_path_to(parallax_pos));
-							frame->set_parallax_pos_in_path(frame->get_path_to(parallax_pos_in));
-							frame->set_parallax_pos_out_path(frame->get_path_to(parallax_pos_out));
-						}
-						
-						/*
-						Rect2 rect = clipper->_edit_get_rect();
-						frame->set_camera_pos(rect.size * 0.5 + rect.position);
-						frame->set_camera_pos_zoom_in(rect.size * 0.5 + rect.position);
-						frame->set_camera_pos_zoom_out(rect.size * 0.5 + rect.position);
-
-						frame->set_parallax_pos(rect.size * 0.5 + rect.position);
-						frame->set_parallax_pos_zoom_in(rect.size * 0.5 + rect.position);
-						frame->set_parallax_pos_zoom_out(rect.size * 0.5 + rect.position);*/
+						frame->set_camera_pos_path(frame->get_path_to(camera_pos));
+						frame->set_camera_pos_in_path(frame->get_path_to(camera_pos_in));
+						frame->set_camera_pos_out_path(frame->get_path_to(camera_pos_out));
+						frame->set_parallax_pos_path(frame->get_path_to(parallax_pos));
+						frame->set_parallax_pos_in_path(frame->get_path_to(parallax_pos_in));
+						frame->set_parallax_pos_out_path(frame->get_path_to(parallax_pos_out));
+						camera_pos->set_position(half_frame-frame_anchor_offset);
+						camera_pos_in->set_position(half_frame-frame_anchor_offset);
+						camera_pos_out->set_position(half_frame-frame_anchor_offset);
+						parallax_pos->set_position(half_frame-frame_anchor_offset);
+						parallax_pos_in->set_position(half_frame-frame_anchor_offset);
+						parallax_pos_out->set_position(half_frame-frame_anchor_offset);
 					}
 				}
 

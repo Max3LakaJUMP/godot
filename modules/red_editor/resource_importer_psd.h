@@ -99,6 +99,11 @@ public:
 		FOLDER_FRAME,
 		FOLDER_FRAME_EXTERNAL,
 	};
+	enum UpdateFolderPos {
+		FOLDER_POS_IGNORE,
+		FOLDER_POS_RESET,
+		FOLDER_MOVE_LAYERS,
+	};
 
 	enum UpdateLayerPos {
 		LAYER_POS_IGNORE,
@@ -108,8 +113,8 @@ public:
 	};
 
 	enum Anchor {
-		ANCHOR_CENTER,
 		ANCHOR_TOP_LEFT,
+		ANCHOR_CENTER,
 	};
 
 	virtual String get_importer_name() const;
@@ -134,7 +139,7 @@ public:
 	int load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 
 					Node *parent, Vector2 parent_post, Vector2 parent_offset, const Map<StringName, Variant> &p_options, bool force_save=false, int counter=0, int folder_level=-1, REDClipper *parent_clipper=nullptr);
 	
-	Size2 _mask_to_node(_psd_layer_record *layer, float target_width, Node2D *node2d, _psd_context *context, int anchor_second_level);
+	void _mask_to_node(_psd_layer_record *layer, float target_width, Node2D *node2d, _psd_context *context, int anchor_second_level);
 	Node *_get_root(_psd_context *context, const String &target_dir, bool &force_save, const Map<StringName, Variant> &p_options) const;
 	Node *get_edited_scene_root(String p_path) const;
 	ResourceImporterPSD();
