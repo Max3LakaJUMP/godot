@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  android_utils.cpp                                                    */
+/*  gd_mono_android.h                                                    */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,41 +28,25 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "android_utils.h"
+#ifndef GD_MONO_ANDROID_H
+#define GD_MONO_ANDROID_H
 
-#ifdef __ANDROID__
+#if defined(ANDROID_ENABLED)
 
-#include "platform/android/thread_jandroid.h"
+#include "core/ustring.h"
 
-namespace GDMonoUtils {
-namespace Android {
+namespace GDMonoAndroid {
 
-String get_app_native_lib_dir() {
-	JNIEnv *env = ThreadAndroid::get_env();
+String get_app_native_lib_dir();
 
-	jclass activityThreadClass = env->FindClass("android/app/ActivityThread");
-	jmethodID currentActivityThread = env->GetStaticMethodID(activityThreadClass, "currentActivityThread", "()Landroid/app/ActivityThread;");
-	jobject activityThread = env->CallStaticObjectMethod(activityThreadClass, currentActivityThread);
-	jmethodID getApplication = env->GetMethodID(activityThreadClass, "getApplication", "()Landroid/app/Application;");
-	jobject ctx = env->CallObjectMethod(activityThread, getApplication);
+void initialize();
 
-	jmethodID getApplicationInfo = env->GetMethodID(env->GetObjectClass(ctx), "getApplicationInfo", "()Landroid/content/pm/ApplicationInfo;");
-	jobject applicationInfo = env->CallObjectMethod(ctx, getApplicationInfo);
-	jfieldID nativeLibraryDirField = env->GetFieldID(env->GetObjectClass(applicationInfo), "nativeLibraryDir", "Ljava/lang/String;");
-	jstring nativeLibraryDir = (jstring)env->GetObjectField(applicationInfo, nativeLibraryDirField);
+void register_internal_calls();
 
-	String result;
+void cleanup();
 
-	const char *const nativeLibraryDir_utf8 = env->GetStringUTFChars(nativeLibraryDir, NULL);
-	if (nativeLibraryDir_utf8) {
-		result.parse_utf8(nativeLibraryDir_utf8);
-		env->ReleaseStringUTFChars(nativeLibraryDir, nativeLibraryDir_utf8);
-	}
+} // namespace GDMonoAndroid
 
-	return result;
-}
+#endif // ANDROID_ENABLED
 
-} // namespace Android
-} // namespace GDMonoUtils
-
-#endif // __ANDROID__
+#endif // GD_MONO_ANDROID_H

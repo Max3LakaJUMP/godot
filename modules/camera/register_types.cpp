@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  camera_osx.h                                                         */
+/*  register_types.cpp                                                   */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,20 +28,29 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef CAMERAOSX_H
-#define CAMERAOSX_H
+#include "register_types.h"
 
-///@TODO this is a near duplicate of CameraIOS, we should find a way to combine those to minimise code duplication!!!!
-// If you fix something here, make sure you fix it there as wel!
+#if defined(WINDOWS_ENABLED)
+#include "camera_win.h"
+#endif
+#if defined(IPHONE_ENABLED)
+#include "camera_ios.h"
+#endif
+#if defined(OSX_ENABLED)
+#include "camera_osx.h"
+#endif
 
-#include "servers/camera_server.h"
+void register_camera_types() {
+#if defined(WINDOWS_ENABLED)
+	CameraServer::make_default<CameraWindows>();
+#endif
+#if defined(IPHONE_ENABLED)
+	CameraServer::make_default<CameraIOS>();
+#endif
+#if defined(OSX_ENABLED)
+	CameraServer::make_default<CameraOSX>();
+#endif
+}
 
-class CameraOSX : public CameraServer {
-public:
-	CameraOSX();
-	~CameraOSX();
-
-	void update_feeds();
-};
-
-#endif /* CAMERAOSX_H */
+void unregister_camera_types() {
+}

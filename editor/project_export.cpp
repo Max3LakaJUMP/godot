@@ -286,11 +286,13 @@ void ProjectExportDialog::_edit_preset(int p_index) {
 			export_templates_error->hide();
 
 		export_button->set_disabled(true);
+		get_ok()->set_disabled(true);
 
 	} else {
 		export_error->hide();
 		export_templates_error->hide();
 		export_button->set_disabled(false);
+		get_ok()->set_disabled(false);
 	}
 
 	custom_features->set_text(current->get_custom_features());
@@ -623,6 +625,7 @@ void ProjectExportDialog::_delete_preset_confirm() {
 	int idx = presets->get_current();
 	_edit_preset(-1);
 	export_button->set_disabled(true);
+	get_ok()->set_disabled(true);
 	EditorExport::get_singleton()->remove_export_preset(idx);
 	_update_presets();
 }
@@ -1104,6 +1107,7 @@ ProjectExportDialog::ProjectExportDialog() {
 	name->connect("text_changed", this, "_name_changed");
 	runnable = memnew(CheckButton);
 	runnable->set_text(TTR("Runnable"));
+	runnable->set_tooltip(TTR("If checked, the preset will be available for use in one-click deploy.\nOnly one preset per platform may be marked as runnable."));
 	runnable->connect("pressed", this, "_runnable_pressed");
 	settings_vb->add_child(runnable);
 
@@ -1249,6 +1253,7 @@ ProjectExportDialog::ProjectExportDialog() {
 	export_button->connect("pressed", this, "_export_project");
 	// Disable initially before we select a valid preset
 	export_button->set_disabled(true);
+	get_ok()->set_disabled(true);
 
 	export_all_dialog = memnew(ConfirmationDialog);
 	add_child(export_all_dialog);

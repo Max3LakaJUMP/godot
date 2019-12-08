@@ -40,8 +40,7 @@ namespace GodotTools.Ides
 
         protected ILogger Logger
         {
-            get => logger ?? (logger = new ConsoleLogger());
-            set => logger = value;
+            get => logger ?? (logger = new GodotLogger());
         }
 
         private void StartServer()
@@ -80,7 +79,7 @@ namespace GodotTools.Ides
                 {
                     MonoDevelop.Instance GetMonoDevelopInstance(string solutionPath)
                     {
-                        if (Utils.OS.IsOSX() && editor == ExternalEditorId.VisualStudioForMac)
+                        if (Utils.OS.IsOSX && editor == ExternalEditorId.VisualStudioForMac)
                         {
                             vsForMacInstance = vsForMacInstance ??
                                                new MonoDevelop.Instance(solutionPath, MonoDevelop.EditorId.VisualStudioForMac);

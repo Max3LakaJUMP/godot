@@ -28,7 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-///@TODO this is a near duplicate of CameraIOS, we should find a way to combine those to minimise code duplication!!!!
+///@TODO this is a near duplicate of CameraIOS, we should find a way to combine those to minimize code duplication!!!!
 // If you fix something here, make sure you fix it there as wel!
 
 #include "camera_osx.h"
@@ -150,8 +150,8 @@
 
 		{
 			// do Y
-			int new_width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0);
-			int new_height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0);
+			size_t new_width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0);
+			size_t new_height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0);
 
 			if ((width[0] != new_width) || (height[0] != new_height)) {
 				width[0] = new_width;
@@ -168,8 +168,8 @@
 
 		{
 			// do CbCr
-			int new_width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 1);
-			int new_height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 1);
+			size_t new_width = CVPixelBufferGetWidthOfPlane(pixelBuffer, 1);
+			size_t new_height = CVPixelBufferGetHeightOfPlane(pixelBuffer, 1);
 
 			if ((width[1] != new_width) || (height[1] != new_height)) {
 				width[1] = new_width;

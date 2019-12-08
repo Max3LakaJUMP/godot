@@ -175,9 +175,6 @@ Error OS_Android::initialize(const VideoMode &p_desired, int p_video_driver, int
 	input = memnew(InputDefault);
 	input->set_fallback_mapping(godot_java->get_input_fallback_mapping());
 
-	///@TODO implement a subclass for Android and instantiate that instead
-	camera_server = memnew(CameraServer);
-
 	//power_manager = memnew(PowerAndroid);
 
 	return OK;
@@ -195,8 +192,6 @@ void OS_Android::delete_main_loop() {
 }
 
 void OS_Android::finalize() {
-
-	memdelete(camera_server);
 
 	memdelete(input);
 }
@@ -218,6 +213,16 @@ void OS_Android::alert(const String &p_alert, const String &p_title) {
 bool OS_Android::request_permission(const String &p_name) {
 
 	return godot_java->request_permission(p_name);
+}
+
+bool OS_Android::request_permissions() {
+
+	return godot_java->request_permissions();
+}
+
+Vector<String> OS_Android::get_granted_permissions() const {
+
+	return godot_java->get_granted_permissions();
 }
 
 Error OS_Android::open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path) {

@@ -39,7 +39,6 @@
 #include "main/input_default.h"
 //#include "power_android.h"
 #include "servers/audio_server.h"
-#include "servers/camera_server.h"
 #include "servers/visual/rasterizer.h"
 
 class GodotJavaWrapper;
@@ -78,8 +77,6 @@ private:
 	bool use_16bits_fbo;
 
 	VisualServer *visual_server;
-
-	CameraServer *camera_server;
 
 	mutable String data_dir_cache;
 
@@ -125,6 +122,8 @@ public:
 
 	virtual void alert(const String &p_alert, const String &p_title = "ALERT!");
 	virtual bool request_permission(const String &p_name);
+	virtual bool request_permissions();
+	virtual Vector<String> get_granted_permissions() const;
 
 	virtual Error open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path = false);
 

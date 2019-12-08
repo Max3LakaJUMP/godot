@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  output_strings.h                                                     */
+/*  register_types.h                                                     */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,60 +28,5 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef OUTPUT_STRINGS_H
-#define OUTPUT_STRINGS_H
-
-#include "core/map.h"
-#include "scene/gui/control.h"
-#include "scene/gui/scroll_bar.h"
-
-class OutputStrings : public Control {
-
-	GDCLASS(OutputStrings, Control);
-
-public:
-	enum LineType {
-
-		LINE_NORMAL,
-		LINE_WARNING,
-		LINE_ERROR,
-		LINE_LINK
-	};
-
-private:
-	struct Line {
-
-		LineType type;
-		Variant meta;
-		String text;
-	};
-
-	int font_height;
-	int size_height;
-
-	Size2 margin;
-	typedef Map<int, Line> LineMap;
-	Map<int, Line> line_map;
-
-	VScrollBar *v_scroll;
-	HScrollBar *h_scroll;
-
-	bool following;
-	int line_max_count;
-	bool updating;
-
-	void _vscroll_changed(float p_value);
-	void _hscroll_changed(float p_value);
-	void update_scrollbars();
-
-protected:
-	static void _bind_methods();
-	void _notification(int p_what);
-
-public:
-	void add_line(const String &p_text, const Variant &p_meta = Variant(), const LineType p_type = LINE_NORMAL);
-
-	OutputStrings();
-};
-
-#endif // OUTPUT_STRINGS_H
+void register_camera_types();
+void unregister_camera_types();

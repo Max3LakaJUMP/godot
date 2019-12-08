@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  android_utils.h                                                      */
+/*  camera_osx.h                                                         */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,21 +28,20 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef ANDROID_UTILS_H
-#define ANDROID_UTILS_H
+#ifndef CAMERAOSX_H
+#define CAMERAOSX_H
 
-#ifdef __ANDROID__
+///@TODO this is a near duplicate of CameraIOS, we should find a way to combine those to minimize code duplication!!!!
+// If you fix something here, make sure you fix it there as wel!
 
-#include "core/ustring.h"
+#include "servers/camera_server.h"
 
-namespace GDMonoUtils {
-namespace Android {
+class CameraOSX : public CameraServer {
+public:
+	CameraOSX();
+	~CameraOSX();
 
-String get_app_native_lib_dir();
+	void update_feeds();
+};
 
-} // namespace Android
-} // namespace GDMonoUtils
-
-#endif // __ANDROID__
-
-#endif // ANDROID_UTILS_H
+#endif /* CAMERAOSX_H */

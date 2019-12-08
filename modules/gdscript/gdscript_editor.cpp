@@ -84,13 +84,16 @@ String GDScriptLanguage::_get_processed_template(const String &p_template, const
 Ref<Script> GDScriptLanguage::get_template(const String &p_class_name, const String &p_base_class_name) const {
 	String _template = "extends %BASE%\n"
 					   "\n"
+					   "\n"
 					   "# Declare member variables here. Examples:\n"
 					   "# var a%INT_TYPE% = 2\n"
 					   "# var b%STRING_TYPE% = \"text\"\n"
 					   "\n"
+					   "\n"
 					   "# Called when the node enters the scene tree for the first time.\n"
 					   "func _ready()%VOID_RETURN%:\n"
 					   "%TS%pass # Replace with function body.\n"
+					   "\n"
 					   "\n"
 					   "# Called every frame. 'delta' is the elapsed time since the previous frame.\n"
 					   "#func _process(delta%FLOAT_TYPE%)%VOID_RETURN%:\n"
@@ -1944,11 +1947,10 @@ static void _find_identifiers_in_base(const GDScriptCompletionContext &p_context
 								ScriptCodeCompletionOption option(E->get().name, ScriptCodeCompletionOption::KIND_MEMBER);
 								r_result.insert(option.display, option);
 							}
-						} else {
-							for (const Set<StringName>::Element *E = script->get_members().front(); E; E = E->next()) {
-								ScriptCodeCompletionOption option(E->get().operator String(), ScriptCodeCompletionOption::KIND_MEMBER);
-								r_result.insert(option.display, option);
-							}
+						}
+						for (const Set<StringName>::Element *E = script->get_members().front(); E; E = E->next()) {
+							ScriptCodeCompletionOption option(E->get().operator String(), ScriptCodeCompletionOption::KIND_MEMBER);
+							r_result.insert(option.display, option);
 						}
 					}
 					if (!p_only_functions) {

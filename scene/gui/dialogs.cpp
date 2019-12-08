@@ -161,7 +161,7 @@ void WindowDialog::_gui_input(const Ref<InputEvent> &p_event) {
 			global_pos.y = MAX(global_pos.y, 0); // Ensure title bar stays visible.
 
 			Rect2 rect = get_rect();
-			Size2 min_size = get_minimum_size();
+			Size2 min_size = get_combined_minimum_size();
 
 			if (drag_type == DRAG_MOVE) {
 				rect.position = global_pos - drag_offset;
@@ -239,12 +239,14 @@ void WindowDialog::_notification(int p_what) {
 
 #ifdef TOOLS_ENABLED
 		case NOTIFICATION_POST_POPUP: {
-			if (get_tree() && Engine::get_singleton()->is_editor_hint() && EditorNode::get_singleton())
+			if (get_tree() && Engine::get_singleton()->is_editor_hint() && EditorNode::get_singleton()) {
+				was_editor_dimmed = EditorNode::get_singleton()->is_editor_dimmed();
 				EditorNode::get_singleton()->dim_editor(true);
+			}
 		} break;
 
 		case NOTIFICATION_POPUP_HIDE: {
-			if (get_tree() && Engine::get_singleton()->is_editor_hint() && EditorNode::get_singleton() && !get_viewport()->gui_has_modal_stack())
+			if (get_tree() && Engine::get_singleton()->is_editor_hint() && EditorNode::get_singleton() && !was_editor_dimmed)
 				EditorNode::get_singleton()->dim_editor(false);
 		} break;
 #endif
@@ -345,6 +347,10 @@ WindowDialog::WindowDialog() {
 	close_button = memnew(TextureButton);
 	add_child(close_button);
 	close_button->connect("pressed", this, "_closed");
+
+#ifdef TOOLS_ENABLED
+	was_editor_dimmed = false;
+#endif
 }
 
 WindowDialog::~WindowDialog() {
@@ -356,7 +362,7 @@ void PopupDialog::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_DRAW) {
 		RID ci = get_canvas_item();
-		get_stylebox("panel", "PopupMenu")->draw(ci, Rect2(Point2(), get_size()));
+		get_stylebox("panel")->draw(ci, Rect2(Point2(), get_size()));
 	}
 }
 
