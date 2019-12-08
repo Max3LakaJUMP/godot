@@ -119,7 +119,6 @@ public:
 			float shadowpixel_size;
 			float shadow_gradient;
 			float light_height;
-			bool light_dominant;
 			float light_outside_alpha;
 			float shadow_distance_mult;
 			uint8_t padding[4];

@@ -98,7 +98,6 @@ void RasterizerCanvasGLES2::_set_uniforms() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_COLOR, light->color * light->energy);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_POS, light->light_shader_pos);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_HEIGHT, light->height);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_DOMINANT, light->dominant);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_OUTSIDE_ALPHA, light->mode == VS::CANVAS_LIGHT_MODE_MASK ? 1.0 : 0.0);
 
 		if (state.using_shadow) {

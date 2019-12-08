@@ -955,7 +955,6 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 	actions[VS::SHADER_CANVAS_ITEM].renames["LIGHT_UV"] = "light_uv";
 	actions[VS::SHADER_CANVAS_ITEM].renames["LIGHT"] = "light";
 	actions[VS::SHADER_CANVAS_ITEM].renames["SHADOW_COLOR"] = "shadow_color";
-	actions[VS::SHADER_CANVAS_ITEM].renames["LIGHT_DOMINANT"] = "light_dominant";
 	actions[VS::SHADER_CANVAS_ITEM].renames["SHADOW_VEC"] = "shadow_vec";
 
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["COLOR"] = "#define COLOR_USED\n";

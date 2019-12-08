@@ -173,17 +173,6 @@ float Light2D::get_height() const {
 	return height;
 }
 
-void Light2D::set_dominant(bool p_dominant) {
-
-	dominant = p_dominant;
-	VS::get_singleton()->canvas_light_set_dominant(canvas_light, dominant);
-}
-
-bool Light2D::is_dominant() const {
-
-	return dominant;
-}
-
 void Light2D::set_energy(float p_energy) {
 
 	energy = p_energy;
@@ -395,9 +384,6 @@ void Light2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_height", "height"), &Light2D::set_height);
 	ClassDB::bind_method(D_METHOD("get_height"), &Light2D::get_height);
 
-	ClassDB::bind_method(D_METHOD("set_dominant", "dominant"), &Light2D::set_dominant);
-	ClassDB::bind_method(D_METHOD("is_dominant"), &Light2D::is_dominant);
-	
 	ClassDB::bind_method(D_METHOD("set_energy", "energy"), &Light2D::set_energy);
 	ClassDB::bind_method(D_METHOD("get_energy"), &Light2D::get_energy);
 
@@ -443,7 +429,6 @@ void Light2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_shadow_color", "shadow_color"), &Light2D::set_shadow_color);
 	ClassDB::bind_method(D_METHOD("get_shadow_color"), &Light2D::get_shadow_color);
 	
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "dominant"), "set_dominant", "is_dominant");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enabled"), "set_enabled", "is_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "editor_only"), "set_editor_only", "is_editor_only");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_texture", "get_texture");

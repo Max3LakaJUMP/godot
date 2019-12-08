@@ -120,7 +120,6 @@ void RasterizerCanvasGLES3::light_internal_update(RID p_rid, Light *p_light) {
 	li->ubo_data.shadowpixel_size = (1.0 / p_light->shadow_buffer_size) * (1.0 + p_light->shadow_smooth);
 	li->ubo_data.light_outside_alpha = p_light->mode == VS::CANVAS_LIGHT_MODE_MASK ? 1.0 : 0.0;
 	li->ubo_data.light_height = p_light->height;
-	li->ubo_data.light_dominant = p_light->dominant;
 	if (p_light->radius_cache == 0)
 		li->ubo_data.shadow_gradient = 0;
 	else

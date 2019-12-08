@@ -1097,13 +1097,6 @@ void VisualServerCanvas::canvas_light_set_height(RID p_light, float p_height) {
 
 	clight->height = p_height;
 }
-void VisualServerCanvas::canvas_light_set_dominant(RID p_light, bool p_dominant) {
-
-	RasterizerCanvas::Light *clight = canvas_light_owner.get(p_light);
-	ERR_FAIL_COND(!clight);
-
-	clight->dominant = p_dominant;
-}
 
 void VisualServerCanvas::canvas_light_set_energy(RID p_light, float p_energy) {
 

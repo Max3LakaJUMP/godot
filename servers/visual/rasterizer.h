@@ -663,7 +663,6 @@ public:
 			enabled = true;
 			color = Color(1, 1, 1);
 			shadow_color = Color(0, 0, 0, 0);
-			dominant = false;
 			height = 0;
 			z_min = -1024;
 			z_max = 1024;

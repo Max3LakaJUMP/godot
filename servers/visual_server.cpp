@@ -1999,7 +1999,6 @@ void VisualServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("canvas_light_set_texture_offset", "light", "offset"), &VisualServer::canvas_light_set_texture_offset);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_color", "light", "color"), &VisualServer::canvas_light_set_color);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_height", "light", "height"), &VisualServer::canvas_light_set_height);
-	ClassDB::bind_method(D_METHOD("canvas_light_set_dominant", "light", "dominant"), &VisualServer::canvas_light_set_dominant);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_energy", "light", "energy"), &VisualServer::canvas_light_set_energy);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_z_range", "light", "min_z", "max_z"), &VisualServer::canvas_light_set_z_range);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_layer_range", "light", "min_layer", "max_layer"), &VisualServer::canvas_light_set_layer_range);

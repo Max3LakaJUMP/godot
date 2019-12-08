@@ -642,7 +642,6 @@ public:
 	BIND2(canvas_light_set_texture_offset, RID, const Vector2 &)
 	BIND2(canvas_light_set_color, RID, const Color &)
 	BIND2(canvas_light_set_height, RID, float)
-	BIND2(canvas_light_set_dominant, RID, bool)
 	BIND2(canvas_light_set_energy, RID, float)
 	BIND3(canvas_light_set_z_range, RID, int, int)
 	BIND3(canvas_light_set_layer_range, RID, int, int)

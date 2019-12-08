@@ -252,7 +252,6 @@ ShaderTypes::ShaderTypes() {
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["SHADOW_COLOR"] = ShaderLanguage::TYPE_VEC4;
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["POINT_COORD"] = constt(ShaderLanguage::TYPE_VEC2);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["TIME"] = constt(ShaderLanguage::TYPE_FLOAT);
-	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].built_ins["LIGHT_DOMINANT"] = ShaderLanguage::TYPE_BOOL;
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["light"].can_discard = true;
 
 	shader_modes[VS::SHADER_CANVAS_ITEM].modes.push_back("skip_vertex_transform");
