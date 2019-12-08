@@ -428,7 +428,7 @@ void Light2D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_shadow_color", "shadow_color"), &Light2D::set_shadow_color);
 	ClassDB::bind_method(D_METHOD("get_shadow_color"), &Light2D::get_shadow_color);
-	
+
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enabled"), "set_enabled", "is_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "editor_only"), "set_editor_only", "is_editor_only");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_texture", "get_texture");
@@ -475,7 +475,6 @@ Light2D::Light2D() {
 	shadow = false;
 	color = Color(1, 1, 1);
 	height = 0;
-	dominant = false;
 	_scale = 1.0;
 	z_min = -1024;
 	z_max = 1024;
