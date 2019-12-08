@@ -32,6 +32,8 @@
 
 #include "core/math/geometry.h"
 #include "scene/2d/skeleton_2d.h"
+#include "red_transform.h"
+#include "red_frame.h"
 
 Dictionary REDPolygon::_edit_get_state() const {
 	Dictionary state = Node2D::_edit_get_state();
@@ -100,6 +102,28 @@ void REDPolygon::_notification(int p_what) {
 
 			if (polygon.size() < 3)
 				return;
+			
+			REDFrame *red_clipper = NULL;
+			if (has_node(clipper)) {
+				red_clipper = Object::cast_to<REDFrame>(get_node(clipper));
+			}
+			if (red_clipper) {
+				VS::get_singleton()->canvas_item_attach_clipper(get_canvas_item(), red_clipper->get_ci());
+				VS::get_singleton()->canvas_item_clipper_top(get_canvas_item(), clipper_top);
+			} else {
+				VS::get_singleton()->canvas_item_attach_clipper(get_canvas_item(), RID());
+			}
+			
+			REDTransform *red_node = NULL;
+			if (has_node(custom_transform)) {
+				red_node = Object::cast_to<REDTransform>(get_node(custom_transform));
+			}
+			if (red_node) {
+				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), red_node->get_ci());
+			} else {
+				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), RID());
+			}
+
 
 			Skeleton2D *skeleton_node = NULL;
 			if (has_node(skeleton)) {
@@ -852,7 +876,36 @@ void REDPolygon::_set_bones(const Array &p_bones) {
 		add_bone(p_bones[i], p_bones[i + 1]);
 	}
 }
+void REDPolygon::set_clipper(const NodePath &p_frame){
+	if (clipper == p_frame)
+		return;
+	clipper = p_frame;
+	update();
+}
+NodePath REDPolygon::get_clipper() const{
+	return clipper;
+}
 
+void REDPolygon::set_clipper_top(bool p_top){
+	if (clipper_top == p_top)
+		return;
+	clipper_top = p_top;
+	update();
+}
+
+bool REDPolygon::get_clipper_top() const{
+	return clipper_top;
+}
+
+void REDPolygon::set_custom_transform(const NodePath &p_custom_transform){
+	if (custom_transform == p_custom_transform)
+		return;
+	custom_transform = p_custom_transform;
+	update();
+}
+NodePath REDPolygon::get_custom_transform() const{
+	return custom_transform;
+}
 void REDPolygon::set_skeleton(const NodePath &p_skeleton) {
 	if (skeleton == p_skeleton)
 		return;
@@ -865,6 +918,15 @@ NodePath REDPolygon::get_skeleton() const {
 }
 
 void REDPolygon::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_clipper_top", "clipper_top"), &REDPolygon::set_clipper_top);
+	ClassDB::bind_method(D_METHOD("get_clipper_top"), &REDPolygon::get_clipper_top);
+
+	ClassDB::bind_method(D_METHOD("set_clipper", "clipper"), &REDPolygon::set_clipper);
+	ClassDB::bind_method(D_METHOD("get_clipper"), &REDPolygon::get_clipper);
+
+	ClassDB::bind_method(D_METHOD("set_custom_transform", "custom_transform"), &REDPolygon::set_custom_transform);
+	ClassDB::bind_method(D_METHOD("get_custom_transform"), &REDPolygon::get_custom_transform);
+
 	ClassDB::bind_method(D_METHOD("_set_absolute_uv", "uv"), &REDPolygon::_set_absolute_uv);
 	ClassDB::bind_method(D_METHOD("_get_absolute_uv"), &REDPolygon::_get_absolute_uv);
 
@@ -940,14 +1002,13 @@ void REDPolygon::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_get_bones"), &REDPolygon::_get_bones);
 
 	ClassDB::bind_method(D_METHOD("_skeleton_bone_setup_changed"), &REDPolygon::_skeleton_bone_setup_changed);
-
+	
+	ADD_GROUP("Main", "");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset"), "set_offset", "get_offset");
-
-
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
+	//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
 	
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "move_uv_with_polygon"), "set_move_uv_with_polygon", "get_move_uv_with_polygon");
+	//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "move_uv_with_polygon"), "set_move_uv_with_polygon", "get_move_uv_with_polygon");
 	ADD_GROUP("Texture", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_texture", "get_texture");
 	ADD_GROUP("Texture", "texture_");
@@ -967,8 +1028,13 @@ void REDPolygon::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "polygons"), "set_polygons", "get_polygons");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "bones", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_bones", "_get_bones");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "internal_vertex_count", PROPERTY_HINT_RANGE, "0,1000"), "set_internal_vertex_count", "get_internal_vertex_count");
-	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "skeleton", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Skeleton2D"), "set_skeleton", "get_skeleton");
 	
+	ADD_GROUP("Deformation", "");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "skeleton", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Skeleton2D"), "set_skeleton", "get_skeleton");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "custom_transform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTransform"), "set_custom_transform", "get_custom_transform");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "clipper", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDFrame"), "set_clipper", "get_clipper");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clipper_top"), "set_clipper_top", "get_clipper_top");
+
 	ADD_GROUP("PSD", "");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_offset"), "set_psd_offset", "get_psd_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_applied_offset"), "set_psd_applied_offset", "get_psd_applied_offset");
@@ -977,6 +1043,7 @@ void REDPolygon::_bind_methods() {
 }
 
 REDPolygon::REDPolygon() {
+	clipper_top = true;
 	move_uv_with_polygon = false;
 	psd_offset = Vector2(0, 0);
 	psd_applied_offset = Vector2(0, 0);

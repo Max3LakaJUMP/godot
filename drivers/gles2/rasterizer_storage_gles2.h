@@ -852,6 +852,32 @@ public:
 	virtual void immediate_set_material(RID p_immediate, RID p_material);
 	virtual RID immediate_get_material(RID p_immediate) const;
 	virtual AABB immediate_get_aabb(RID p_immediate) const;
+	
+	/* FRAME API */
+	
+	struct Clipper : RID_Data {
+
+		bool triangle;
+		Vector3 calc1;
+		Vector3 calc2;
+		Vector3 calc3;
+		Vector3 calc4;
+	};
+	mutable RID_Owner<Clipper> clipper_owner;
+	virtual RID clipper_create();
+	virtual void frame_form(RID p_frame, bool triangle);
+	virtual void clipper_set_points(RID p_clipper, const Vector3 &p_calc1, const Vector3 &p_calc2, const Vector3 &p_calc3, const Vector3 &p_calc4);
+	
+	/* CustomTransform API */
+
+	struct CustomTransform : RID_Data {
+
+		bool enable;
+		Transform transform;
+	};
+	mutable RID_Owner<CustomTransform> custom_transform_owner;
+	virtual RID custom_transform_create();
+	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform);
 
 	/* SKELETON API */
 

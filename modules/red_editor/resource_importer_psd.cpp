@@ -56,7 +56,6 @@
 #include "editor/editor_node.h" 
 #include "editor/import/resource_importer_texture_atlas.h"
 
-#include "modules/red/red_clipper.h"
 #include "modules/red/red_polygon.h"
 #include "modules/red/red_engine.h"
 #include "modules/red/red_parallax_folder.h"
@@ -296,7 +295,7 @@ void ResourceImporterPSD::_mask_to_node(_psd_layer_record *layer, float target_w
 			item_rect.expand_to(pos);
 	}
 
-	REDClipper *clipper = Object::cast_to<REDClipper>(node2d);	
+	REDFrame *clipper = Object::cast_to<REDFrame>(node2d);	
 	if (clipper){
 		clipper->set_polygon(polygon_pool);
 	}
@@ -531,7 +530,7 @@ void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
 
 
 int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 
-									 Node *parent, Vector2 parent_pos, Vector2 parent_offset, const Map<StringName, Variant> &p_options, bool force_save, int counter, int folder_level, REDClipper *parent_clipper){
+									 Node *parent, Vector2 parent_pos, Vector2 parent_offset, const Map<StringName, Variant> &p_options, bool force_save, int counter, int folder_level, REDFrame *parent_clipper){
 	psd_layer_record *layers = context->layer_records;
 	int count = 0;
 	int offset = 0;
@@ -564,16 +563,17 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 			case psd_layer_type::psd_layer_type_folder:{
 				if (counter > 0){
 					loop = false;
-					REDClipper* clipper = (REDClipper*)parent_clipper;
-					
+					/*
 					int mode = 0;
-					if(folder_level==0)
+					if(folder_level == 0)
 						mode = p_options["types/root"];
-					else if (folder_level==1)
+					else if (folder_level == 1)
 						mode = p_options["types/second_level"];
 					else if (folder_level>1)
 						mode = p_options["types/folder"];
-					if (clipper != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
+					
+					if (parent_clipper != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
+						REDFrame* clipper = parent_clipper;
 						Vector<NodePath> mat_objs = red::vector<NodePath>(clipper->get_material_objects());
 
 						Vector<Ref<ShaderMaterial> > mats = clipper->get_cached_materials();
@@ -619,7 +619,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 							}
 							page->set_frames(frames);
 						}
-					}
+					}*/
 				}
 			} break;
 			case psd_layer_type::psd_layer_type_normal:{
@@ -694,6 +694,8 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						uv.append(Vector2(1, 1));
 						uv.append(Vector2(0, 1));
 						poly->set_uv(uv);
+						if (parent_clipper != nullptr)
+							poly->set_clipper(poly->get_path_to(parent_clipper));
 					}
 					switch(layer->blend_mode){
 						case psd_blend_mode_multiply:{
@@ -702,7 +704,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 									node->set_material(materials.material_mul);
 							}else{
 								if (materials.masked_material_mul.is_valid())
-									node->set_material(materials.masked_material_mul);
+									node->set_material(materials.material_mul);
 							}
 							break;
 						}
@@ -712,7 +714,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 									node->set_material(materials.material_add);
 							}else{
 								if (materials.masked_material_add.is_valid())
-									node->set_material(materials.masked_material_add);
+									node->set_material(materials.material_add);
 							}
 							break;
 						}
@@ -723,18 +725,20 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 									node->set_material(materials.material_sub);
 							}else{
 								if (materials.masked_material_sub.is_valid())
-									node->set_material(materials.masked_material_sub);
+									node->set_material(materials.material_sub);
 							}
 							break;	
 						}
 
 						default:{
 							if (parent_clipper==nullptr){
-								if (materials.material.is_valid())
-									node->set_material(materials.material);
+								if (materials.material.is_valid()){
+									// node->set_material(materials.material);
+								}
 							}else{
-								if (materials.masked_material.is_valid())
-									node->set_material(materials.masked_material);
+								if (materials.masked_material.is_valid()){
+									// node->set_material(materials.material);
+								}
 							}
 							break;
 						}
@@ -747,6 +751,11 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					node->set_owner(owner);
 					node->set_name(name);
 					node->set_draw_behind_parent(true);
+					if (mode==LAYER_POLYGON){
+						REDPolygon *poly = (REDPolygon*)node;
+						if (parent_clipper != nullptr)
+							poly->set_clipper(poly->get_path_to(parent_clipper));
+					}
 				}
 				else {
 					node = (Node2D*)(parent->get_node(NodePath(name)));
@@ -897,7 +906,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				Node2D *node_2d = nullptr;
 				REDPage *page = nullptr;
 				REDFrame *frame = nullptr;
-				REDClipper *clipper = parent_clipper;
+				REDFrame *clipper = parent_clipper;
 
 				Node2D *anchor_object = nullptr;
 
@@ -989,7 +998,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						if (layer_folder->layer_mask_info.width!=0 && layer_folder->layer_mask_info.height!=0){
 							bool need_create_clipper = frame->has_node(folder_name + "_mask") ? false : true;
 						}
-						clipper = (REDClipper*)frame;
+						clipper = (REDFrame*)frame;
 						node_2d = (Node2D*)frame;
 						anchor_object = node_2d;
 					} break;
@@ -1026,7 +1035,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 							frame = (REDFrame*)root_node->get_node(folder_name);
 						
 						node_external = (Node*)frame;
-						clipper = (REDClipper*)frame;
+						clipper = (REDFrame*)frame;
 						node_2d = (Node2D*)parent->get_node(folder_name);
 						anchor_object = (Node2D*)frame;
 					} break;

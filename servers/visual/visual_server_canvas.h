@@ -43,6 +43,7 @@ public:
 		int z_index;
 		bool z_relative;
 		bool sort_y;
+		bool use_3d;
 		Color modulate;
 		Color self_modulate;
 		bool use_parent_material;
@@ -56,6 +57,7 @@ public:
 		Vector<Item *> child_items;
 
 		Item() {
+			use_3d = false;
 			children_order_dirty = true;
 			E = NULL;
 			z_index = 0;
@@ -180,6 +182,10 @@ public:
 	void canvas_item_set_light_mask(RID p_item, int p_mask);
 
 	void canvas_item_set_transform(RID p_item, const Transform2D &p_transform);
+	void canvas_item_attach_custom_transform(RID p_item, RID p_transform);
+	void canvas_item_attach_clipper(RID p_item, RID p_clipper);
+	void canvas_item_clipper_top(RID p_item, bool b_top);
+
 	void canvas_item_set_clip(RID p_item, bool p_clip);
 	void canvas_item_set_distance_field_mode(RID p_item, bool p_enable);
 	void canvas_item_set_custom_rect(RID p_item, bool p_custom_rect, const Rect2 &p_rect = Rect2());

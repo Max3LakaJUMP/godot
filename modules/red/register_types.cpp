@@ -15,13 +15,13 @@
 #include "red_controller.h"
 #include "red_controller_base.h"
 #include "red_shape.h"
-#include "red_clipper.h"
 #include "red_parallax_folder.h"
 #include "red_target.h"
+#include "red_transform.h"
 
 void register_red_types() {
+	ClassDB::register_class<REDTransform>();
 	ClassDB::register_virtual_class<REDShape>();
-	ClassDB::register_class<REDClipper>();
 	ClassDB::register_class<REDPolygon>();
 	ClassDB::register_class<REDLine>();
 	ClassDB::register_class<REDStory>();

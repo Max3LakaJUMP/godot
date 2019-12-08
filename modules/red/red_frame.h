@@ -1,15 +1,53 @@
 #ifndef RED_FRAME_H
 #define RED_FRAME_H
 
-#include "red_clipper.h"
+#include "red_shape.h"
 #include "core/node_path.h"
 #include "scene/animation/animation_node_state_machine.h"
 
-class AnimationPlayer;
+class REDFrame : public REDShape {
+	GDCLASS(REDFrame, REDShape);
+	// Clipper
+public:
+	enum Space{
+		CLIPPER_SPACE_WORLD,
+		CLIPPER_SPACE_LOCAL,
+		CLIPPER_SPACE_SCREEN
+	};
+private:
+	bool clip_enable;
+	bool clip_rect_enable;
+	bool split;
 
-class REDFrame : public REDClipper {
-	GDCLASS(REDFrame, REDClipper);
+	Vector<float> multiple;
+	Vector<float> constant;
+	Vector<Vector2> screen_coords;
+	float split_angle;
+	Vector2 split_offset;
+	RID ci;
+	Space space;
 
+	mutable bool send_stencil_dirty;
+public:
+	RID get_ci() const;
+	void _update_stencil(const Vector<Vector2> &p_points) ;
+	void _send_stencil();
+	
+	void set_split(bool p_split);
+	bool get_split() const;
+	void set_split_angle(float p_split_angle);
+	float get_split_angle() const;
+	void set_split_offset(const Vector2 &p_split_offset);
+	Vector2 get_split_offset() const;
+	void set_clip_enable(bool p_clip);
+	bool get_clip_enable() const;
+	void set_clip_rect_enable(bool p_clip_rect_enable);
+	bool get_clip_rect_enable() const;
+	void set_space(Space p_space);
+	Space get_space() const;
+
+
+private:
 	bool start_immediate;
 	int old_z_index;
 	
@@ -149,7 +187,6 @@ public:
 	void set_camera_zoom(const Vector2 &p_camera_zoom);
 	Vector2 get_camera_zoom() const;
 
-//line
 public:
 	enum FrameLoop{
 		FRAME_LOOP_START,
@@ -249,7 +286,9 @@ public:
 	void set_active(bool p_active);
     bool is_active() const;
 	REDFrame();
+	~REDFrame();
 };
 
 VARIANT_ENUM_CAST(REDFrame::Anchor);
+VARIANT_ENUM_CAST(REDFrame::Space);
 #endif // RED_FRAME_H

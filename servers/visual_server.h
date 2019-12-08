@@ -380,6 +380,17 @@ public:
 	virtual void immediate_clear(RID p_immediate) = 0;
 	virtual void immediate_set_material(RID p_immediate, RID p_material) = 0;
 	virtual RID immediate_get_material(RID p_immediate) const = 0;
+	
+	/* FRAME API */
+
+	virtual RID clipper_create() = 0;
+	virtual void frame_form(RID p_frame, bool triangle) = 0;
+	virtual void clipper_set_points(RID p_clipper, const Vector3 &p_point1, const Vector3 &p_point2, const Vector3 &p_point3, const Vector3 &p_point4) = 0;
+	
+	/* CustomTransform API */
+	
+	virtual RID custom_transform_create() = 0;
+	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform) = 0;
 
 	/* SKELETON API */
 
@@ -875,6 +886,9 @@ public:
 	virtual void canvas_item_set_update_when_visible(RID p_item, bool p_update) = 0;
 
 	virtual void canvas_item_set_transform(RID p_item, const Transform2D &p_transform) = 0;
+	virtual void canvas_item_attach_custom_transform(RID p_item, RID p_transform) = 0;
+	virtual void canvas_item_attach_clipper(RID p_item, RID p_clipper) = 0;
+	virtual void canvas_item_clipper_top(RID p_item, bool b_top) = 0;
 	virtual void canvas_item_set_clip(RID p_item, bool p_clip) = 0;
 	virtual void canvas_item_set_distance_field_mode(RID p_item, bool p_enable) = 0;
 	virtual void canvas_item_set_custom_rect(RID p_item, bool p_custom_rect, const Rect2 &p_rect = Rect2()) = 0;

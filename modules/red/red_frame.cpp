@@ -23,6 +23,337 @@
 #include "red_parallax_folder.h"
 #include "red_target.h"
 
+// Clipper
+
+RID REDFrame::get_ci() const{
+	return ci;
+}
+
+void REDFrame::_send_stencil() {
+
+	if (!(send_stencil_dirty && clip_enable && is_inside_tree()))
+		return;
+	int pos_count = screen_coords.size();
+	switch (pos_count){
+	case 8:{
+
+		VS::get_singleton()->clipper_set_points(ci, Vector3(multiple[0], constant[0], screen_coords[0].y),
+													Vector3(multiple[1], constant[1], screen_coords[1].y),
+													Vector3(multiple[2], constant[2], screen_coords[2].y),
+													Vector3(multiple[3], constant[3], screen_coords[3].y));
+	} break;
+	case 4:{
+		VS::get_singleton()->clipper_set_points(ci, Vector3(multiple[0], constant[0], screen_coords[0].y),
+													Vector3(multiple[1], constant[1], screen_coords[1].y),
+													Vector3(multiple[2], constant[2], screen_coords[2].y),
+													Vector3(multiple[3], constant[3], screen_coords[3].y));
+	}break;
+	case 3:{
+		VS::get_singleton()->clipper_set_points(ci, Vector3(multiple[0], constant[0], screen_coords[0].y),
+													Vector3(multiple[1], constant[1], screen_coords[1].y),
+													Vector3(multiple[2], constant[2], screen_coords[2].y),
+													Vector3(multiple[2], constant[2], screen_coords[2].y));
+	}break;
+	default:
+		break;
+	}
+	send_stencil_dirty = false;
+	/*
+	
+	
+	int count = cached_materials.size();
+	int pos_count = screen_coords.size();
+	for (int i = 0; i < count; i++){
+		if (!cached_materials[i].is_valid()){
+			cached_materials.remove(i);
+			if ( i < second_split_start_material_id){
+				second_split_start_material_id -= 1;
+			}
+		}
+	}
+	switch (pos_count){
+	case 8:{
+		for (int i = 0; i < second_split_start_material_id; i++){
+			cached_materials.write[i]->set_shader_param("clipper_calc0", Vector3(multiple[0], constant[0], screen_coords[0].y));
+			cached_materials.write[i]->set_shader_param("clipper_calc1", Vector3(multiple[1], constant[1], screen_coords[1].y));
+			cached_materials.write[i]->set_shader_param("clipper_calc2", Vector3(multiple[2], constant[2], screen_coords[2].y));
+			cached_materials.write[i]->set_shader_param("clipper_calc3", Vector3(multiple[3], constant[3], screen_coords[3].y));
+
+			//cached_materials.write[i]->set_shader_param("clipper_pos0", Vector2(screen_coords[0].x, screen_coords[0].y));
+			//cached_materials.write[i]->set_shader_param("clipper_pos1", Vector2(screen_coords[1].x, screen_coords[1].y));
+			//cached_materials.write[i]->set_shader_param("clipper_pos2", Vector2(screen_coords[2].x, screen_coords[2].y));
+			//cached_materials.write[i]->set_shader_param("clipper_pos3", Vector2(screen_coords[3].x, screen_coords[3].y));
+		}
+		for (int i = second_split_start_material_id; i < count; i++){
+			cached_materials.write[i]->set_shader_param("clipper_calc0", Vector3(multiple[4], constant[4], screen_coords[4].y));
+			cached_materials.write[i]->set_shader_param("clipper_calc1", Vector3(multiple[5], constant[5], screen_coords[5].y));
+			cached_materials.write[i]->set_shader_param("clipper_calc2", Vector3(multiple[6], constant[6], screen_coords[6].y));
+			cached_materials.write[i]->set_shader_param("clipper_calc3", Vector3(multiple[7], constant[7], screen_coords[7].y));
+		
+			//cached_materials.write[i]->set_shader_param("clipper_pos0", Vector2(screen_coords[4].x, screen_coords[4].y));
+			//cached_materials.write[i]->set_shader_param("clipper_pos1", Vector2(screen_coords[5].x, screen_coords[5].y));
+			//cached_materials.write[i]->set_shader_param("clipper_pos2", Vector2(screen_coords[6].x, screen_coords[6].y));
+			//cached_materials.write[i]->set_shader_param("clipper_pos3", Vector2(screen_coords[7].x, screen_coords[7].y));
+		}
+	} break;
+	case 4:
+		for (int i = 0; i < count; i++){
+			cached_materials.write[i]->set_shader_param("clipper_calc3", Vector3(multiple[3], constant[3], screen_coords[3].y));
+
+			//cached_materials.write[i]->set_shader_param("clipper_pos3", Vector2(screen_coords[3].x, screen_coords[3].y));
+		}
+	case 3:
+		for (int i = 0; i < count; i++){
+			cached_materials.write[i]->set_shader_param("clipper_calc0", Vector3(multiple[0], constant[0], screen_coords[0].y));
+			cached_materials.write[i]->set_shader_param("clipper_calc1", Vector3(multiple[1], constant[1], screen_coords[1].y));
+			cached_materials.write[i]->set_shader_param("clipper_calc2", Vector3(multiple[2], constant[2], screen_coords[2].y));
+
+			//cached_materials.write[i]->set_shader_param("clipper_pos0", Vector2(screen_coords[0].x, screen_coords[0].y));
+			//cached_materials.write[i]->set_shader_param("clipper_pos1", Vector2(screen_coords[1].x, screen_coords[1].y));
+			//cached_materials.write[i]->set_shader_param("clipper_pos2", Vector2(screen_coords[2].x, screen_coords[2].y));
+		}
+		break;
+	default:
+		break;
+	}*/
+}
+
+void REDFrame::_update_stencil(const Vector<Vector2> &p_points) {
+	if (!(stencil_dirty && clip_enable && is_inside_tree()))
+		return;
+	int polygon_size = p_points.size();
+	if (polygon_size != 3 && polygon_size != 4 && polygon_size != 8)
+		return;
+
+	screen_coords.resize(polygon_size);
+	Transform2D tr;
+	switch (space)
+	{
+	case CLIPPER_SPACE_WORLD:
+		tr = get_global_transform();
+		break;
+	case CLIPPER_SPACE_SCREEN:
+		tr = get_viewport_transform() * get_global_transform();
+		break;
+	default:
+		tr = get_transform();
+	}
+	for (int i = 0; i < polygon_size; i++) {
+		screen_coords.write[i] = tr.xform(p_points[i]);
+	}
+
+	if (space == CLIPPER_SPACE_SCREEN){
+		Size2 res = get_viewport()->get_size();
+		for (int i = 0; i < polygon_size; i++) {
+			Vector2 screen_coord = screen_coords[i]/res;
+			screen_coord.y = 1.0f - screen_coord.y;
+			screen_coords.write[i] = screen_coord;
+		}
+	}
+
+	if (split && polygon_size == 4){
+		Vector<Vector2> screen_coords_new;
+		polygon_size = 8;
+		screen_coords_new.resize(polygon_size);
+		float k = fmod(split_angle + 0.5, 4);
+    	if (k < 0)
+        	k += 4;
+		if (k < 1.0f){
+			float offset = split_offset.x*(1-ABS(k*2-1))*0.5;
+			screen_coords_new.write[0] = screen_coords[0];
+			screen_coords_new.write[1] = Vector2::linear_interpolate(screen_coords[0], screen_coords[1], CLAMP(k + offset, 0, 1));
+			screen_coords_new.write[2] = Vector2::linear_interpolate(screen_coords[2], screen_coords[3], CLAMP(k - offset, 0, 1));
+			screen_coords_new.write[3] = screen_coords[3];
+
+			screen_coords_new.write[4] = screen_coords[1];
+			screen_coords_new.write[5] = screen_coords_new[1];
+			screen_coords_new.write[6] = screen_coords_new[2];
+			screen_coords_new.write[7] = screen_coords[2];
+		}else if (k < 2.0f){
+			k = k - 1;
+			float offset = -split_offset.y*(1-ABS(k*2-1))*0.5;
+			screen_coords_new.write[0] = screen_coords[1];
+			screen_coords_new.write[1] = Vector2::linear_interpolate(screen_coords[1], screen_coords[2], CLAMP(k + offset, 0, 1));
+			screen_coords_new.write[2] = Vector2::linear_interpolate(screen_coords[3], screen_coords[0], CLAMP(k - offset, 0, 1));
+			screen_coords_new.write[3] = screen_coords[0];
+
+			screen_coords_new.write[4] = screen_coords[2];
+			screen_coords_new.write[5] = screen_coords_new[1];
+			screen_coords_new.write[6] = screen_coords_new[2];
+			screen_coords_new.write[7] = screen_coords[3];
+		}else if (k < 3.0f){
+			k = k - 2;
+			float offset = split_offset.x*(1-ABS(k*2-1))*0.5;
+			screen_coords_new.write[0] = screen_coords[1];
+			screen_coords_new.write[1] = Vector2::linear_interpolate(screen_coords[0], screen_coords[1], CLAMP(k + offset, 0, 1));
+			screen_coords_new.write[2] = Vector2::linear_interpolate(screen_coords[2], screen_coords[3], CLAMP(k - offset, 0, 1));
+			screen_coords_new.write[3] = screen_coords[2];
+
+			screen_coords_new.write[4] = screen_coords[0];
+			screen_coords_new.write[5] = screen_coords_new[1];
+			screen_coords_new.write[6] = screen_coords_new[2];
+			screen_coords_new.write[7] = screen_coords[3];
+		}else{
+			k = k - 3;
+			float offset = -split_offset.y*(1-ABS(k*2-1))*0.5;
+			screen_coords_new.write[0] = screen_coords[2];
+			screen_coords_new.write[1] = Vector2::linear_interpolate(screen_coords[1], screen_coords[2], CLAMP(k + offset, 0, 1));
+			screen_coords_new.write[2] = Vector2::linear_interpolate(screen_coords[3], screen_coords[0], CLAMP(k - offset, 0, 1));
+			screen_coords_new.write[3] = screen_coords[3];
+
+			screen_coords_new.write[4] = screen_coords[1];
+			screen_coords_new.write[5] = screen_coords_new[1];
+			screen_coords_new.write[6] = screen_coords_new[2];
+			screen_coords_new.write[7] = screen_coords[0];
+		}
+		screen_coords.clear();
+		screen_coords = screen_coords_new;
+	} if (polygon_size == 6){
+		Vector<Vector2> screen_coords_new;
+		polygon_size = 8;
+		screen_coords_new.resize(polygon_size);
+		screen_coords_new.write[0] = screen_coords[0];
+		screen_coords_new.write[1] = screen_coords[1];
+		screen_coords_new.write[2] = screen_coords[4];
+		screen_coords_new.write[3] = screen_coords[5];
+		screen_coords_new.write[4] = screen_coords[1];
+		screen_coords_new.write[5] = screen_coords[2];
+		screen_coords_new.write[6] = screen_coords[3];
+		screen_coords_new.write[7] = screen_coords[4];
+		screen_coords = screen_coords_new;
+	}else if(polygon_size == 8){
+		Vector2 temp = screen_coords[2];
+		screen_coords.write[2] = screen_coords[6];
+		screen_coords.write[6] = temp;
+		temp = screen_coords[3];
+		screen_coords.write[3] = screen_coords[7];
+		screen_coords.write[7] = temp;
+	}
+	
+	if (polygon_size == 8){
+		multiple.resize(polygon_size);
+		constant.resize(polygon_size);
+		int j = 3;
+
+		for(int i=0; i < 4; i++) {
+			if(screen_coords[j].y == screen_coords[i].y) {
+				multiple.write[i] = 0;
+				constant.write[i] = screen_coords[i].x;
+			}
+			else {
+				multiple.write[i] = (screen_coords[j].x - screen_coords[i].x) / (screen_coords[j].y - screen_coords[i].y);
+				constant.write[i] = screen_coords[i].x - (screen_coords[i].y * screen_coords[j].x) / (screen_coords[j].y - screen_coords[i].y) +
+														(screen_coords[i].y * screen_coords[i].x) / (screen_coords[j].y - screen_coords[i].y);
+			}
+			j=i; 
+		}
+		j = 7;
+		for(int i=4; i < polygon_size; i++) {
+			if(screen_coords[j].y == screen_coords[i].y) {
+				multiple.write[i] = 0;
+				constant.write[i] = screen_coords[i].x;
+			}
+			else {
+				multiple.write[i] = (screen_coords[j].x - screen_coords[i].x) / (screen_coords[j].y - screen_coords[i].y);
+				constant.write[i] = screen_coords[i].x - (screen_coords[i].y * screen_coords[j].x) / (screen_coords[j].y - screen_coords[i].y) +
+														(screen_coords[i].y * screen_coords[i].x) / (screen_coords[j].y - screen_coords[i].y);
+			}
+			j=i; 
+		}
+	}
+	else{
+		int j = polygon_size - 1;
+		multiple.resize(polygon_size);
+		constant.resize(polygon_size);
+		for(int i=0; i < polygon_size; i++) {
+			if(screen_coords[j].y == screen_coords[i].y) {
+				multiple.write[i] = 0;
+				constant.write[i] = screen_coords[i].x;
+			}
+			else {
+				multiple.write[i] = (screen_coords[j].x - screen_coords[i].x) / (screen_coords[j].y - screen_coords[i].y);
+				constant.write[i] = screen_coords[i].x - (screen_coords[i].y * screen_coords[j].x) / (screen_coords[j].y - screen_coords[i].y) +
+														(screen_coords[i].y * screen_coords[i].x) / (screen_coords[j].y - screen_coords[i].y);
+			}
+			j=i; 
+		}
+	}
+	stencil_dirty = false;
+	send_stencil_dirty = true;
+}
+
+void REDFrame::set_split(bool p_split){
+	split = p_split;
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
+}
+
+bool REDFrame::get_split() const{
+	return split;
+}
+
+void REDFrame::set_split_angle(float p_split_angle){
+	split_angle = p_split_angle;
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
+}
+
+float REDFrame::get_split_angle() const{
+	return split_angle;
+}
+
+void REDFrame::set_split_offset(const Vector2 &p_split_offset){
+	split_offset = p_split_offset;
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
+}
+
+Vector2 REDFrame::get_split_offset() const{
+	return split_offset;
+}
+
+void REDFrame::set_clip_enable(bool p_clip){
+	clip_enable = p_clip;
+	set_notify_transform(p_clip);
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
+}
+
+bool REDFrame::get_clip_enable() const{
+	return clip_enable;
+}
+
+void REDFrame::set_clip_rect_enable(bool p_clip_rect_enable){
+	if (clip_rect_enable == p_clip_rect_enable)
+		return;
+	clip_rect_enable = p_clip_rect_enable;
+	update();
+}
+
+bool REDFrame::get_clip_rect_enable() const{
+	return clip_rect_enable;
+}
+
+void REDFrame::set_space(REDFrame::Space p_space){
+	space = p_space;
+	if (clip_enable){
+		stencil_dirty = true;
+		update();
+	}
+}
+
+REDFrame::Space REDFrame::get_space() const{
+	return space;
+}
+
 // Cam pos
 
 void REDFrame::unload_target(const NodePath &p_path, StringName function){
@@ -377,12 +708,38 @@ void REDFrame::set_reinit_tree(bool p_reinit_tree){
 }
 void REDFrame::_notification(int p_what) {
 	switch (p_what) {
+		case NOTIFICATION_DRAW: {
+			VisualServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), clip_rect_enable && get_use_outline());
+			if (clip_enable || get_use_outline()){
+				Vector<Vector2> points;
+				get_points(points);
+				_update_stencil(points);
+				_send_stencil();
+				_draw_outline(points);
+			}
+		} break;
+
+		case NOTIFICATION_TRANSFORM_CHANGED:{
+			if (is_inside_tree()){
+				stencil_dirty = true;
+				send_stencil_dirty = true;
+				if (clip_enable){
+					Vector<Vector2> points;
+					get_points(points);
+					_update_stencil(points);
+					_send_stencil();
+					print_line("transform");
+				}
+			}
+		} break;
+		case NOTIFICATION_ENTER_TREE: {
+			set_notify_transform(true);
+		} break;
 		case NOTIFICATION_READY: {
 			load_targets();
-
-			Ref<AnimationNodeStateMachinePlayback> playback = get_playback();
-			if (playback != nullptr)
-				playback->connect("animation_started", this, "animation_changed");
+			//Ref<AnimationNodeStateMachinePlayback> playback = get_playback();
+			//if (playback != nullptr)
+			//	playback->connect("animation_started", this, "animation_changed");
 			origin_pos_gl = get_camera_pos().get_origin();
 			origin_scale = get_scale();
 			origin_pos = get_position();
@@ -700,6 +1057,27 @@ NodePath REDFrame::get_anim_tree() const {
 
 
 void REDFrame::_bind_methods() {
+	// Clipper
+	ClassDB::bind_method(D_METHOD("update_stencil"), &REDFrame::_update_stencil);
+	ClassDB::bind_method(D_METHOD("send_stencil"), &REDFrame::_send_stencil);
+	ClassDB::bind_method(D_METHOD("set_clip_enable", "clip_enable"), &REDFrame::set_clip_enable);
+    ClassDB::bind_method(D_METHOD("get_clip_enable"), &REDFrame::get_clip_enable);
+	ClassDB::bind_method(D_METHOD("set_clip_rect_enable", "clip_rect_enable"), &REDFrame::set_clip_rect_enable);
+    ClassDB::bind_method(D_METHOD("get_clip_rect_enable"), &REDFrame::get_clip_rect_enable);
+
+	ClassDB::bind_method(D_METHOD("set_split", "split"), &REDFrame::set_split);
+    ClassDB::bind_method(D_METHOD("get_split"), &REDFrame::get_split);
+
+	ClassDB::bind_method(D_METHOD("set_split_angle", "split_angle"), &REDFrame::set_split_angle);
+    ClassDB::bind_method(D_METHOD("get_split_angle"), &REDFrame::get_split_angle);
+
+	ClassDB::bind_method(D_METHOD("set_split_offset", "split_offset"), &REDFrame::set_split_offset);
+    ClassDB::bind_method(D_METHOD("get_split_offset"), &REDFrame::get_split_offset);
+
+	ClassDB::bind_method(D_METHOD("set_space", "space"), &REDFrame::set_space);
+    ClassDB::bind_method(D_METHOD("get_space"), &REDFrame::get_space);
+
+
 	ClassDB::bind_method(D_METHOD("animation_changed", "old_name", "new_name"), &REDFrame::animation_changed);
     //Frame managment
     //ClassDB::bind_method(D_METHOD("run"), &REDFrame::run);
@@ -784,7 +1162,15 @@ void REDFrame::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "start_delay"), "set_start_delay", "get_start_delay");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "end_delay"), "set_end_delay", "get_end_delay");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "Anchor", PROPERTY_HINT_ENUM, "Center, Top left"), "set_space", "get_space");
-
+	
+	ADD_GROUP("Clipper", "");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_enable"), "set_clip_enable", "get_clip_enable");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_rect_enable"), "set_clip_rect_enable", "get_clip_rect_enable");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "split"), "set_split", "get_split");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "split_angle"), "set_split_angle", "get_split_angle");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "split_offset"), "set_split_offset", "get_split_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "space", PROPERTY_HINT_ENUM, "World, Local, Screen"), "set_space", "get_space");
+	
 	ADD_GROUP("Camera", "");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "camera_pos_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTarget"), "set_camera_pos_path", "get_camera_pos_path");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "camera_pos_in_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTarget"), "set_camera_pos_in_path", "get_camera_pos_in_path");
@@ -828,9 +1214,27 @@ void REDFrame::_bind_methods() {
 
 	BIND_ENUM_CONSTANT(FRAME_ANCHOR_CENTER);
 	BIND_ENUM_CONSTANT(FRAME_ANCHOR_TOP_LEFT);
+
+	BIND_ENUM_CONSTANT(CLIPPER_SPACE_WORLD);
+	BIND_ENUM_CONSTANT(CLIPPER_SPACE_LOCAL);
+	BIND_ENUM_CONSTANT(CLIPPER_SPACE_SCREEN);
 }
 
 REDFrame::REDFrame() {
+	// Clipper
+	ci = VS::get_singleton()->clipper_create();
+	outline_dirty = true;
+	stencil_dirty = true;
+	send_stencil_dirty = true;
+
+	clip_enable = true;
+	clip_rect_enable = true;
+	split = false;
+	split_angle = 0;
+	split_offset = Vector2(0, 0);
+	space = CLIPPER_SPACE_WORLD;
+
+	// Frame
 	frame_scale_factor = Vector2(1, 1);
 	start_immediate = false;
 	anchor = FRAME_ANCHOR_CENTER;
@@ -856,4 +1260,10 @@ REDFrame::REDFrame() {
     end_transition = "pre end";
     end_state = "end";
     id = 0;
+	
+	set_notify_transform(true);
+}
+REDFrame::~REDFrame() {
+
+	VS::get_singleton()->free(ci);
 }

@@ -51,6 +51,15 @@ void RasterizerCanvasGLES2::light_internal_free(RID p_rid) {
 }
 
 void RasterizerCanvasGLES2::_set_uniforms() {
+	if (state.using_custom_transform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX, state.custom_transform);
+	}
+	if (state.using_clipper) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC1, state.clipper_calc1);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC2, state.clipper_calc2);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC3, state.clipper_calc3);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC4, state.clipper_calc4);
+	}
 
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::PROJECTION_MATRIX, state.uniforms.projection_matrix);
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::MODELVIEW_MATRIX, state.uniforms.modelview_matrix);
@@ -210,6 +219,8 @@ void RasterizerCanvasGLES2::canvas_end() {
 
 	state.using_texture_rect = false;
 	state.using_skeleton = false;
+	state.using_custom_transform = false;
+	state.using_clipper = false;
 	state.using_ninepatch = false;
 	state.using_transparent_rt = false;
 }
@@ -1349,8 +1360,11 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 
 	bool rebind_shader = true;
 	bool prev_use_skeleton = false;
+	bool prev_use_custom_transform = false;
+	bool prev_use_clipper = false;
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
-
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, false);
 	state.current_tex = RID();
 	state.current_tex_ptr = NULL;
 	state.current_normal = RID();
@@ -1396,7 +1410,54 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 				_copy_texscreen(ci->copy_back_buffer->rect);
 			}
 		}
+		RasterizerStorageGLES2::Clipper *clipper = NULL;
+		{
+			if (ci->clipper.is_valid() && storage->clipper_owner.owns(ci->clipper)) {
+				clipper = storage->clipper_owner.get(ci->clipper);
+				state.clipper_calc1 = clipper->calc1;
+				state.clipper_calc2 = clipper->calc2;
+				if (!ci->clipper_top){
+					state.clipper_calc1.z = clipper->calc1.z - 100000.0f;
+					state.clipper_calc2.z = clipper->calc2.z - 100000.0f;
+				}
+				state.clipper_calc3 = clipper->calc3;
+				state.clipper_calc4 = clipper->calc4;
+			}
 
+			bool use_clipper = clipper != NULL;
+			if (prev_use_clipper != use_clipper) {
+				rebind_shader = true;
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, use_clipper);
+				prev_use_clipper = use_clipper;
+			}
+
+			if (clipper) {
+				state.using_clipper = true;
+			} else {
+				state.using_clipper = false;
+			}
+		}
+		RasterizerStorageGLES2::CustomTransform *custom_transform = NULL;
+		{
+			//custom_transform
+			if (ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(ci->custom_transform)) {
+				custom_transform = storage->custom_transform_owner.get(ci->custom_transform);
+				state.custom_transform = custom_transform->transform;
+			}
+
+			bool use_custom_transform = custom_transform != NULL;
+			if (prev_use_custom_transform != use_custom_transform) {
+				rebind_shader = true;
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
+				prev_use_custom_transform = use_custom_transform;
+			}
+
+			if (custom_transform) {
+				state.using_custom_transform = true;
+			} else {
+				state.using_custom_transform = false;
+			}
+		}
 		RasterizerStorageGLES2::Skeleton *skeleton = NULL;
 
 		{
@@ -1406,8 +1467,8 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 				if (!skeleton->use_2d) {
 					skeleton = NULL;
 				} else {
-					state.skeleton_transform = p_base_transform * skeleton->base_transform_2d;
-					state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
+					//state.skeleton_transform = p_base_transform * skeleton->base_transform_2d;
+					//state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 					state.skeleton_texture_size = Vector2(skeleton->size * 2, 0);
 					
 					state.skeleton_transform_global = skeleton->base_transform_2d;
@@ -1745,6 +1806,8 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 	}
 
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, false);
 }
 
 void RasterizerCanvasGLES2::canvas_debug_viewport_shadows(Light *p_lights_with_shadow) {
@@ -2127,6 +2190,8 @@ void RasterizerCanvasGLES2::initialize() {
 	state.using_light = NULL;
 	state.using_transparent_rt = false;
 	state.using_skeleton = false;
+	state.using_clipper = false;
+	state.using_custom_transform = false;
 }
 
 void RasterizerCanvasGLES2::finalize() {

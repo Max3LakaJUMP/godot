@@ -74,7 +74,9 @@ class REDPolygon : public Node2D {
 
 	NodePath skeleton;
 	ObjectID current_skeleton_id;
-
+	NodePath custom_transform;
+	NodePath clipper;
+	bool clipper_top;
 	Array _get_bones() const;
 	void _set_bones(const Array &p_bones);
 
@@ -95,7 +97,10 @@ public:
 	virtual bool _edit_use_rect() const;
 
 	virtual bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const;
-
+	
+	void set_clipper_top(bool p_top);
+	bool get_clipper_top() const;
+	
 	void set_polygon(const PoolVector<Vector2> &p_polygon);
 	PoolVector<Vector2> get_polygon() const;
 
@@ -164,6 +169,10 @@ public:
 	void clear_bones();
 	void set_bone_weights(int p_index, const PoolVector<float> &p_weights);
 	void set_bone_path(int p_index, const NodePath &p_path);
+	void set_clipper(const NodePath &p_clipper);
+	NodePath get_clipper() const;
+	void set_custom_transform(const NodePath &p_custom_transform);
+	NodePath get_custom_transform() const;
 
 	void set_skeleton(const NodePath &p_skeleton);
 	NodePath get_skeleton() const;

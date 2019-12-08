@@ -283,6 +283,17 @@ public:
 	BIND1(immediate_clear, RID)
 	BIND2(immediate_set_material, RID, RID)
 	BIND1RC(RID, immediate_get_material, RID)
+	
+	/* FRAME API */
+
+	BIND0R(RID, clipper_create)
+	BIND2(frame_form, RID, bool)
+	BIND5(clipper_set_points, RID, const Vector3 &, const Vector3 &, const Vector3 &, const Vector3 &)
+	
+	/* CUSTOM TRANSFORM API */
+
+	BIND0R(RID, custom_transform_create)
+	BIND2(custom_transform_set, RID, const Transform &)
 
 	/* SKELETON API */
 
@@ -582,6 +593,9 @@ public:
 	BIND2(canvas_item_set_update_when_visible, RID, bool)
 
 	BIND2(canvas_item_set_transform, RID, const Transform2D &)
+	BIND2(canvas_item_attach_custom_transform, RID, RID)
+	BIND2(canvas_item_attach_clipper, RID, RID)
+	BIND2(canvas_item_clipper_top, RID, bool)
 	BIND2(canvas_item_set_clip, RID, bool)
 	BIND2(canvas_item_set_distance_field_mode, RID, bool)
 	BIND3(canvas_item_set_custom_rect, RID, bool, const Rect2 &)

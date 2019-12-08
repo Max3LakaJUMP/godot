@@ -14,6 +14,9 @@ uniform highp mat4 projection_matrix;
 /* clang-format on */
 
 #include "stdlib.glsl"
+#ifdef USE_CUSTOM_TRANSFORM
+uniform highp mat4 custom_matrix;
+#endif
 
 uniform highp mat4 modelview_matrix;
 uniform highp mat4 world_matrix;
@@ -94,9 +97,10 @@ const bool at_light_pass = true;
 const bool at_light_pass = false;
 #endif
 
-#if defined(WORLD_POS_USED)
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
 	varying vec4 world_pos_out;
 #endif
+
 /* clang-format off */
 
 VERTEX_SHADER_GLOBALS
@@ -159,12 +163,11 @@ void main() {
 #if defined(DEPTH_USED)
 	float max_depth = 0.001;
 	float depth = 0.0;
-	#if defined(ROTATION_USED)
-		vec2 rotation = vec2(0.0, 0.0);
-		float rotation_mask = 1.0;
-	#endif
 #endif
-
+#if defined(ROTATION_USED)
+	vec2 rotation = vec2(0.0, 0.0);
+	float rotation_mask = 1.0;
+#endif
 #ifdef USE_SKELETON
 	// look up transform from the "pose texture"
 	if (bone_weights != vec4(0.0)) {
@@ -207,13 +210,24 @@ VERTEX_SHADER_CODE
 
 		/* clang-format on */
 	}
-
 #if defined(DEPTH_USED)
 	outvec.z = depth;
 #endif
+#ifdef USE_CUSTOM_TRANSFORM
+	#if defined(ROTATION_USED)
+	outvec = outvec + rotation_mask * (custom_matrix * outvec - outvec);
+	#else
+	outvec = custom_matrix * outvec;
+	#endif
+#endif
+#if defined(DEPTH_USED)
+	outvec.z *= max_depth;
+#endif
+/*
 #if defined(ROTATION_USED)
-	vec2 s = sin(rotation*3.14/2.0);
-	vec2 c = cos(rotation*3.14/2.0);
+
+	vec2 s = sin(rotation*1.5708);
+	vec2 c = cos(rotation*1.5708);
 	// x
 	float old = outvec.x;
 	float rotated = outvec.x * c.x + s.x * outvec.z;
@@ -230,13 +244,12 @@ VERTEX_SHADER_CODE
 	// z
 	rotated = old * s.y + c.y * outvec.z * rotation_mask;
 	outvec.z = (outvec.z + rotation_mask * (rotated - outvec.z)) * 0.5;
-#endif
-#if defined(DEPTH_USED)
-	outvec.z *= max_depth;
-#endif
+	
+#endif*/
+
 #if !defined(SKIP_TRANSFORM_USED)
 	outvec = extra_matrix_instance * outvec;
-	#if defined(WORLD_POS_USED)
+	#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
 		world_pos_out = world_matrix * outvec;
 	#endif
 	outvec = modelview_matrix * outvec;
@@ -412,10 +425,17 @@ LIGHT_SHADER_CODE
 
 #endif
 }
-#if defined(WORLD_POS_USED)
+
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
 varying vec4 world_pos_out;
 #endif
-
+#ifdef USE_CLIPPER
+uniform highp vec3 clipper_calc1;
+uniform highp vec3 clipper_calc2;
+uniform highp vec3 clipper_calc3;
+uniform highp vec3 clipper_calc4;
+#endif
+/*
 bool clipper(vec2 position, vec3 clipper_calc0, vec3 clipper_calc1, vec3 clipper_calc2, vec3 clipper_calc3) {
 	bool oddNodes = false;
 
@@ -469,11 +489,11 @@ bool clipper(vec2 position, vec3 clipper_calc0, vec3 clipper_calc1, vec3 clipper
 			oddNodes =! oddNodes;
 	}
 	return oddNodes; 
-}
+}*/
 
 
 void main() {
-#if defined(WORLD_POS_USED)
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
 	vec2 world_pos = world_pos_out.xy;
 #endif
 	vec4 color = color_interp;
@@ -520,9 +540,45 @@ void main() {
 		/* clang-format off */
 
 FRAGMENT_SHADER_CODE
+{
+
+}
 
 		/* clang-format on */
 
+#ifdef USE_CLIPPER
+{
+	bool oddNodes = false;
+	bool previous = clipper_calc4.z > world_pos.y;
+	bool current = clipper_calc1.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc1.x + clipper_calc1.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc2.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc2.x + clipper_calc2.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	
+	previous = current;
+	current = clipper_calc3.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc3.x + clipper_calc3.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc4.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc4.x + clipper_calc4.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	if (!oddNodes){
+		color.a = 0.0f;
+	}
+}
+#endif
 #if defined(NORMALMAP_USED)
 		normal = mix(vec3(0.0, 0.0, 1.0), normal_map * vec3(2.0, -2.0, 1.0) - vec3(1.0, -1.0, 0.0), normal_depth);
 #endif

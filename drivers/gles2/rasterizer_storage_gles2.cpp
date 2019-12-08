@@ -3493,6 +3493,39 @@ RID RasterizerStorageGLES2::immediate_get_material(RID p_immediate) const {
 	return im->material;
 }
 
+/* Frame API */
+RID RasterizerStorageGLES2::clipper_create() {
+	Clipper *clipper = memnew(Clipper);
+	return clipper_owner.make_rid(clipper);
+}
+
+void RasterizerStorageGLES2::frame_form(RID p_clipper, bool triangle) {
+	Clipper *clipper = clipper_owner.getornull(p_clipper);
+	ERR_FAIL_COND(!clipper);
+	clipper->triangle = triangle;
+}
+
+void RasterizerStorageGLES2::clipper_set_points(RID p_clipper, const Vector3 &p_calc1, const Vector3 &p_calc2, const Vector3 &p_calc3, const Vector3 &p_calc4) {
+	Clipper *clipper = clipper_owner.getornull(p_clipper);
+	ERR_FAIL_COND(!clipper);
+	clipper->calc1 = p_calc1;
+	clipper->calc2 = p_calc2;
+	clipper->calc3 = p_calc3;
+	clipper->calc4 = p_calc4;
+}
+
+/* CustomTransform API */
+RID RasterizerStorageGLES2::custom_transform_create() {
+	CustomTransform *custom_transform = memnew(CustomTransform);
+	return custom_transform_owner.make_rid(custom_transform);
+}
+
+void RasterizerStorageGLES2::custom_transform_set(RID p_custom_transform, const Transform &p_transform) {
+	CustomTransform *custom_transform = custom_transform_owner.getornull(p_custom_transform);
+	ERR_FAIL_COND(!custom_transform);
+	custom_transform->transform = p_transform;
+}
+
 /* SKELETON API */
 
 RID RasterizerStorageGLES2::skeleton_create() {

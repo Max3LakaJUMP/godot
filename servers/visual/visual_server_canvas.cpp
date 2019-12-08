@@ -170,6 +170,7 @@ void VisualServerCanvas::_render_canvas_item(Item *p_canvas_item, const Transfor
 
 	if ((!ci->commands.empty() && p_clip_rect.intersects(global_rect)) || ci->vp_render || ci->copy_back_buffer) {
 		//something to draw?
+
 		ci->final_transform = xform;
 		ci->final_modulate = Color(modulate.r * ci->self_modulate.r, modulate.g * ci->self_modulate.g, modulate.b * ci->self_modulate.b, modulate.a * ci->self_modulate.a);
 		ci->global_rect_cache = global_rect;
@@ -418,6 +419,7 @@ void VisualServerCanvas::canvas_item_set_transform(RID p_item, const Transform2D
 
 	canvas_item->xform = p_transform;
 }
+
 void VisualServerCanvas::canvas_item_set_clip(RID p_item, bool p_clip) {
 
 	Item *canvas_item = canvas_item_owner.getornull(p_item);
@@ -929,6 +931,30 @@ void VisualServerCanvas::canvas_item_attach_skeleton(RID p_item, RID p_skeleton)
 	ERR_FAIL_COND(!canvas_item);
 
 	canvas_item->skeleton = p_skeleton;
+}
+
+void VisualServerCanvas::canvas_item_attach_custom_transform(RID p_item, RID p_transform) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->custom_transform = p_transform;
+}
+
+void VisualServerCanvas::canvas_item_attach_clipper(RID p_item, RID p_clipper) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->clipper = p_clipper;
+}
+
+void VisualServerCanvas::canvas_item_clipper_top(RID p_item, bool b_top) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->clipper_top = b_top;
 }
 
 void VisualServerCanvas::canvas_item_set_copy_to_backbuffer(RID p_item, bool p_enable, const Rect2 &p_rect) {

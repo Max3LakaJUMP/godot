@@ -915,6 +915,7 @@ ShaderCompilerGLES3::ShaderCompilerGLES3() {
 	actions[VS::SHADER_CANVAS_ITEM].renames["UV"] = "uv";
 	actions[VS::SHADER_CANVAS_ITEM].renames["POINT_SIZE"] = "gl_PointSize";
 
+	actions[VS::SHADER_CANVAS_ITEM].renames["CUSTOM_TRANSFORM"] = "custom_transform_matrix";
 	actions[VS::SHADER_CANVAS_ITEM].renames["WORLD_MATRIX"] = "modelview_matrix";
 	actions[VS::SHADER_CANVAS_ITEM].renames["GLOBAL_MATRIX"] = "world_matrix";
 	actions[VS::SHADER_CANVAS_ITEM].renames["INV_GLOBAL_MATRIX"] = "inv_world_matrix";

@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  parallax_layer.h                                                     */
+/*  node_2d.h                                                            */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,70 +28,48 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef RED_PARALLAX_FOLDER_H
-#define RED_PARALLAX_FOLDER_H
+#ifndef REDTRANSFORM_H
+#define REDTRANSFORM_H
 
 #include "scene/2d/node_2d.h"
 
-class REDParallaxFolder : public Node2D {
+class REDTransform : public Node {
 
-	GDCLASS(REDParallaxFolder, Node2D);
+	GDCLASS(REDTransform, Node);
 
-	bool shrink;
-	bool expand;
-
-	Point2 orig_offset;
-	Point2 orig_scale;
-	Size2 parallax_factor;
-	Vector2 motion_offset;
-	Point2 screen_offset;
-	float zoom_scaling;
-
-	float zoom_in_scale;
-	float zoom_out_scale;
+	Vector3 _pos;
+	Vector3 _rotation;
+	Vector3 _scale;
+	Transform _mat;
+	mutable Transform mat_global;
+	bool _xform_dirty;
+	mutable bool global_dirty;
+	RID ci;
 	
-	Point2 camera_offset;
-	Vector2 camera_zoom;
-
-	Point2 parallax_offset;
-	Point2 old_parallax_offset;
-	bool parallax_offset_dirty;
-	Vector2 parallax_scale;
-	Vector2 old_parallax_scale;
-	bool parallax_scale_dirty;
-
-	NodePath custom_transform;
+	void _update_custom_transform();
+	void _update_xform_values();
 
 protected:
 	static void _bind_methods();
-	void _notification(int p_what);
-	
+
 public:
-	Transform get_custom_transform(const Transform &p_offset);
+	void set_custom_position(const Vector3 &p_pos);
+	void set_custom_rotation(const Vector3 &p_radians);
+	void set_custom_rotation_degrees(const Vector3 &p_degrees);
+	void set_custom_scale(const Vector3 &p_scale);
+
+	Vector3 get_custom_position() const;
+	Vector3 get_custom_rotation() const;
+	Vector3 get_custom_rotation_degrees() const;
+	Vector3 get_custom_scale() const;
+
 	void set_custom_transform(const Transform &p_transform);
-	
-	void apply_parallax();
+	Transform get_custom_transform() const;
+	Transform get_custom_global_transform() const;
 
-	void set_camera_offset(const Point2 &p_offset);
-	void set_camera_zoom(const Vector2 &p_zoom);
-
-	Point2 get_parallax_offset();
-	Vector2 get_parallax_scale();
-
-	void set_zoom_in_scale(float p_scale);
-	float get_zoom_in_scale() const;
-	void set_zoom_out_scale(float p_scale);
-	float get_zoom_out_scale() const;
-
-	void set_motion_offset(const Size2 &p_offset);
-	Size2 get_motion_offset() const;
-
-	void set_parallax_factor(const Size2 &p_scale);
-	Size2 get_parallax_factor() const;
-
-
-	virtual String get_configuration_warning() const;
-	REDParallaxFolder();
+	RID get_ci();
+	REDTransform();
+	~REDTransform();
 };
 
-#endif // RED_PARALLAX_FOLDER_H
+#endif // REDTRANSFORM_H

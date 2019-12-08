@@ -32,7 +32,6 @@
 
 #include "core/engine.h"
 #include "red_frame.h"
-
 Vector2 REDParallaxFolder::get_parallax_scale(){
 	if (parallax_scale_dirty){
 		bool zoom_in = (camera_zoom.x < 1) ? true : false;

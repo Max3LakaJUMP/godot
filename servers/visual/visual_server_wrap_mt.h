@@ -219,7 +219,18 @@ public:
 	FUNC1(immediate_clear, RID)
 	FUNC2(immediate_set_material, RID, RID)
 	FUNC1RC(RID, immediate_get_material, RID)
+	
+	/* FRAME API */
 
+	FUNCRID(clipper)
+	FUNC2(frame_form, RID, bool)
+	FUNC5(clipper_set_points, RID, const Vector3 &, const Vector3 &, const Vector3 &, const Vector3 &)
+	
+	/* CUSTOM TRANSFORM API */
+
+	FUNCRID(custom_transform)
+	FUNC2(custom_transform_set, RID, const Transform &)
+	
 	/* SKELETON API */
 
 	FUNCRID(skeleton)
@@ -500,6 +511,9 @@ public:
 	FUNC2(canvas_item_set_update_when_visible, RID, bool)
 
 	FUNC2(canvas_item_set_transform, RID, const Transform2D &)
+	FUNC2(canvas_item_attach_custom_transform, RID, RID)
+	FUNC2(canvas_item_attach_clipper, RID, RID)
+	FUNC2(canvas_item_clipper_top, RID, bool)
 	FUNC2(canvas_item_set_clip, RID, bool)
 	FUNC2(canvas_item_set_distance_field_mode, RID, bool)
 	FUNC3(canvas_item_set_custom_rect, RID, bool, const Rect2 &)

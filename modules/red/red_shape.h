@@ -5,8 +5,8 @@
 #include "core/node_path.h"
 #include "scene/animation/animation_node_state_machine.h"
 
-class REDShape : public REDElement {
-	GDCLASS(REDShape, REDElement);
+class REDShape : public Node2D {
+	GDCLASS(REDShape, Node2D);
 public:
 	enum LineJointMode {
 		LINE_JOINT_SHARP = 0,
@@ -14,12 +14,35 @@ public:
 		LINE_JOINT_ROUND
 	};
 
+	enum LineCapMode {
+		LINE_CAP_NONE = 0,
+		LINE_CAP_BOX,
+		LINE_CAP_ROUND
+	};
+
 	enum LineTextureMode {
 		LINE_TEXTURE_NONE = 0,
 		LINE_TEXTURE_TILE,
 		LINE_TEXTURE_STRETCH
 	};
+	enum DeformationState{
+		DEFORMATION_NORMAL,
+		DEFORMATION_END,
+		DEFORMATION_ENDING,
+		DEFORMATION_ENDED,
+	};
 private:
+	// Deformation
+	DeformationState deformation_state;
+	bool deformation_enable;
+	float deformation_offset;
+	float deformation_speed;
+	Vector<Vector2> targets;
+	Vector<Vector2> offsets;
+	Vector<Vector2> targets_old;
+	Vector<float> times;
+	Vector<float> timers;
+
 	PoolVector<Vector2> polygon;
 	bool outline_width_constant;
 
@@ -32,6 +55,8 @@ private:
 	mutable bool rect_cache_dirty;
 	mutable Rect2 item_rect;
 	LineJointMode joint_mode;
+	LineCapMode _begin_cap_mode;
+	LineCapMode _end_cap_mode;
 	float width;
 
     PoolVector<float> width_list;
@@ -49,13 +74,22 @@ private:
 	void _width_curve_changed();
 
 protected:
-
     static void _bind_methods();
 	void _notification(int p_what);
 	bool stencil_dirty;
 	bool outline_dirty;
 
 public:
+	// Deformation
+	void _move_points(const float deltatime);
+	void set_deformation_enable(bool p_deformate);
+	bool get_deformation_enable() const;
+	void set_deformation_offset(float p_deformation_offset);
+	float get_deformation_offset() const;
+	void set_deformation_speed(float p_deformation_speed);
+	float get_deformation_speed() const;
+	
+	void get_points(Vector<Vector2> &p_points) const;
 	virtual Dictionary _edit_get_state() const;
 	virtual void _edit_set_state(const Dictionary &p_state);
 
@@ -67,6 +101,7 @@ public:
 
 	virtual bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const;
 	void _draw_outline(Vector<Vector2> &p_points);
+
 
 	void set_polygon(const PoolVector<Vector2> &p_polygon);
 	PoolVector<Vector2> get_polygon() const;
@@ -113,6 +148,12 @@ public:
 	void set_joint_mode(LineJointMode mode);
 	LineJointMode get_joint_mode() const;
 
+	void set_begin_cap_mode(LineCapMode mode);
+	LineCapMode get_begin_cap_mode() const;
+
+	void set_end_cap_mode(LineCapMode mode);
+	LineCapMode get_end_cap_mode() const;
+
 	void set_sharp_limit(float limit);
 	float get_sharp_limit() const;
 
@@ -126,5 +167,6 @@ public:
 	REDShape();
 };
 VARIANT_ENUM_CAST(REDShape::LineJointMode)
+VARIANT_ENUM_CAST(REDShape::LineCapMode)
 VARIANT_ENUM_CAST(REDShape::LineTextureMode)
 #endif // RED_SHAPE_H

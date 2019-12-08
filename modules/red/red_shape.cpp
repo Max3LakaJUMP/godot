@@ -19,8 +19,128 @@
 #include "scene/animation/animation_tree.h"
 #include "scene/scene_string_names.h"
 
+
+void REDShape::_move_points(const float deltatime){
+	int count = get_polygon().size();
+	int offsets_count = offsets.size();
+	RandomPCG randbase;
+	randbase.randomize();
+	if (offsets_count == count){
+		for (int i = 0; i < count; i++){
+			if (deformation_state == DEFORMATION_END){
+				targets_old.write[i] = offsets[i];
+				targets.write[i] = Vector2(0, 0);
+				timers.write[i] = deltatime;
+				times.write[i] = 0.5f;
+				offsets.write[i] = targets_old[i];
+			}else if (timers[i] <= times[i]){
+				offsets.write[i] = targets_old[i].linear_interpolate(targets[i], timers[i] / times[i]);
+				timers.write[i] += deltatime;
+			}else if (deformation_state == DEFORMATION_ENDING){
+				deformation_state = DEFORMATION_ENDED;
+				break;
+			} else{
+				targets_old.write[i] = targets[i];
+				targets.write[i] = Vector2(randbase.random(-deformation_offset, deformation_offset), randbase.random(-deformation_offset, deformation_offset));
+				timers.write[i] = deltatime;
+				times.write[i] = targets_old[i].distance_to(targets[i]) / deformation_speed;
+				offsets.write[i] = targets_old[i];
+			}
+		}
+	}else{
+		targets_old.resize(count);
+		targets.resize(count);
+		timers.resize(count);
+		times.resize(count);
+		offsets.resize(count);
+		for (int i = 0; i < count; i++){
+			targets_old.write[i] = Vector2(0, 0);
+			targets.write[i] = Vector2(randbase.random(-deformation_offset, deformation_offset), randbase.random(-deformation_offset, deformation_offset));
+			timers.write[i] = deltatime;
+			times.write[i] = targets_old[i].distance_to(targets[i]) / deformation_speed;
+			offsets.write[i] = targets_old[i];
+		}
+	} 
+	if (deformation_state == DEFORMATION_END){
+		deformation_state = DEFORMATION_ENDING;
+	}else if (deformation_state == DEFORMATION_ENDED){
+		for (int i = 0; i < count; i++){
+			offsets.write[i] = Vector2(0, 0);
+		}
+		set_process_internal(false);
+	}
+	outline_dirty = true;
+	stencil_dirty = true;
+	update();
+}
+
+void REDShape::set_deformation_speed(float p_deformation_speed){
+	if (deformation_speed == p_deformation_speed)
+		return;
+	deformation_speed = p_deformation_speed;
+	if (get_deformation_enable()){
+		outline_dirty = true;
+		stencil_dirty = true;
+		update();
+	}
+}
+
+float REDShape::get_deformation_speed() const{
+	return deformation_speed;
+}
+
+void REDShape::set_deformation_offset(float p_deformation_offset){
+	if (deformation_offset == p_deformation_offset)
+		return;
+	deformation_offset = p_deformation_offset;
+	if (get_deformation_enable()){
+		outline_dirty = true;
+		stencil_dirty = true;
+		update();
+	}
+}
+
+float REDShape::get_deformation_offset() const{
+	return deformation_offset;
+}
+
+void REDShape::set_deformation_enable(bool p_deformate){
+	if (p_deformate){
+		deformation_state = DEFORMATION_NORMAL;
+		set_process_internal(true);
+	}else{
+		deformation_state = DEFORMATION_END;
+	}
+}
+
+bool REDShape::get_deformation_enable() const{
+	return (deformation_state == DEFORMATION_NORMAL);
+}
+
+void REDShape::get_points(Vector<Vector2> &p_points) const{
+	PoolVector<Vector2>::Read polyr = get_polygon().read();
+	int count = get_polygon().size();
+	p_points.resize(count);
+	if (deformation_state == DEFORMATION_ENDED){
+		for (int i = 0; i < count; i++)
+			p_points.write[i] = polyr[i] + get_offset();
+	}else{
+		int offsets_count = offsets.size();
+		if (offsets_count == count){
+			for (int i = 0; i < count; i++)
+				p_points.write[i] = polyr[i] + get_offset() + offsets[i];
+		}else{
+			for (int i = 0; i < count; i++)
+				p_points.write[i] = polyr[i] + get_offset();
+		}
+	}
+}
+
 void REDShape::_notification(int p_what) {
 	switch (p_what) {
+		case NOTIFICATION_INTERNAL_PROCESS: {
+			_move_points(get_process_delta_time());
+		} break;
 		case NOTIFICATION_DRAW: {
 			/*if (use_outline){
 				Vector<Vector2> points;
@@ -147,6 +267,24 @@ REDShape::LineJointMode REDShape::get_joint_mode() const {
 	return joint_mode;
 }
 
+void REDShape::set_begin_cap_mode(LineCapMode p_mode) {
+	_begin_cap_mode = p_mode;
+	update();
+}
+
+REDShape::LineCapMode REDShape::get_begin_cap_mode() const {
+	return _begin_cap_mode;
+}
+
+void REDShape::set_end_cap_mode(LineCapMode p_mode) {
+	_end_cap_mode = p_mode;
+	update();
+}
+
+REDShape::LineCapMode REDShape::get_end_cap_mode() const {
+	return _end_cap_mode;
+}
+
 void REDShape::set_sharp_limit(float p_limit) {
 	if (p_limit < 0.f)
 		p_limit = 0.f;
@@ -179,7 +317,7 @@ void REDShape::update_camera_zoom(Vector2 p_camera_zoom) {
 }
 
 void REDShape::_draw_outline(Vector<Vector2> &p_points) {
-	if (!(outline_dirty && use_outline))
+	if (!use_outline)
 		return;
 	int len = p_points.size();
 
@@ -244,6 +382,8 @@ void REDShape::_draw_outline(Vector<Vector2> &p_points) {
 	lb.gradient = *gradient;
 	lb.texture_mode = static_cast<REDLine::LineTextureMode>(texture_mode);
 	lb.joint_mode = static_cast<REDLine::LineJointMode>(joint_mode);
+	lb.begin_cap_mode = static_cast<REDLine::LineCapMode>(_begin_cap_mode);
+	lb.end_cap_mode = static_cast<REDLine::LineCapMode>(_end_cap_mode);
 	lb.round_precision = round_precision;
 	lb.sharp_limit = sharp_limit;
 	if (outline_width_constant){
@@ -431,11 +571,6 @@ Vector2 REDShape::get_offset() const {
 	return offset;
 }
 
-
-
-
-
-
 void REDShape::_bind_methods() {
 	//Line
 	ClassDB::bind_method(D_METHOD("set_use_outline", "use_outline"), &REDShape::set_use_outline);
@@ -470,6 +605,12 @@ void REDShape::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_joint_mode", "mode"), &REDShape::set_joint_mode);
 	ClassDB::bind_method(D_METHOD("get_joint_mode"), &REDShape::get_joint_mode);
 
+	ClassDB::bind_method(D_METHOD("set_begin_cap_mode", "mode"), &REDShape::set_begin_cap_mode);
+	ClassDB::bind_method(D_METHOD("get_begin_cap_mode"), &REDShape::get_begin_cap_mode);
+
+	ClassDB::bind_method(D_METHOD("set_end_cap_mode", "mode"), &REDShape::set_end_cap_mode);
+	ClassDB::bind_method(D_METHOD("get_end_cap_mode"), &REDShape::get_end_cap_mode);
+
 	ClassDB::bind_method(D_METHOD("set_sharp_limit", "limit"), &REDShape::set_sharp_limit);
 	ClassDB::bind_method(D_METHOD("get_sharp_limit"), &REDShape::get_sharp_limit);
 
@@ -485,6 +626,17 @@ void REDShape::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_offset", "offset"), &REDShape::set_offset);
 	ClassDB::bind_method(D_METHOD("get_offset"), &REDShape::get_offset);
 
+	ClassDB::bind_method(D_METHOD("set_deformation_enable", "deformation_enable"), &REDShape::set_deformation_enable);
+    ClassDB::bind_method(D_METHOD("get_deformation_enable"), &REDShape::get_deformation_enable);
+	ClassDB::bind_method(D_METHOD("set_deformation_offset", "deformation_offset"), &REDShape::set_deformation_offset);
+    ClassDB::bind_method(D_METHOD("get_deformation_offset"), &REDShape::get_deformation_offset);
+	ClassDB::bind_method(D_METHOD("set_deformation_speed", "deformation_speed"), &REDShape::set_deformation_speed);
+    ClassDB::bind_method(D_METHOD("get_deformation_speed"), &REDShape::get_deformation_speed);
+	
+	ADD_GROUP("Deformation", "deformation_");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "deformation_enable"), "set_deformation_enable", "get_deformation_enable");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "deformation_offset"), "set_deformation_offset", "get_deformation_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "deformation_speed"), "set_deformation_speed", "get_deformation_speed");
 
 	ADD_GROUP("Shape", "");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset"), "set_offset", "get_offset");
@@ -500,6 +652,8 @@ void REDShape::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "width_width_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_width_curve", "get_width_curve");
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "joint_mode", PROPERTY_HINT_ENUM, "Sharp,Bevel,Round"), "set_joint_mode", "get_joint_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "begin_cap_mode", PROPERTY_HINT_ENUM, "None,Box,Round"), "set_begin_cap_mode", "get_begin_cap_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "end_cap_mode", PROPERTY_HINT_ENUM, "None,Box,Round"), "set_end_cap_mode", "get_end_cap_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "sharp_limit"), "set_sharp_limit", "get_sharp_limit");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "round_precision"), "set_round_precision", "get_round_precision");
 
@@ -513,12 +667,21 @@ void REDShape::_bind_methods() {
 	BIND_ENUM_CONSTANT(LINE_JOINT_BEVEL);
 	BIND_ENUM_CONSTANT(LINE_JOINT_ROUND);
 
+	BIND_ENUM_CONSTANT(LINE_CAP_NONE);
+	BIND_ENUM_CONSTANT(LINE_CAP_BOX);
+	BIND_ENUM_CONSTANT(LINE_CAP_ROUND);
+
 	BIND_ENUM_CONSTANT(LINE_TEXTURE_NONE);
 	BIND_ENUM_CONSTANT(LINE_TEXTURE_TILE);
 	BIND_ENUM_CONSTANT(LINE_TEXTURE_STRETCH);
 }
 
 REDShape::REDShape() {
+	deformation_state= DEFORMATION_ENDED;
+	deformation_offset = 20.0f;
+	deformation_speed = 20.0f;
+	deformation_enable = false;
+
 	camera_zoom = Vector2(1.f, 1.0f);
 
 	use_outline = true;
@@ -529,7 +692,8 @@ REDShape::REDShape() {
 
 	antialiased = false;
 	rect_cache_dirty = true;
-
+	_begin_cap_mode = LINE_CAP_NONE;
+	_end_cap_mode = LINE_CAP_NONE;
 	joint_mode = LINE_JOINT_SHARP;
 	width = 5.0f;
 

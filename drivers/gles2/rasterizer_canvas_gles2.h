@@ -80,6 +80,14 @@ public:
 		CanvasShaderGLES2 canvas_shader;
 		CanvasShadowShaderGLES2 canvas_shadow_shader;
 		LensDistortedShaderGLES2 lens_shader;
+		
+		bool using_custom_transform;
+		Transform custom_transform;
+		bool using_clipper;
+		Vector3 clipper_calc1;
+		Vector3 clipper_calc2;
+		Vector3 clipper_calc3;
+		Vector3 clipper_calc4;
 
 		bool using_texture_rect;
 		bool using_ninepatch;

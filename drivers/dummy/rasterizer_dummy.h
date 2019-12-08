@@ -458,6 +458,17 @@ public:
 	RID immediate_get_material(RID p_immediate) const { return RID(); }
 	AABB immediate_get_aabb(RID p_immediate) const { return AABB(); }
 
+	/* FRAME API */
+
+	RID clipper_create() { return RID(); }
+	void frame_form(RID p_frame, bool triangle) {}
+	void clipper_set_points(RID p_clipper, const Vector3 &p_calc1, const Vector3 &p_calc2, const Vector3 &p_calc3, const Vector3 &p_calc4) {}
+
+	/* CUSTOM TRANSFORM API */
+
+	RID custom_transform_create() { return RID(); }
+	void custom_transform_set(RID p_custom_transform, const Transform &p_transform) {}
+
 	/* SKELETON API */
 
 	RID skeleton_create() { return RID(); }

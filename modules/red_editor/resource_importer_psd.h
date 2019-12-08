@@ -42,7 +42,7 @@ struct _psd_layer_record;
 class Polygon2D;
 class Node2D;
 class ShaderMaterial;
-class REDClipper;
+class REDFrame;
 class REDPolygon;
 struct _psd_context;
 struct _psd_layer_mask_info;
@@ -137,7 +137,7 @@ public:
 	void create_polygon(_psd_layer_record *layer, Ref<ShaderMaterial> material, Vector2 polygon_size, String png_path, Node2D *parent);
 
 	int load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 
-					Node *parent, Vector2 parent_post, Vector2 parent_offset, const Map<StringName, Variant> &p_options, bool force_save=false, int counter=0, int folder_level=-1, REDClipper *parent_clipper=nullptr);
+					Node *parent, Vector2 parent_post, Vector2 parent_offset, const Map<StringName, Variant> &p_options, bool force_save=false, int counter=0, int folder_level=-1, REDFrame *parent_clipper=nullptr);
 	
 	void _mask_to_node(_psd_layer_record *layer, float target_width, Node2D *node2d, _psd_context *context, int anchor_second_level);
 	Node *_get_root(_psd_context *context, const String &target_dir, bool &force_save, const Map<StringName, Variant> &p_options) const;

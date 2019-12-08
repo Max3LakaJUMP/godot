@@ -1749,7 +1749,11 @@ void VisualServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("immediate_set_material", "immediate", "material"), &VisualServer::immediate_set_material);
 	ClassDB::bind_method(D_METHOD("immediate_get_material", "immediate"), &VisualServer::immediate_get_material);
 #endif
-
+	ClassDB::bind_method(D_METHOD("clipper_create"), &VisualServer::clipper_create);
+	ClassDB::bind_method(D_METHOD("frame_form", "triangle"), &VisualServer::frame_form);
+	ClassDB::bind_method(D_METHOD("clipper_set_points", "calc1", "calc2", "calc3", "calc4"), &VisualServer::clipper_set_points);
+	ClassDB::bind_method(D_METHOD("custom_transform_create"), &VisualServer::custom_transform_create);
+	ClassDB::bind_method(D_METHOD("custom_transform_set", "transform"), &VisualServer::custom_transform_set);
 	ClassDB::bind_method(D_METHOD("skeleton_create"), &VisualServer::skeleton_create);
 	ClassDB::bind_method(D_METHOD("skeleton_allocate", "skeleton", "bones", "is_2d_skeleton"), &VisualServer::skeleton_allocate, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("skeleton_get_bone_count", "skeleton"), &VisualServer::skeleton_get_bone_count);
