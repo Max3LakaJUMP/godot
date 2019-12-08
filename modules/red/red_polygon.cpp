@@ -347,7 +347,7 @@ void REDPolygon::_notification(int p_what) {
 			if (invert || polygons.size() == 0) {
 				Vector<int> indices = Geometry::triangulate_polygon(points);
 				if (indices.size()) {
-					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID());
+					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, RID(), antialiased);
 				}
 			} else {
 				//draw individual polygons
@@ -381,7 +381,8 @@ void REDPolygon::_notification(int p_what) {
 				}
 
 				if (total_indices.size()) {
-					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), total_indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID());
+					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), total_indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, RID(), antialiased);
+
 				}
 
 #if 0
@@ -1006,7 +1007,7 @@ void REDPolygon::_bind_methods() {
 	ADD_GROUP("Main", "");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset"), "set_offset", "get_offset");
-	//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
 	
 	//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "move_uv_with_polygon"), "set_move_uv_with_polygon", "get_move_uv_with_polygon");
 	ADD_GROUP("Texture", "");
