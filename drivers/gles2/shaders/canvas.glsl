@@ -80,7 +80,6 @@ uniform highp vec2 light_pos;
 uniform highp float shadowpixel_size;
 uniform highp float shadow_gradient;
 uniform highp float light_height;
-uniform highp bool light_dominant;
 uniform highp float light_outside_alpha;
 uniform highp float shadow_distance_mult;
 
@@ -367,7 +366,6 @@ uniform highp vec2 light_pos;
 uniform highp float shadowpixel_size;
 uniform highp float shadow_gradient;
 uniform highp float light_height;
-uniform highp bool light_dominant;
 uniform highp float light_outside_alpha;
 uniform highp float shadow_distance_mult;
 
@@ -412,8 +410,7 @@ void light_compute(
 #if defined(SCREEN_UV_USED)
 		vec2 screen_uv,
 #endif
-		vec4 color, 
-		bool light_dominant) {
+		vec4 color) {
 
 #if defined(USE_LIGHT_SHADER_CODE)
 
@@ -599,8 +596,6 @@ FRAGMENT_SHADER_CODE
 	vec2 light_uv = light_uv_interp.xy;
 	vec4 light = texture2D(light_texture, light_uv);
 
-	bool real_light_dominant = light_dominant;
-
 	if (any(lessThan(light_uv_interp.xy, vec2(0.0, 0.0))) || any(greaterThanEqual(light_uv_interp.xy, vec2(1.0, 1.0)))) {
 		color.a *= light_outside_alpha; //invisible
 
@@ -624,8 +619,7 @@ FRAGMENT_SHADER_CODE
 #if defined(SCREEN_UV_USED)
 				screen_uv,
 #endif
-				color, 
-				real_light_dominant);
+				color);
 #endif
 
 		light *= real_light_color;

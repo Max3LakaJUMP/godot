@@ -82,7 +82,6 @@ layout(std140) uniform LightData { //ubo:1
 	highp float light_height;
 	highp float light_outside_alpha;
 	highp float shadow_distance_mult;
-	highp bool light_dominant;
 };
 
 out vec4 light_uv_interp;
@@ -367,7 +366,6 @@ layout(std140) uniform LightData {
 	highp float light_height;
 	highp float light_outside_alpha;
 	highp float shadow_distance_mult;
-	highp bool light_dominant;
 };
 
 uniform lowp sampler2D light_texture; // texunit:-1
@@ -423,8 +421,7 @@ void light_compute(
 #if defined(SCREEN_UV_USED)
 		vec2 screen_uv,
 #endif
-		vec4 color,
-		bool light_dominant) {
+		vec4 color) {
 
 #if defined(USE_LIGHT_SHADER_CODE)
 
@@ -721,8 +718,6 @@ FRAGMENT_SHADER_CODE
 #if defined(SCREEN_UV_USED)
 				screen_uv,
 #endif
-				color, 
-				real_light_dominant);
 				color);
 #endif
 

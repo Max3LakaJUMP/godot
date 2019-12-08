@@ -623,7 +623,6 @@ public:
 		Color color;
 		Transform2D xform;
 		float height;
-		bool dominant;
 		float energy;
 		float scale;
 		int z_min;
