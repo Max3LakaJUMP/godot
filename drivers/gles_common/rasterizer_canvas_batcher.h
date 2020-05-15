@@ -474,6 +474,9 @@ public:
 			shader_cache = nullptr;
 			rebind_shader = true;
 			prev_use_skeleton = false;
+			prev_use_clipper = false;
+			prev_use_custom_transform = false;
+			prev_use_deform = false;
 			last_blend_mode = -1;
 			canvas_last_material = RID();
 			item_group_z = 0;
@@ -490,6 +493,9 @@ public:
 		typename T_STORAGE::Shader *shader_cache;
 		bool rebind_shader;
 		bool prev_use_skeleton;
+		bool prev_use_clipper;
+		bool prev_use_custom_transform;
+		bool prev_use_deform;
 		bool prev_distance_field;
 		int last_blend_mode;
 		RID canvas_last_material;

@@ -120,6 +120,148 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			_copy_texscreen(p_ci->copy_back_buffer->rect);
 		}
 	}
+	
+	Transform2D world_pos = r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform;
+	RasterizerStorageGLES3::Clipper *clipper = NULL;
+	{
+		//clipper
+		if (p_ci->clipper.is_valid() && storage->clipper_owner.owns(p_ci->clipper)) {
+			clipper = storage->clipper_owner.get(p_ci->clipper);
+			state.clipper_calc1 = clipper->calc1;
+			state.clipper_calc2 = clipper->calc2;
+			if (!p_ci->clipper_top){
+				state.clipper_calc1.z = clipper->calc1.z - 100000.0f;
+				state.clipper_calc2.z = clipper->calc2.z - 100000.0f;
+			}
+			state.clipper_calc3 = clipper->calc3;
+			state.clipper_calc4 = clipper->calc4;
+		}
+
+		bool use_clipper = clipper != NULL;
+		if (r_ris.prev_use_clipper != use_clipper) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_CLIPPER, use_clipper);
+			r_ris.prev_use_clipper = use_clipper;
+		}
+
+		if (clipper) {
+			state.using_clipper = true;
+		} else {
+			state.using_clipper = false;
+		}
+	}
+
+	RasterizerStorageGLES3::CustomTransform *custom_transform = NULL;
+	{
+		//custom_transform
+		if (p_ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(p_ci->custom_transform)) {
+			custom_transform = storage->custom_transform_owner.get(p_ci->custom_transform);
+			state.depth_size = p_ci->depth_size;
+			state.depth_offset = p_ci->depth_offset;
+			state.soft_body = p_ci->soft_body;
+
+			Transform pos = Variant(world_pos.affine_inverse());
+			pos.origin.z = -p_ci->depth_position;
+			Transform custom_transform_root = pos * custom_transform->root_transform;
+			Transform custom_transform_root_inverse = custom_transform_root.affine_inverse();
+			state.custom_transform = custom_transform_root * custom_transform->transform * custom_transform_root_inverse;
+			state.old_custom_transform = custom_transform_root * custom_transform->old_transform * custom_transform_root_inverse;
+			if (state.depth_size <= 0){
+				Vector3 offset = state.custom_transform.origin;
+				Vector3 scale = state.custom_transform.basis.get_scale();
+				Vector3 euler = state.custom_transform.basis.get_euler();
+				Quat quat = state.custom_transform.basis.get_rotation_quat();
+				quat.x = quat.x * quat.x * quat.x;
+				quat.y = quat.y * quat.y * quat.y;
+				state.custom_transform.basis.set_quat(quat);
+				state.custom_transform = Transform(state.custom_transform.basis[0].x * scale.x, state.custom_transform.basis[0].y, 0,
+													state.custom_transform.basis[1].x, state.custom_transform.basis[1].y * scale.y, 0,
+													0, 0, scale.z, 
+													offset.x, offset.y, offset.z);
+				Vector3 old_offset = state.old_custom_transform.origin;
+				Vector3 old_scale = state.old_custom_transform.basis.get_scale();
+				Vector3 old_euler = state.old_custom_transform.basis.get_euler();
+				Quat old_quat = state.old_custom_transform.basis.get_rotation_quat();
+				old_quat.x = old_quat.x * old_quat.x * old_quat.x;
+				old_quat.y = old_quat.y * old_quat.y * old_quat.y;
+				state.old_custom_transform.basis.set_quat(old_quat);
+				state.old_custom_transform = Transform(	state.old_custom_transform.basis[0].x * old_scale.x, state.old_custom_transform.basis[0].y, 0,
+														state.old_custom_transform.basis[1].x, state.old_custom_transform.basis[1].y * old_scale.y, 0,
+														0,0, old_scale.z, 
+														old_offset.x, old_offset.y, old_offset.z);
+			}
+		}
+
+		bool use_custom_transform = custom_transform != NULL;
+		if (r_ris.prev_use_custom_transform != use_custom_transform) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_CUSTOM_TRANSFORM, use_custom_transform);
+			r_ris.prev_use_custom_transform = use_custom_transform;
+		}
+
+		if (custom_transform) {
+			state.using_custom_transform = true;
+		} else {
+			state.using_custom_transform = false;
+		}
+	}
+	
+	RasterizerStorageGLES3::Deform *deform = NULL;
+	{
+		//deform
+		if (p_ci->deform.is_valid() && storage->deform_owner.owns(p_ci->deform)) {
+			deform = storage->deform_owner.get(p_ci->deform);
+			{
+				state.object_rotation = p_ci->object_rotation * 3.14 / 180.0;
+				float s = sin(state.object_rotation);
+				float c = cos(state.object_rotation);
+				state.deform_object_matrix = Transform(c, -s, 0.0,
+														s, c, 0.0,
+														0.0, 0.0, 1.0, 
+														0.0, 0.0, 0.0);
+				if (state.using_custom_transform){
+					state.deform_object_matrix = state.deform_object_matrix * state.custom_transform;
+				}
+			}
+			state.deform_object_matrix_inverse = state.deform_object_matrix.affine_inverse();
+			state.uv_origin = p_ci->uv_origin;
+			state.scale_center = p_ci->scale_center;
+			state.wind_strength_object = p_ci->wind_strength;
+			state.elasticity = p_ci->elasticity;
+			state.time_offset = p_ci->time_offset * 6.28;
+			{
+				state.wind_rotation = deform->wind_rotation * 3.14 / 180.0;
+				float s = sin(state.wind_rotation);
+				float c = cos(state.wind_rotation);
+				state.deform_wind_matrix = Transform(c, -s, 0.0,
+													s, c, 0.0,
+													0.0, 0.0, 1.0, 
+													0.0, 0.0, 0.0);
+				state.deform_wind_matrix = Transform(Variant(world_pos.affine_inverse())) * state.deform_object_matrix_inverse * state.deform_wind_matrix;				
+			}
+			state.wind_rotation = deform->wind_rotation;
+			state.wind_offset = deform->wind_offset;
+			state.wind_time = deform->wind_time;
+			state.wind_strength = deform->wind_strength;
+			state.wind2_time = deform->wind2_time;
+			state.wind2_strength = deform->wind2_strength;
+			state.scale_time = deform->scale_time;
+			state.scale_strength = deform->scale_strength;
+		}
+
+		bool use_deform = deform != NULL;
+		if (r_ris.prev_use_deform != use_deform) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_DEFORM, use_deform);
+			r_ris.prev_use_deform = use_deform;
+		}
+
+		if (deform) {
+			state.using_deform = true;
+		} else {
+			state.using_deform = false;
+		}
+	}
 
 	RasterizerStorageGLES3::Skeleton *skeleton = NULL;
 
@@ -130,7 +272,8 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			if (!skeleton->use_2d) {
 				skeleton = NULL;
 			} else {
-				state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
+				//state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
+				state.skeleton_transform = world_pos.affine_inverse() * skeleton->base_transform_2d;
 				state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 			}
 		}
@@ -331,6 +474,45 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 
 	state.final_transform = p_ci->final_transform;
 	state.extra_matrix = Transform2D();
+	state.world_transform = r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform;
+	state.inv_world_transform = state.world_transform.affine_inverse();
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_transform);
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_transform);
+	if (state.using_custom_transform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::OLD_CUSTOM_MATRIX, state.old_custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX_ROOT, state.custom_transform_root);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SOFT_BODY, state.soft_body);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_POSITION, state.depth_position);
+	}
+	if (state.using_clipper) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC1, state.clipper_calc1);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC2, state.clipper_calc2);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC3, state.clipper_calc3);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC4, state.clipper_calc4);
+	}
+	if (state.using_deform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX, state.deform_object_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX_INVERSE, state.deform_object_matrix_inverse);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::OBJECT_ROTATION, state.object_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::UV_ORIGIN, state.uv_origin);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
+
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_TIME, state.wind2_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_STRENGTH, state.wind2_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_TIME, state.scale_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_STRENGTH, state.scale_strength);
+	}
 
 	if (state.using_skeleton) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM, state.skeleton_transform);
@@ -418,6 +600,44 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 					if (state.using_skeleton) {
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM, state.skeleton_transform);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM_INVERSE, state.skeleton_transform_inverse);
+					}
+					state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_transform);
+					state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_transform);
+					if (state.using_custom_transform) {
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::OLD_CUSTOM_MATRIX, state.old_custom_transform);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX_ROOT, state.custom_transform_root);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::SOFT_BODY, state.soft_body);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_POSITION, state.depth_position);
+					}
+					if (state.using_clipper) {
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC1, state.clipper_calc1);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC2, state.clipper_calc2);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC3, state.clipper_calc3);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC4, state.clipper_calc4);
+					}
+					if (state.using_deform) {
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX, state.deform_object_matrix);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX_INVERSE, state.deform_object_matrix_inverse);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::OBJECT_ROTATION, state.object_rotation);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::UV_ORIGIN, state.uv_origin);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
+
+
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_TIME, state.wind2_time);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_STRENGTH, state.wind2_strength);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_TIME, state.scale_time);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_STRENGTH, state.scale_strength);
 					}
 				}
 
@@ -1242,6 +1462,146 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 			_copy_texscreen(p_ci->copy_back_buffer->rect);
 		}
 	}
+	
+	Transform2D world_pos = r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform;
+	RasterizerStorageGLES3::Clipper *clipper = NULL;
+	{
+		//clipper
+		if (p_ci->clipper.is_valid() && storage->clipper_owner.owns(p_ci->clipper)) {
+			clipper = storage->clipper_owner.get(p_ci->clipper);
+			state.clipper_calc1 = clipper->calc1;
+			state.clipper_calc2 = clipper->calc2;
+			if (!p_ci->clipper_top){
+				state.clipper_calc1.z = clipper->calc1.z - 100000.0f;
+				state.clipper_calc2.z = clipper->calc2.z - 100000.0f;
+			}
+			state.clipper_calc3 = clipper->calc3;
+			state.clipper_calc4 = clipper->calc4;
+		}
+
+		bool use_clipper = clipper != NULL;
+		if (r_ris.prev_use_clipper != use_clipper) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_CLIPPER, use_clipper);
+			r_ris.prev_use_clipper = use_clipper;
+		}
+
+		if (clipper) {
+			state.using_clipper = true;
+		} else {
+			state.using_clipper = false;
+		}
+	}
+	RasterizerStorageGLES3::CustomTransform *custom_transform = NULL;
+	{
+		//custom_transform
+		if (p_ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(p_ci->custom_transform)) {
+			custom_transform = storage->custom_transform_owner.get(p_ci->custom_transform);
+			state.depth_size = p_ci->depth_size;
+			state.depth_offset = p_ci->depth_offset;
+			state.soft_body = p_ci->soft_body;
+
+			Transform pos = Variant(world_pos.affine_inverse());
+			pos.origin.z = -p_ci->depth_position;
+			Transform custom_transform_root = pos * custom_transform->root_transform;
+			Transform custom_transform_root_inverse = custom_transform_root.affine_inverse();
+			state.custom_transform = custom_transform_root * custom_transform->transform * custom_transform_root_inverse;
+			state.old_custom_transform = custom_transform_root * custom_transform->old_transform * custom_transform_root_inverse;
+			if (state.depth_size <= 0){
+				Vector3 offset = state.custom_transform.origin;
+				Vector3 scale = state.custom_transform.basis.get_scale();
+				Vector3 euler = state.custom_transform.basis.get_euler();
+				Quat quat = state.custom_transform.basis.get_rotation_quat();
+				quat.x = quat.x * quat.x * quat.x;
+				quat.y = quat.y * quat.y * quat.y;
+				state.custom_transform.basis.set_quat(quat);
+				state.custom_transform = Transform(state.custom_transform.basis[0].x * scale.x, state.custom_transform.basis[0].y, 0,
+													state.custom_transform.basis[1].x, state.custom_transform.basis[1].y * scale.y, 0,
+													0, 0, scale.z, 
+													offset.x, offset.y, offset.z);
+				Vector3 old_offset = state.old_custom_transform.origin;
+				Vector3 old_scale = state.old_custom_transform.basis.get_scale();
+				Vector3 old_euler = state.old_custom_transform.basis.get_euler();
+				Quat old_quat = state.old_custom_transform.basis.get_rotation_quat();
+				old_quat.x = old_quat.x * old_quat.x * old_quat.x;
+				old_quat.y = old_quat.y * old_quat.y * old_quat.y;
+				state.old_custom_transform.basis.set_quat(old_quat);
+				state.old_custom_transform = Transform(	state.old_custom_transform.basis[0].x * old_scale.x, state.old_custom_transform.basis[0].y, 0,
+														state.old_custom_transform.basis[1].x, state.old_custom_transform.basis[1].y * old_scale.y, 0,
+														0,0, old_scale.z, 
+														old_offset.x, old_offset.y, old_offset.z);
+			}
+		}
+
+		bool use_custom_transform = custom_transform != NULL;
+		if (r_ris.prev_use_custom_transform != use_custom_transform) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_CUSTOM_TRANSFORM, use_custom_transform);
+			r_ris.prev_use_custom_transform = use_custom_transform;
+		}
+
+		if (custom_transform) {
+			state.using_custom_transform = true;
+		} else {
+			state.using_custom_transform = false;
+		}
+	}
+	RasterizerStorageGLES3::Deform *deform = NULL;
+	{
+		//deform
+		if (p_ci->deform.is_valid() && storage->deform_owner.owns(p_ci->deform)) {
+			deform = storage->deform_owner.get(p_ci->deform);
+			{
+				state.object_rotation = p_ci->object_rotation * 3.14 / 180.0;
+				float s = sin(state.object_rotation);
+				float c = cos(state.object_rotation);
+				state.deform_object_matrix = Transform(c, -s, 0.0,
+														s, c, 0.0,
+														0.0, 0.0, 1.0, 
+														0.0, 0.0, 0.0);
+				if (state.using_custom_transform){
+					state.deform_object_matrix = state.deform_object_matrix * state.custom_transform;
+				}
+			}
+			state.deform_object_matrix_inverse = state.deform_object_matrix.affine_inverse();
+			state.uv_origin = p_ci->uv_origin;
+			state.scale_center = p_ci->scale_center;
+			state.wind_strength_object = p_ci->wind_strength;
+			state.elasticity = p_ci->elasticity;
+			state.time_offset = p_ci->time_offset * 6.28;
+			{
+				state.wind_rotation = deform->wind_rotation * 3.14 / 180.0;
+				float s = sin(state.wind_rotation);
+				float c = cos(state.wind_rotation);
+				state.deform_wind_matrix = Transform(c, -s, 0.0,
+													s, c, 0.0,
+													0.0, 0.0, 1.0, 
+													0.0, 0.0, 0.0);
+				state.deform_wind_matrix = Transform(Variant(world_pos.affine_inverse())) * state.deform_object_matrix_inverse * state.deform_wind_matrix;				
+			}
+			state.wind_rotation = deform->wind_rotation;
+			state.wind_offset = deform->wind_offset;
+			state.wind_time = deform->wind_time;
+			state.wind_strength = deform->wind_strength;
+			state.wind2_time = deform->wind2_time;
+			state.wind2_strength = deform->wind2_strength;
+			state.scale_time = deform->scale_time;
+			state.scale_strength = deform->scale_strength;
+		}
+
+		bool use_deform = deform != NULL;
+		if (r_ris.prev_use_deform != use_deform) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_DEFORM, use_deform);
+			r_ris.prev_use_deform = use_deform;
+		}
+
+		if (deform) {
+			state.using_deform = true;
+		} else {
+			state.using_deform = false;
+		}
+	}
 
 	if (!bdata.settings_use_batching || !bdata.settings_use_software_skinning) {
 
@@ -1253,7 +1613,8 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 			if (!skeleton->use_2d) {
 				skeleton = NULL;
 			} else {
-				state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
+				//state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
+				state.skeleton_transform = world_pos.affine_inverse() * skeleton->base_transform_2d;
 				state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 			}
 		}
@@ -1478,6 +1839,44 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE, state.canvas_item_modulate);
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX, state.final_transform);
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX, state.extra_matrix);
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_transform);
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_transform);
+	if (state.using_custom_transform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::OLD_CUSTOM_MATRIX, state.old_custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX_ROOT, state.custom_transform_root);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SOFT_BODY, state.soft_body);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_POSITION, state.depth_position);
+	}
+	if (state.using_clipper) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC1, state.clipper_calc1);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC2, state.clipper_calc2);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC3, state.clipper_calc3);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC4, state.clipper_calc4);
+	}
+	if (state.using_deform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX, state.deform_object_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX_INVERSE, state.deform_object_matrix_inverse);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::OBJECT_ROTATION, state.object_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::UV_ORIGIN, state.uv_origin);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
+
+
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_TIME, state.wind2_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_STRENGTH, state.wind2_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_TIME, state.scale_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_STRENGTH, state.scale_strength);
+	}
 	if (storage->frame.current_rt) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0 / storage->frame.current_rt->width, 1.0 / storage->frame.current_rt->height));
 	} else {
@@ -1563,6 +1962,42 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 					if (state.using_skeleton) {
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM, state.skeleton_transform);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM_INVERSE, state.skeleton_transform_inverse);
+					}
+					if (state.using_custom_transform) {
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::OLD_CUSTOM_MATRIX, state.old_custom_transform);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX_ROOT, state.custom_transform_root);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::SOFT_BODY, state.soft_body);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_POSITION, state.depth_position);
+					}
+					if (state.using_clipper) {
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC1, state.clipper_calc1);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC2, state.clipper_calc2);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC3, state.clipper_calc3);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC4, state.clipper_calc4);
+					}
+					if (state.using_deform) {
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX, state.deform_object_matrix);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX_INVERSE, state.deform_object_matrix_inverse);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::OBJECT_ROTATION, state.object_rotation);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::UV_ORIGIN, state.uv_origin);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
+
+
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_TIME, state.wind2_time);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_STRENGTH, state.wind2_strength);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_TIME, state.scale_time);
+						state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_STRENGTH, state.scale_strength);
 					}
 				}
 
@@ -1696,6 +2131,77 @@ bool RasterizerCanvasGLES3::try_join_item(Item *p_ci, RenderItemState &r_ris, bo
 
 	if (p_ci->copy_back_buffer) {
 		join = false;
+	}
+
+	RasterizerStorageGLES3::Clipper *clipper = NULL;
+	
+	{
+		//clipper
+		if (p_ci->clipper.is_valid() && storage->clipper_owner.owns(p_ci->clipper)) {
+			clipper = storage->clipper_owner.get(p_ci->clipper);
+		}
+		bool skeleton_prevent_join = false;
+		bool use_clipper = clipper != NULL;
+		if (r_ris.prev_use_clipper != use_clipper) {
+			r_ris.rebind_shader = true;
+			r_ris.prev_use_clipper = use_clipper;
+			join = false;
+			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, use_clipper);
+		}
+
+		if (clipper) {
+			//join = false;
+			state.using_clipper = true;
+		} else {
+			state.using_clipper = false;
+		}
+	}
+	
+	RasterizerStorageGLES3::CustomTransform *custom_transform = NULL;
+	
+	{
+		//custom_transform
+		if (p_ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(p_ci->custom_transform)) {
+			custom_transform = storage->custom_transform_owner.get(p_ci->custom_transform);
+		}
+		bool skeleton_prevent_join = false;
+		bool use_custom_transform = custom_transform != NULL;
+		if (r_ris.prev_use_custom_transform != use_custom_transform) {
+			r_ris.rebind_shader = true;
+			r_ris.prev_use_custom_transform = use_custom_transform;
+			join = false;
+			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
+		}
+
+		if (custom_transform) {
+			//join = false;
+			state.using_custom_transform = true;
+		} else {
+			state.using_custom_transform = false;
+		}
+	}
+	
+	RasterizerStorageGLES3::Deform *deform = NULL;
+	
+	{
+		//deform
+		if (p_ci->deform.is_valid() && storage->deform_owner.owns(p_ci->deform)) {
+			deform = storage->deform_owner.get(p_ci->deform);
+		}
+		bool use_deform = deform != NULL;
+		if (r_ris.prev_use_deform != use_deform) {
+			r_ris.rebind_shader = true;
+			r_ris.prev_use_deform = deform;
+			join = false;
+			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
+		}
+
+		if (deform) {
+			//join = false;
+			state.using_deform = true;
+		} else {
+			state.using_deform = false;
+		}
 	}
 
 	RasterizerStorageGLES3::Skeleton *skeleton = NULL;
@@ -1986,6 +2492,8 @@ void RasterizerCanvasGLES3::canvas_render_items_implementation(Item *p_item_list
 	}
 
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_SKELETON, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_CUSTOM_TRANSFORM, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_DEFORM, false);
 }
 
 void RasterizerCanvasGLES3::_batch_upload_buffers() {

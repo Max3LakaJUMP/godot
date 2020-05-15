@@ -98,6 +98,42 @@ public:
 		Transform2D skeleton_transform;
 		Transform2D skeleton_transform_inverse;
 
+		bool using_custom_transform;
+		Transform custom_transform;
+		Transform old_custom_transform;
+		Transform custom_transform_root;
+		float soft_body;
+		float depth_size;
+		float depth_offset;
+		float depth_position;
+		
+		bool using_clipper;
+		Vector3 clipper_calc1;
+		Vector3 clipper_calc2;
+		Vector3 clipper_calc3;
+		Vector3 clipper_calc4;
+		
+		bool using_deform;
+		Transform deform_object_matrix;
+		Transform deform_object_matrix_inverse;
+		float object_rotation;
+		float uv_origin;
+		Vector2 scale_center;
+		Vector2 wind_strength_object;
+		Vector2 elasticity;
+		float time_offset;
+		
+		Transform deform_wind_matrix;
+		float wind_rotation;
+		float wind_offset;
+		float wind_time;
+		float wind_strength;
+		float wind2_time;
+		float wind2_strength;
+		float scale_time;
+		float scale_strength;
+		Transform2D world_transform;
+		Transform2D inv_world_transform;
 	} state;
 
 	RasterizerStorageGLES3 *storage;
