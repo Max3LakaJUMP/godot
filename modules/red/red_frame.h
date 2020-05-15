@@ -223,6 +223,7 @@ private:
 	bool b_end_loop;
     
 	bool focused;
+	bool deformate_on_activation;
     bool b_active;
     int id;
     NodePath anim_tree;
@@ -245,10 +246,12 @@ public:
    	void set_reinit_tree(bool p_reinit_tree);
     int get_states_count() const;
 	
+	void set_deformate_on_activation(bool p_deformate);
+	bool get_deformate_on_activation() const;
+
 	void travel_end();
 	void travel_state();
 	void travel_start();
-
 	void _travel(const StringName &p_state);
     int get_id() const;
     void set_id(int np_id);

@@ -83,8 +83,8 @@ void RasterizerCanvasGLES2::_set_uniforms() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM, state.skeleton_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM_INVERSE, state.skeleton_transform_inverse);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TEXTURE_SIZE, state.skeleton_texture_size);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM_GLOBAL, state.skeleton_transform_global);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM_GLOBAL_INVERSE, state.skeleton_transform_global_inverse);
+		//state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM_GLOBAL, state.skeleton_transform_global);
+		//state.canvas_shader.set_uniform(CanvasShaderGLES2::SKELETON_TRANSFORM_GLOBAL_INVERSE, state.skeleton_transform_global_inverse);
 	}
 
 	if (state.using_light) {
@@ -1556,12 +1556,14 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 				if (!skeleton->use_2d) {
 					skeleton = NULL;
 				} else {
+					state.skeleton_transform = (p_base_transform.affine_inverse() * ci->final_transform).affine_inverse()*skeleton->base_transform_2d;
+					state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 					//state.skeleton_transform = p_base_transform * skeleton->base_transform_2d;
 					//state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 					state.skeleton_texture_size = Vector2(skeleton->size * 2, 0);
 					
-					state.skeleton_transform_global = skeleton->base_transform_2d;
-					state.skeleton_transform_global_inverse = state.skeleton_transform_global.affine_inverse();
+					//state.skeleton_transform_global = skeleton->base_transform_2d;
+					//state.skeleton_transform_global_inverse = state.skeleton_transform_global.affine_inverse();
 				}
 			}
 

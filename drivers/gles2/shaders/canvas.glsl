@@ -159,18 +159,10 @@ void main() {
 
 	uv = uv_attrib;
 #endif
-#if defined(DEPTH_USED)
-	float max_depth = 0.001;
-	float depth = 0.0;
-#endif
-#if defined(ROTATION_USED)
-	vec2 rotation = vec2(0.0, 0.0);
-	float rotation_mask = 1.0;
-#endif
+
 #ifdef USE_SKELETON
 	// look up transform from the "pose texture"
 	if (bone_weights != vec4(0.0)) {
-		outvec = world_matrix * outvec;
 		highp mat4 bone_transform = mat4(0.0);
 
 		for (int i = 0; i < 4; i++) {
@@ -185,23 +177,22 @@ void main() {
 			bone_transform += b * bone_weights[i];
 		}
 
-		////mat4 bone_matrix = skeleton_transform * transpose(bone_transform) * skeleton_transform_inverse;
-		mat4 bone_matrix = skeleton_transform_global * transpose(bone_transform) * skeleton_transform_global_inverse;
+		mat4 bone_matrix = skeleton_transform * transpose(bone_transform) * skeleton_transform_inverse;
 		outvec = bone_matrix * outvec;
-		
-		outvec = inv_world_matrix * outvec;
-		
-		//#if defined(WORLD_POS_USED)
-		//	bone_matrix = skeleton_transform_global * transpose(bone_transform) * skeleton_transform_global_inverse;
-		//	world_pos_out = bone_matrix * world_pos_out;
-		//#endif
 	}
 #endif
-
+#if defined(SKIP_TRANSFORM_USED) && (defined(WORLD_POS_USED) || defined(USE_CLIPPER))
+	world_pos_out = world_matrix * outvec;
+#endif
+#if defined(DEPTH_USED)
+	float depth = 0.0;
+	float max_depth = 0.001;
+#endif
+#if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
+	float transform_mask = 1.0;
+#endif
 
 #define extra_matrix extra_matrix_instance
-
-
 	{
 		/* clang-format off */
 
@@ -209,22 +200,8 @@ VERTEX_SHADER_CODE
 
 		/* clang-format on */
 	}
-#if defined(DEPTH_USED)
-	outvec.z = depth;
-#endif
-#ifdef USE_CUSTOM_TRANSFORM
-	#if defined(ROTATION_USED)
-	outvec = outvec + rotation_mask * (custom_matrix * outvec - outvec);
-	#else
-	outvec = custom_matrix * outvec;
-	#endif
-#endif
-#if defined(DEPTH_USED)
-	outvec.z *= max_depth;
-#endif
 /*
 #if defined(ROTATION_USED)
-
 	vec2 s = sin(rotation*1.5708);
 	vec2 c = cos(rotation*1.5708);
 	// x
@@ -243,16 +220,31 @@ VERTEX_SHADER_CODE
 	// z
 	rotated = old * s.y + c.y * outvec.z * rotation_mask;
 	outvec.z = (outvec.z + rotation_mask * (rotated - outvec.z)) * 0.5;
-	
 #endif*/
-
+#if defined(DEPTH_USED)
+	outvec.z = depth;
+#endif
 #if !defined(SKIP_TRANSFORM_USED)
+	#ifdef USE_CUSTOM_TRANSFORM
+		outvec = outvec + transform_mask * (custom_matrix * outvec - outvec);
+		//#if defined(TRANSFORM_MASK_USED)
+		
+		//#else
+		//outvec = custom_matrix * outvec;
+		//#endif
+	#endif
+	
 	outvec = extra_matrix_instance * outvec;
+
 	#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
 		world_pos_out = world_matrix * outvec;
 	#endif
+
 	outvec = modelview_matrix * outvec;
 	//outvec = world_matrix * outvec;
+#endif
+#if defined(DEPTH_USED)
+	outvec.z *= max_depth;
 #endif
 	color_interp = color;
 
@@ -282,9 +274,14 @@ VERTEX_SHADER_CODE
 #ifdef USE_SHADOWS
 	pos = outvec.xy;
 #endif
+	#if defined(USE_CUSTOM_TRANSFORM)
+		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#else
+		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#endif
 
-	local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
-	local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
 #ifdef USE_TEXTURE_RECT
 	local_rot.xy *= sign(src_rect.z);
 	local_rot.zw *= sign(src_rect.w);
@@ -624,15 +621,14 @@ FRAGMENT_SHADER_CODE
 
 		light *= real_light_color;
 
-		/*
+
 		if (normal_used) {
 			vec3 light_normal = normalize(vec3(light_vec, -real_light_height));
 			light *= max(dot(-light_normal, normal), 0.0);
 		}
-
 		color *= light;
-		*/
-		color = (1.0 + color ) * light;
+		//color = light;
+		//color = (1.0 + color ) * light;
 
 #ifdef USE_SHADOWS
 

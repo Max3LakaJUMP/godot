@@ -99,21 +99,21 @@ void REDPolygon::_notification(int p_what) {
 	switch (p_what) {
 
 		case NOTIFICATION_DRAW: {
-
 			if (polygon.size() < 3)
 				return;
-			
+
 			REDFrame *red_clipper = NULL;
 			if (has_node(clipper)) {
 				red_clipper = Object::cast_to<REDFrame>(get_node(clipper));
 			}
 			if (red_clipper) {
+				VS::get_singleton()->canvas_item_add_clip_ignore(get_canvas_item(), !clipper_top);
 				VS::get_singleton()->canvas_item_attach_clipper(get_canvas_item(), red_clipper->get_ci());
 				VS::get_singleton()->canvas_item_clipper_top(get_canvas_item(), clipper_top);
 			} else {
 				VS::get_singleton()->canvas_item_attach_clipper(get_canvas_item(), RID());
 			}
-			
+
 			REDTransform *red_node = NULL;
 			if (has_node(custom_transform)) {
 				red_node = Object::cast_to<REDTransform>(get_node(custom_transform));

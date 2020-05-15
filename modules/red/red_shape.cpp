@@ -18,13 +18,47 @@
 #include <string>
 #include "scene/animation/animation_tree.h"
 #include "scene/scene_string_names.h"
-
+#include "core/math/math_funcs.h"
 
 void REDShape::_move_points(const float deltatime){
 	int count = get_polygon().size();
-	int offsets_count = offsets.size();
 	RandomPCG randbase;
 	randbase.randomize();
+	int width_offsets_count = width_offsets_state.size();
+	if (width_offsets_count == count){
+		for (int i = 0; i < count; i++){
+			if (deformation_state == DEFORMATION_END){
+				width_timer = deltatime;
+				width_offsets_old.write[i] = width_offsets[i];
+				width_offsets.write[i] = width_offsets_old[i] + width_timer*2.0f * (1.0f - width_offsets_old[i]);
+			}else if (deformation_state == DEFORMATION_ENDING){
+				width_offsets.write[i] = width_offsets_old[i] + width_timer*2.0f * (1.0f - width_offsets_old[i]);
+			}else{
+				width_offsets.write[i] = width_offsets_old[i] + width_timer * ((sin(width_offsets_state[i]) + 1) * (deformation_width_max-deformation_width_factor) / 2.0 + deformation_width_factor - width_offsets_old[i]);
+			}
+		}
+	}else{
+		width_timer = 0.0f;
+		width_offsets.resize(count);
+		width_offsets_state.resize(count);
+		width_offsets_old.resize(count);
+		for (int i = 0; i < count; i++){
+			width_offsets_old.write[i] = 1.0f;
+			width_offsets.write[i] = 1.0f;
+			width_offsets_state.write[i] = i * (1.5708 / count) * 4.0;
+		}
+	} 
+
+	width_timer += deltatime;
+	if (width_timer > 1.0f){
+		width_timer = deltatime;
+		for (int i = 0; i < count; i++){
+			width_offsets_old.write[i] = width_offsets[i];
+			width_offsets_state.write[i] = width_offsets_state[i] + (1.5708 / count)*4.0;
+		}
+	}
+
+	int offsets_count = offsets.size();
 	if (offsets_count == count){
 		for (int i = 0; i < count; i++){
 			if (deformation_state == DEFORMATION_END){
@@ -66,6 +100,8 @@ void REDShape::_move_points(const float deltatime){
 	}else if (deformation_state == DEFORMATION_ENDED){
 		for (int i = 0; i < count; i++){
 			offsets.write[i] = Vector2(0, 0);
+			width_offsets_old.write[i] = 1.0f;
+			width_timer = 0.0f;
 		}
 		set_process_internal(false);
 	}
@@ -74,7 +110,27 @@ void REDShape::_move_points(const float deltatime){
 	update();
 }
 
-void REDShape::set_deformation_speed(float p_deformation_speed){
+void REDShape::set_deformation_width_max(const float p_deformation_width_max){
+	if (p_deformation_width_max < deformation_width_factor)
+		return;
+	deformation_width_max = p_deformation_width_max;
+}
+
+float REDShape::get_deformation_width_max() const{
+	return deformation_width_max;
+}
+
+void REDShape::set_deformation_width_factor(const float p_deformation_width_factor){
+	if (p_deformation_width_factor < 0.0 || p_deformation_width_factor > deformation_width_max)
+		return;
+	deformation_width_factor = p_deformation_width_factor;
+}
+
+float REDShape::get_deformation_width_factor() const{
+	return deformation_width_factor;
+}
+
+void REDShape::set_deformation_speed(const float p_deformation_speed){
 	if (deformation_speed == p_deformation_speed)
 		return;
 	deformation_speed = p_deformation_speed;
@@ -332,12 +388,17 @@ void REDShape::_draw_outline(Vector<Vector2> &p_points) {
 	*/
 	if (p_points.size() <= 1 || width == 0.f)
 		return;
-	
+	if (width_offsets.size() != len){
+		width_offsets.resize(len);
+		for (int i = 0; i < len; i++) {
+            width_offsets.write[i] = 1.0f;
+        }
+	}
 	Vector<float> new_width_list;
 	if (width_list.size() < 2){
         new_width_list.resize(len);
         for (int i = 0; i < len; i++) {
-			new_width_list.write[i] = 1.f;
+			new_width_list.write[i] = 1.f * width_offsets[i];
         }
 	} else if (width_list.size() != len){
 		int pre_a;
@@ -363,14 +424,14 @@ void REDShape::_draw_outline(Vector<Vector2> &p_points) {
 				post_b = b + 1;
 			new_width_list.push_back(width_list_read[i]);
 			for(int j=0; j<smooth_thickness_iter; ++j){
-				new_width_list.push_back(width_list_read[i]+(j+1)*1.0/(smooth_thickness_iter+1)*(width_list_read[b]-width_list_read[i]));
+				new_width_list.push_back((width_list_read[i]+(j+1)*1.0/(smooth_thickness_iter+1)*(width_list_read[b]-width_list_read[i])) * width_offsets[new_width_list.size()]);
 			}
 		}
 	} else{
         new_width_list.resize(len);
         PoolVector<float>::Read width_list_read = width_list.read();
         for (int i = 0; i < len; i++) {
-            new_width_list.write[i] = width_list_read[i];
+            new_width_list.write[i] = width_list_read[i] * width_offsets[i];
         }
 	}
 
@@ -387,14 +448,14 @@ void REDShape::_draw_outline(Vector<Vector2> &p_points) {
 	lb.round_precision = round_precision;
 	lb.sharp_limit = sharp_limit;
 	if (outline_width_constant){
-		lb.width = width * camera_zoom.x;
+		lb.width = width * camera_zoom.x / get_scale().x;
 	}
 	else{
 		lb.width = width;
 	}
 	lb.width_curve = *width_curve;
     lb.is_closed = closed;
-    lb.width_list = new_width_list;
+    lb.width_list = width_offsets;
 
 	RID texture_rid;
 	if (texture.is_valid()) {
@@ -411,8 +472,8 @@ void REDShape::_draw_outline(Vector<Vector2> &p_points) {
 			lb.vertices,
 			lb.colors,
 			lb.uvs, Vector<int>(), Vector<float>(),
-
-			texture_rid);
+			texture_rid, -1, RID(),
+			antialiased);
 	outline_dirty = false;
 	/*Draw wireframe
 		if(lb.indices.size() % 3 == 0) {
@@ -632,11 +693,17 @@ void REDShape::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_deformation_offset"), &REDShape::get_deformation_offset);
 	ClassDB::bind_method(D_METHOD("set_deformation_speed", "deformation_speed"), &REDShape::set_deformation_speed);
     ClassDB::bind_method(D_METHOD("get_deformation_speed"), &REDShape::get_deformation_speed);
-	
+	ClassDB::bind_method(D_METHOD("set_deformation_width_factor", "deformation_width_factor"), &REDShape::set_deformation_width_factor);
+    ClassDB::bind_method(D_METHOD("get_deformation_width_factor"), &REDShape::get_deformation_width_factor);
+	ClassDB::bind_method(D_METHOD("set_deformation_width_max", "deformation_width_max"), &REDShape::set_deformation_width_max);
+    ClassDB::bind_method(D_METHOD("get_deformation_width_max"), &REDShape::get_deformation_width_max);
+
 	ADD_GROUP("Deformation", "deformation_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "deformation_enable"), "set_deformation_enable", "get_deformation_enable");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "deformation_offset"), "set_deformation_offset", "get_deformation_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "deformation_speed"), "set_deformation_speed", "get_deformation_speed");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "deformation_width_factor"), "set_deformation_width_factor", "get_deformation_width_factor");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "deformation_width_max"), "set_deformation_width_max", "get_deformation_width_max");
 
 	ADD_GROUP("Shape", "");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset"), "set_offset", "get_offset");
@@ -644,8 +711,8 @@ void REDShape::_bind_methods() {
 	//Line
 	ADD_GROUP("Line", "");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_outline"), "set_use_outline", "get_use_outline");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "closed"), "set_closed", "is_closed");
-	//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "default_color"), "set_default_color", "get_default_color");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "width"), "set_width", "get_width");
     ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "width_list"), "set_width_list", "get_width_list");
@@ -681,7 +748,8 @@ REDShape::REDShape() {
 	deformation_offset = 20.0f;
 	deformation_speed = 20.0f;
 	deformation_enable = false;
-
+	deformation_width_factor = 0.5f;
+	deformation_width_max = 1.25f;
 	camera_zoom = Vector2(1.f, 1.0f);
 
 	use_outline = true;

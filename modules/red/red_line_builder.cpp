@@ -545,7 +545,7 @@ void REDLineBuilder::build() {
         width_factor = width_curve->interpolate_baked(1.f)*width_list[width_list.size() - 1];
     }
     else{
-        width_factor = width_list[0];
+        width_factor = width_list[width_list.size() - 1];
     }
 
     if(is_closed){

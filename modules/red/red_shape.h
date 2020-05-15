@@ -31,17 +31,31 @@ public:
 		DEFORMATION_ENDING,
 		DEFORMATION_ENDED,
 	};
+	enum DeformationWidthState{
+		DEFORMATION_WIDTH_EXPANDING0,
+		DEFORMATION_WIDTH_EXPANDING1,
+		DEFORMATION_WIDTH_TAPERING0,
+		DEFORMATION_WIDTH_TAPERING1,
+	};
+
 private:
 	// Deformation
 	DeformationState deformation_state;
 	bool deformation_enable;
 	float deformation_offset;
 	float deformation_speed;
+	float deformation_width_factor;
+	float deformation_width_max;
 	Vector<Vector2> targets;
 	Vector<Vector2> offsets;
 	Vector<Vector2> targets_old;
 	Vector<float> times;
 	Vector<float> timers;
+
+	Vector<float> width_offsets_old;
+	Vector<float> width_offsets;
+	Vector<float> width_offsets_state;
+	float width_timer;
 
 	PoolVector<Vector2> polygon;
 	bool outline_width_constant;
@@ -88,6 +102,10 @@ public:
 	float get_deformation_offset() const;
 	void set_deformation_speed(float p_deformation_speed);
 	float get_deformation_speed() const;
+	void set_deformation_width_factor(const float p_deformation_width_factor);
+	float get_deformation_width_factor() const;
+	void set_deformation_width_max(const float p_deformation_width_max);
+	float get_deformation_width_max() const;
 	
 	void get_points(Vector<Vector2> &p_points) const;
 	virtual Dictionary _edit_get_state() const;

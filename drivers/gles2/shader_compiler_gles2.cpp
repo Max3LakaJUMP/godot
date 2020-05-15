@@ -936,8 +936,7 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 	actions[VS::SHADER_CANVAS_ITEM].renames["POINT_COORD"] = "gl_PointCoord";
 	actions[VS::SHADER_CANVAS_ITEM].renames["DEPTH"] = "depth";
 	actions[VS::SHADER_CANVAS_ITEM].renames["MAX_DEPTH"] = "max_depth";
-	actions[VS::SHADER_CANVAS_ITEM].renames["ROTATION"] = "rotation";
-	actions[VS::SHADER_CANVAS_ITEM].renames["ROTATION_MASK"] = "rotation_mask";
+	actions[VS::SHADER_CANVAS_ITEM].renames["TRANSFORM_MASK"] = "transform_mask";
 	actions[VS::SHADER_CANVAS_ITEM].renames["WORLD_POS"] = "world_pos";
 	
 	actions[VS::SHADER_CANVAS_ITEM].renames["LIGHT_VEC"] = "light_vec";
@@ -956,11 +955,10 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["NORMALMAP"] = "#define NORMALMAP_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["LIGHT"] = "#define USE_LIGHT_SHADER_CODE\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["SHADOW_VEC"] = "#define SHADOW_VEC_USED\n";
-	actions[VS::SHADER_CANVAS_ITEM].usage_defines["WORLD_POS"] = "#define WORLD_POS_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["DEPTH"] = "#define DEPTH_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["MAX_DEPTH"] = "#define DEPTH_USED\n";
-	actions[VS::SHADER_CANVAS_ITEM].usage_defines["ROTATION"] = "#define ROTATION_USED\n";
-	actions[VS::SHADER_CANVAS_ITEM].usage_defines["ROTATION_MASK"] = "#define ROTATION_USED\n";
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["TRANSFORM_MASK"] = "#define TRANSFORM_MASK_USED\n";
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["WORLD_POS"] = "#define WORLD_POS_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].render_mode_defines["skip_vertex_transform"] = "#define SKIP_TRANSFORM_USED\n";
 
 	// Ported from GLES3

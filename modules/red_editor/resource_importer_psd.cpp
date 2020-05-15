@@ -112,7 +112,7 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "update/layer_pos", PROPERTY_HINT_ENUM, "Ignore, Move, New UV, Keep UV"), 1));
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "anchor/second_level", PROPERTY_HINT_ENUM, "Top left, Center"), 1));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "anchor/folder", PROPERTY_HINT_ENUM, "Top left, Center"), 0));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "anchor/folder", PROPERTY_HINT_ENUM, "Top left, Center"), 1));
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/root", PROPERTY_HINT_ENUM, "Node2D, Parallax, Page, Frame"), 2));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/second_level", PROPERTY_HINT_ENUM, "Node2D, Parallax, Page, Frame, Frame external"), 4));
@@ -123,10 +123,10 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "texture/scale", PROPERTY_HINT_ENUM, "Original, Downscale, Upscale, Closest"), 1));
 	
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/outline_shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/outline_shader.shader")));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/shader.shader")));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader_mul", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/shader_mul.shader")));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader_add", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/shader_add.shader")));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader_sub", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/shader_sub.shader")));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/default.shader")));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader_mul", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/default_mul.shader")));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader_add", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/default_add.shader")));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader_sub", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/default_sub.shader")));
 	
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/masked_shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/masked_shader.shader")));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/masked_shader_mul", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/masked_shader_mul.shader")));
@@ -733,11 +733,11 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						default:{
 							if (parent_clipper==nullptr){
 								if (materials.material.is_valid()){
-									// node->set_material(materials.material);
+									node->set_material(materials.material);
 								}
 							}else{
 								if (materials.masked_material.is_valid()){
-									// node->set_material(materials.material);
+									node->set_material(materials.material);
 								}
 							}
 							break;
@@ -841,7 +841,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 							Polygon2D *poly = (Polygon2D*)node;
 							if (poly && update_pos_mode == LAYER_POS_NEW_UV){
 								Vector2 real_size = poly->_edit_get_rect().get_size();
-								Vector2 psd_offset = global_pos - poly->get_position() - parent_pos - poly->get_offset() - parent_offset;
+								Vector2 psd_offset = global_pos - poly->get_position() - poly->get_offset() - parent_pos - parent_offset;
 								{
 									Vector<Vector2> uv_temp;
 									if (poly->get_uv().size() != poly->get_polygon().size() || update_pos_mode==LAYER_POS_NEW_UV){
@@ -857,7 +857,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 										new_uv.append(uv_temp[i] *  real_size/polygon_size - psd_offset/polygon_size);
 									poly->set_uv(new_uv);
 								}
-								poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset);
+								poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset - parent_offset);
 							}
 						}
 						{
@@ -867,7 +867,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 								Vector2 old_psd_offset = poly->get_psd_uv_offset();
 
 								poly->set_position(poly->get_position() - poly->get_psd_applied_offset());
-								Vector2 psd_offset = global_pos - poly->get_position() - parent_pos - poly->get_offset();
+								Vector2 psd_offset = global_pos - poly->get_position() - poly->get_offset() - parent_pos - parent_offset;
 								poly->set_psd_uv_offset(psd_offset);
 								poly->_change_notify("psd_uv_offset");
 
@@ -893,7 +893,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 										new_uv.append(uv_temp[i] * psd_scale_uv - psd_offset_uv);
 									poly->set_uv(new_uv);
 								}
-								poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset + poly->get_psd_offset());
+								poly->set_position(global_pos - parent_pos - poly->get_offset() + poly->get_psd_offset() - parent_offset - psd_offset);
 								poly->set_psd_applied_offset(poly->get_psd_offset());
 								poly->_change_notify("psd_applied_offset");
 							}
@@ -1066,16 +1066,21 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 
 
 				if ((updateble && folder_update_mode == FOLDER_POS_RESET) || need_create){
-					if (clipper && mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL){
+					if (clipper && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
 						clipper->set_offset(frame_anchor_offset);
 						clipper->set_position(-frame_anchor_offset);
 					}
-					if (node_2d){
+					if (node_2d && mode != FOLDER_FRAME_EXTERNAL){
 						node_2d->set_position(local_pos - parent_pos - parent_offset - frame_anchor_offset);
 					}
 				}
 				else if (folder_update_mode == FOLDER_MOVE_LAYERS && node_2d){
-					new_parent_pos -= (local_pos - parent_pos - parent_offset - frame_anchor_offset)-node_2d->get_position();
+					if (mode == FOLDER_FRAME_EXTERNAL){
+						new_parent_pos += node_2d->get_position() + frame_anchor_offset;
+					}
+					else{
+						new_parent_pos -= (local_pos - parent_pos - parent_offset - frame_anchor_offset)-node_2d->get_position();
+					}
 				}
 
 				if (((updateble &&p_options["update/page_height"]) || need_create) && mode == FOLDER_PAGE){

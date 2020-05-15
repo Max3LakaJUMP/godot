@@ -212,8 +212,7 @@ ShaderTypes::ShaderTypes() {
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["TEXTURE_PIXEL_SIZE"] = constt(ShaderLanguage::TYPE_VEC2);
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["DEPTH"] = ShaderLanguage::TYPE_FLOAT;
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["MAX_DEPTH"] = ShaderLanguage::TYPE_FLOAT;
-	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["ROTATION"] = ShaderLanguage::TYPE_VEC2;
-	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["ROTATION_MASK"] = ShaderLanguage::TYPE_FLOAT;
+	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].built_ins["TRANSFORM_MASK"] = ShaderLanguage::TYPE_FLOAT;
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["vertex"].can_discard = false;
 
 	shader_modes[VS::SHADER_CANVAS_ITEM].functions["fragment"].built_ins["FRAGCOORD"] = constt(ShaderLanguage::TYPE_VEC4);

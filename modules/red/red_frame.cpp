@@ -589,6 +589,14 @@ float REDFrame::get_end_delay() const{
 	return end_delay;
 };
 
+void REDFrame::set_deformate_on_activation(bool p_deformate){
+	deformate_on_activation = p_deformate;
+}
+
+bool REDFrame::get_deformate_on_activation() const{
+	return deformate_on_activation;
+}
+
 // Parallax, const Vector2 &p_parallax_pos, const Vector2 &p_scale
 void REDFrame::set_parallax_offset(const Point2 &p_parallax_offset){
 	if (!is_inside_tree())
@@ -728,7 +736,6 @@ void REDFrame::_notification(int p_what) {
 					get_points(points);
 					_update_stencil(points);
 					_send_stencil();
-					print_line("transform");
 				}
 			}
 		} break;
@@ -971,6 +978,9 @@ bool REDFrame::is_start_immediate() const{
 
 void REDFrame::set_focused(bool p_focused){
 	focused = p_focused;
+	if(deformate_on_activation){
+		set_deformation_enable(p_focused);
+	}
 }
 
 bool REDFrame::is_focused() const{
@@ -979,6 +989,7 @@ bool REDFrame::is_focused() const{
 
 void REDFrame::set_active(bool p_active){
 	b_active = p_active;
+
 }
 
 bool REDFrame::is_active() const{
@@ -1156,12 +1167,16 @@ void REDFrame::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_start_immediate", "start_immediate"), &REDFrame::set_start_immediate);
     ClassDB::bind_method(D_METHOD("is_start_immediate"), &REDFrame::is_start_immediate);
+	ClassDB::bind_method(D_METHOD("set_deformate_on_activation", "deformate_on_activation"), &REDFrame::set_deformate_on_activation);
+    ClassDB::bind_method(D_METHOD("get_deformate_on_activation"), &REDFrame::get_deformate_on_activation);
+
 	ADD_GROUP("Frame", "");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "id"), "set_id", "get_id");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "start_immediate"), "set_start_immediate", "is_start_immediate");	
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "start_delay"), "set_start_delay", "get_start_delay");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "end_delay"), "set_end_delay", "get_end_delay");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "Anchor", PROPERTY_HINT_ENUM, "Center, Top left"), "set_space", "get_space");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "deformate_on_activation"), "set_deformate_on_activation", "get_deformate_on_activation");
 	
 	ADD_GROUP("Clipper", "");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_enable"), "set_clip_enable", "get_clip_enable");
@@ -1235,16 +1250,18 @@ REDFrame::REDFrame() {
 	space = CLIPPER_SPACE_WORLD;
 
 	// Frame
+	deformate_on_activation = true;
 	frame_scale_factor = Vector2(1, 1);
 	start_immediate = false;
 	anchor = FRAME_ANCHOR_CENTER;
 	start_delay = 0.0f;
 	end_delay = 0.0f;
+
 	old_scale_offset = Vector2(0.f, 0.f);
 	old_offset = Vector2(0.f, 0.f);
 	position_motion_scale = Vector2(0.f, 0.f);
 	parallax_factor = Vector2(0.f, 0.f);
-
+	parallax_zoom = Vector2(1.f, 1.f);
 	camera_zoom = Vector2(1.f, 1.f);
     
 	b_start_loop = false;

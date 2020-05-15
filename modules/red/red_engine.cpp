@@ -58,7 +58,7 @@ Error create_dir(String dir){
 		Error err = da->make_dir(dir);
 		if (err) {
 			memdelete(da);
-			ERR_EXPLAIN("Failed to create target folder " + dir);
+			ERR_PRINTS("Failed to create target folder " + dir);
 			ERR_FAIL_V(FAILED);
 		}
 	}

@@ -79,8 +79,12 @@ void SceneExportEditorPlugin::to_maya() {
 Dictionary SceneExportEditorPlugin::scene_to_dict(Node *root){
 	Dictionary result;
 	result["name"] = root->get_filename().get_file().get_basename();
-	result["path"] = red::globalize(root->get_filename().get_basename()) + ".json";
+	result["path"] = root->get_filename().get_base_dir();
+	//result["path_file"] = root->get_filename().get_basename() + ".json";
 	result["project_path"] = ProjectSettings::get_singleton()->get_resource_path();
+	
+	//result["abs_path"] = red::globalize(root->get_filename().get_basename());
+	//result["abs_path_file"] = red::globalize(root->get_filename().get_basename()) + ".json";
 	result["format"] = "scene";
 	result["mode"] = "2D";
 	result["version"] = 1.0;

@@ -462,13 +462,25 @@ void REDControllerBase::set_frame_scale(const Vector2 &p_scale_factor){
 
 Vector2 REDControllerBase::get_target_mouse() const{
 	if (target_mouse_dirty){
-		mouse_offset_target = mouse_offset * mouse_offset_k * camera->get_zoom();
-		if (zoom_k < 0.0)
-			mouse_offset_target *= 1 + zoom_k;
 		//mouse_offset_target*=frame->get_scale();
 		target_mouse_dirty = false;
 	}
-	return get_viewport()->get_size() * mouse_offset_target;
+	Size2 v_size = get_viewport()->get_size();
+	mouse_offset_target = mouse_offset * mouse_offset_k * camera->get_zoom() / frame->get_camera_zoom();
+	if (zoom_k < 0.0)
+		mouse_offset_target *= 1 + zoom_k;
+	
+	if (orientation == ORIENTATION_HORIZONTAL){
+		mouse_offset_target.x *= v_size.x;
+		mouse_offset_target.y *= v_size.x;
+	}else if (orientation == ORIENTATION_VERTICAL){
+		mouse_offset_target.x *= v_size.y;
+		mouse_offset_target.y *= v_size.y;
+	}else{
+		mouse_offset_target.x *= v_size.y;
+		mouse_offset_target.y *= v_size.y;
+	}
+	return mouse_offset_target;
 }
 
 Vector2 REDControllerBase::get_target_pos_local() const{
@@ -490,35 +502,13 @@ Vector2 REDControllerBase::get_target_pos_global() const{
 Vector2 REDControllerBase::get_target_zoom() const{
 	if(target_zoom_dirty){
 		Vector2 frame_camera_zoom = frame->get_camera_zoom();
-		bool invert_x = false;
-		bool invert_y = false;
 		if (zoom_k < 0){
 			Vector2 camera_zoom_max_clamped = Vector2(MAX(camera_zoom_max.x, frame_camera_zoom.x), MAX(camera_zoom_max.y, frame_camera_zoom.y));
-			if (ABS(camera_zoom_max_clamped.x) > 1){
-				camera_zoom_max_clamped.x = 1 / camera_zoom_max_clamped.x;
-				invert_x = true;
-			}
-			if (ABS(camera_zoom_max_clamped.y) > 1){
-				camera_zoom_max_clamped.y = 1 / camera_zoom_max_clamped.y;
-				invert_y = true;
-			}
 			frame_parallax_zoom = frame_camera_zoom + zoom_k * -1 * (camera_zoom_max_clamped - frame_camera_zoom);
 		}else{
 			Vector2 camera_zoom_min_clamped = Vector2(MIN(camera_zoom_min.x, frame_camera_zoom.x), MIN(camera_zoom_min.y, frame_camera_zoom.y));
-			if (ABS(camera_zoom_min_clamped.x) > 1){
-				camera_zoom_min_clamped.x = 1 / camera_zoom_min_clamped.x;
-				invert_x = true;
-			}
-			if (ABS(camera_zoom_min_clamped.y) > 1){
-				camera_zoom_min_clamped.y = 1 / camera_zoom_min_clamped.y;
-				invert_y = true;
-			}
 			frame_parallax_zoom = frame_camera_zoom + zoom_k * (camera_zoom_min_clamped - frame_camera_zoom);
 		}
-		if (invert_x)
-			frame_parallax_zoom.x = 1 / frame_parallax_zoom.x;
-		if (invert_y)
-			frame_parallax_zoom.y = 1 / frame_parallax_zoom.y;
 		target_zoom_dirty = false;
 	}
 	return frame_parallax_zoom;
@@ -526,13 +516,26 @@ Vector2 REDControllerBase::get_target_zoom() const{
 
 Vector2 REDControllerBase::get_target_camera_zoom() const{
 	if (page){
-		return get_target_zoom() * page->get_size().width / get_viewport()->get_size().width;
+		if (orientation == ORIENTATION_HORIZONTAL)
+			return get_target_zoom() * page->get_size().width / get_viewport()->get_size().width;
+		else if (orientation == ORIENTATION_VERTICAL)
+			return get_target_zoom() * page->get_size().height / get_viewport()->get_size().height;
+		else
+			return get_target_zoom() * page->get_size().width / get_viewport()->get_size().height;
 	}
 	return Vector2(1, 1);
 }
 
 Vector2 REDControllerBase::get_target_parallax_zoom() const{
-	return camera->get_zoom()*get_viewport()->get_size().width/page->get_size().width;
+	if (orientation == ORIENTATION_HORIZONTAL)
+		return (camera->get_zoom() / (frame->get_camera_zoom() + abs(zoom_k) * (Vector2(1.0f, 1.0f) - frame->get_camera_zoom()))) * 
+				(get_viewport()->get_size().width / page->get_size().width);
+	else if (orientation == ORIENTATION_VERTICAL)
+		return (camera->get_zoom() / (frame->get_camera_zoom() + abs(zoom_k) * (Vector2(1.0f, 1.0f) - frame->get_camera_zoom()))) * 
+				(get_viewport()->get_size().height / page->get_size().height);
+	else
+		return (camera->get_zoom() / (frame->get_camera_zoom() + abs(zoom_k) * (Vector2(1.0f, 1.0f) - frame->get_camera_zoom()))) * 
+				(get_viewport()->get_size().height / page->get_size().width);
 }
 
 Vector2 REDControllerBase::get_target_parallax() const{
@@ -695,7 +698,14 @@ void REDControllerBase::update_camera_parallax() {
 		return;
 	if (camera_state == CAMERA_STATIC){
 		frame->set_parallax_offset(get_target_parallax());
-		frame->set_parallax_zoom(camera->get_zoom()*get_viewport()->get_size().width/page->get_size().width);
+		Vector2 p = camera->get_zoom();
+		if (orientation == ORIENTATION_HORIZONTAL)
+			p = p * get_viewport()->get_size().width / page->get_size().width;
+		else if (orientation == ORIENTATION_VERTICAL)
+			p = p * get_viewport()->get_size().height / page->get_size().height;
+		else
+			p = p * get_viewport()->get_size().height / page->get_size().width;
+		frame->set_parallax_zoom(p);
 	}
 }
 
@@ -877,14 +887,15 @@ void REDControllerBase::_bind_methods() {
 }
 
 REDControllerBase::REDControllerBase() {
+	orientation = ORIENTATION_HYBRID;
 	target_pos_local_dirty = true;
 	target_zoom_dirty = true;
 	target_mouse_dirty = true;
 	target_parallax_dirty = true;
 
 	reset_camera_on_frame_change = true;
-	frame_expand = Vector2(100.0, 100.0);
-	dirrection = DIRRECTION_FORWARD;
+	frame_expand = Vector2(250.0, 250.0);
+	dirrection = DIRRECTION_NONE;
 	issue = nullptr;
     page = nullptr;
 	frame = nullptr;

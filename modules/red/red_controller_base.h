@@ -12,6 +12,23 @@ class Tween;
 
 class REDControllerBase : public Node {
 	GDCLASS(REDControllerBase, Node);
+public:
+	enum ControllerDirrection{
+		DIRRECTION_NONE,
+		DIRRECTION_FORWARD,
+		DIRRECTION_BACKWARD,
+	};
+	enum CameraState{
+		CAMERA_STATIC,
+		CAMERA_LOCKED,
+		CAMERA_MOVING,
+	};
+	enum Orientation{
+		ORIENTATION_HORIZONTAL,
+		ORIENTATION_VERTICAL,
+		ORIENTATION_HYBRID
+	};
+private:
 	REDIssue *issue;
     REDPage *page;
 	REDFrame *frame;
@@ -60,21 +77,11 @@ class REDControllerBase : public Node {
 
 	Vector2 old_camera_zoom;
 
-public:
-	enum ControllerDirrection{
-		DIRRECTION_NONE,
-		DIRRECTION_FORWARD,
-		DIRRECTION_BACKWARD,
-	};
-	enum CameraState{
-		CAMERA_STATIC,
-		CAMERA_LOCKED,
-		CAMERA_MOVING,
-	};
-private:
 	CameraState camera_state;
 	ControllerDirrection dirrection;
 	ControllerDirrection last_dirrection;
+	Orientation orientation;
+
 	void _input(const Ref<InputEvent> &p_event);
 
 protected:

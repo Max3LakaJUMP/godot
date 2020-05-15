@@ -157,16 +157,6 @@ void main() {
 	//scale by texture size
 	outvec.xy /= color_texpixel_size;
 #endif
-
-#if defined(DEPTH_USED)
-	float max_depth = 0.001;
-	float depth = 0.0;
-#endif
-#if defined(ROTATION_USED)
-	vec2 rotation = vec2(0.0, 0.0);
-	float rotation_mask = 1.0;
-#endif
-
 #define extra_matrix extra_matrix_instance
 
 	//for compatibility with the fragment shader we need to use uv here
@@ -175,7 +165,6 @@ void main() {
 #ifdef USE_SKELETON
 
 	if (bone_weights != vec4(0.0)) { //must be a valid bone
-		outvec = world_matrix * outvec;
 		//skeleton transform
 
 		ivec4 bone_indicesi = ivec4(bone_indices);
@@ -209,15 +198,26 @@ void main() {
 					 texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
 			 bone_weights.w;
 
-		//mat4 bone_matrix = skeleton_transform * transpose(mat4(m[0], m[1], vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_inverse;
-		mat4 bone_matrix = skeleton_transform_global * transpose(mat4(m[0], m[1], vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_global_inverse;
+		mat4 bone_matrix = skeleton_transform * transpose(mat4(m[0], m[1], vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_inverse;
+		
 		outvec = bone_matrix * outvec;
-		outvec = inv_world_matrix * outvec;
 	}
-
 #endif
+#if defined(SKIP_TRANSFORM_USED) && (defined(WORLD_POS_USED) || defined(USE_CLIPPER))
+	world_pos_out = world_matrix * outvec;
+#endif
+#if defined(DEPTH_USED)
+	float depth = 0.0;
+	float max_depth = 0.001;
+#endif
+#if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
+	float transform_mask = 1.0;
+#endif
+
+//#if defined(TRANSFORM_MASK_USED)
 	
-	
+//#endif
+
 	{
 		/* clang-format off */
 
@@ -227,22 +227,7 @@ VERTEX_SHADER_CODE
 	}
 
 	uv_interp = uv;
-
-#if defined(DEPTH_USED)
-	outvec.z = depth;
-#endif
-#ifdef USE_CUSTOM_TRANSFORM
-	#if defined(ROTATION_USED)
-	outvec = outvec + rotation_mask * (custom_matrix * outvec - outvec);
-	#else
-	outvec = custom_matrix * outvec;
-	#endif
-#endif
-#if defined(DEPTH_USED)
-	outvec.z *= max_depth;
-#endif
-/*
-#if defined(ROTATION_USED)
+/*#if defined(ROTATION_USED)
 	vec2 s = sin(rotation*1.5708);
 	vec2 c = cos(rotation*1.5708);
 	// x
@@ -262,23 +247,35 @@ VERTEX_SHADER_CODE
 	rotated = old * s.y + c.y * outvec.z * rotation_mask;
 	outvec.z = (outvec.z + rotation_mask * (rotated - outvec.z)) * 0.5;
 #endif*/
-
-
 #ifdef USE_NINEPATCH
 
 	pixel_size_interp = abs(dst_rect.zw) * vertex;
 #endif
 
+#if defined(DEPTH_USED)
+	outvec.z = depth;
+#endif
 #if !defined(SKIP_TRANSFORM_USED)
-	outvec = extra_matrix * outvec;
+	#ifdef USE_CUSTOM_TRANSFORM
+		outvec = outvec + transform_mask * (custom_matrix * outvec - outvec);
+		//#if defined(TRANSFORM_MASK_USED)
+		//#else
+		//outvec = custom_matrix * outvec;
+		//#endif
+	#endif
+
+	outvec = extra_matrix_instance * outvec;
 
 	#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
 		world_pos_out = world_matrix * outvec;
 	#endif
 
 	outvec = modelview_matrix * outvec;
+	//outvec = world_matrix * outvec;
 #endif
-
+#if defined(DEPTH_USED)
+	outvec.z *= max_depth;
+#endif
 #undef extra_matrix
 
 	color_interp = color;
@@ -312,9 +309,13 @@ VERTEX_SHADER_CODE
 #ifdef USE_SHADOWS
 	pos = outvec.xy;
 #endif
-
-	local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
-	local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#if defined(USE_CUSTOM_TRANSFORM)
+		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#else
+		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#endif
 #ifdef USE_TEXTURE_RECT
 	local_rot.xy *= sign(src_rect.z);
 	local_rot.zw *= sign(src_rect.w);
@@ -732,8 +733,8 @@ FRAGMENT_SHADER_CODE
 			light *= max(dot(-light_normal, normal), 0.0);
 		}
 
-		//color *= light;
-		color = (1.0 + color ) * light;
+		color *= light;
+		//color = (1.0 + color ) * light;
 
 #ifdef USE_SHADOWS
 #ifdef SHADOW_VEC_USED
