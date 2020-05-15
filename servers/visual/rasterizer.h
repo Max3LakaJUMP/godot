@@ -357,6 +357,36 @@ public:
 	virtual RID immediate_get_material(RID p_immediate) const = 0;
 	virtual AABB immediate_get_aabb(RID p_immediate) const = 0;
 
+	/* CLIPPER API */
+
+	virtual RID clipper_create() = 0;
+	virtual void frame_form(RID p_frame, bool triangle) = 0;
+	virtual void clipper_set_points(RID p_clipper, const Vector3 &p_point1, const Vector3 &p_point2, const Vector3 &p_point3, const Vector3 &p_point4) = 0;
+
+	/* CUSTOM TRANSFORM API */
+
+	virtual RID custom_transform_create() = 0;
+	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform) = 0;
+	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_transform) = 0;
+	virtual void custom_transform_set_old(RID p_custom_transform, const Transform &p_transform) = 0;
+	virtual void physics_strength_set(RID p_custom_transform, float p_physics_strength) = 0;
+	
+	/*DEFORM API */
+
+	virtual RID deform_create() = 0;
+	virtual void deform_set_wind_rotation(RID p_deform, float p_wind_rotation) = 0;
+	virtual void deform_set_wind_offset(RID p_deform, float p_wind_offset) = 0;
+	virtual void deform_set_wind_time(RID p_deform, float p_wind_time) = 0;
+	virtual void deform_set_wind_strength(RID p_deform, float p_wind_strength) = 0;
+	virtual void deform_set_wind2_time(RID p_deform, float p_wind2_time) = 0;
+	virtual void deform_set_wind2_strength(RID p_deform, float p_wind2_strength) = 0;
+	virtual void deform_set_scale_time(RID p_deform, float p_scale_time) = 0;
+	virtual void deform_set_scale_strength(RID p_deform, float p_scale_strength) = 0;
+	virtual void deform_set_scale_center(RID p_deform, const Vector2 &p_scale_center) = 0;
+	virtual void deform_set_uv_origin(RID p_deform, float p_uv_origin) = 0;
+	virtual void deform_set_waves_count(RID p_deform, float p_waves_count) = 0;
+	virtual void deform_set_elasticity(RID p_deform, float p_elasticity) = 0;
+
 	/* SKELETON API */
 
 	virtual RID skeleton_create() = 0;
@@ -876,6 +906,22 @@ public:
 		mutable Rect2 rect;
 		RID material;
 		RID skeleton;
+		
+		RID custom_transform;
+		float physics_strength;
+		float depth_position;
+		float depth_size;
+		float depth_offset;
+		float soft_body;
+		RID clipper;
+		bool clipper_top;
+		RID deform;
+		float object_rotation;
+		float uv_origin;
+		Vector2 scale_center;
+		Vector2 wind_strength;
+		Vector2 elasticity;
+		float time_offset;
 
 		Item *next;
 
@@ -1118,6 +1164,7 @@ public:
 			distance_field = false;
 			light_masked = false;
 			update_when_visible = false;
+			clipper_top = true;
 		}
 		virtual ~Item() {
 			clear();

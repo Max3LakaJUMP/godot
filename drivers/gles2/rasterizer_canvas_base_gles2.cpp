@@ -132,6 +132,9 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 	state.uniforms.modelview_matrix = Transform2D();
 	state.uniforms.extra_matrix = Transform2D();
 
+	state.uniforms.world_matrix = Transform2D();
+	state.uniforms.inv_world_matrix = Transform2D();
+	
 	_set_uniforms();
 	_bind_quad_buffer();
 }
@@ -154,6 +157,9 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 
 	state.using_texture_rect = false;
 	state.using_skeleton = false;
+	state.using_custom_transform = false;
+	state.using_clipper = false;
+	state.using_deform = false;
 	state.using_ninepatch = false;
 	state.using_transparent_rt = false;
 }
@@ -398,15 +404,60 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 			canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_SHADOW_COLOR,light->shadow_color);*/
 		}
 	}
+	
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::WORLD_MATRIX, state.uniforms.world_matrix);
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::INV_WORLD_MATRIX, state.uniforms.inv_world_matrix);
+	if (state.using_custom_transform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX, state.custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::OLD_CUSTOM_MATRIX, state.old_custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX_ROOT, state.custom_transform_root);
+		//state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX_ROOT_INVERSE, state.custom_transform_root.affine_inverse());
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SOFT_BODY, state.soft_body);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_SIZE, state.depth_size);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_OFFSET, state.depth_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_POSITION, state.depth_position);
+	}
+	if (state.using_clipper) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC1, state.clipper_calc1);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC2, state.clipper_calc2);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC3, state.clipper_calc3);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC4, state.clipper_calc4);
+	}
+	if (state.using_deform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEFORM_OBJECT_MATRIX, state.deform_object_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEFORM_OBJECT_MATRIX_INVERSE, state.deform_object_matrix_inverse);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::OBJECT_ROTATION, state.object_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::UV_ORIGIN, state.uv_origin);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_CENTER, state.scale_center);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_STRENGTH_OBJECT, state.wind_strength_object);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::ELASTICITY, state.elasticity);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::TIME_OFFSET, state.time_offset);
+
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_ROTATION, state.wind_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_OFFSET, state.wind_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_TIME, state.wind_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_STRENGTH, state.wind_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND2_TIME, state.wind2_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND2_STRENGTH, state.wind2_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_TIME, state.scale_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_STRENGTH, state.scale_strength);
+	}
 }
 
 void RasterizerCanvasBaseGLES2::reset_canvas() {
 
 	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
+	//glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_SCISSOR_TEST);
 	glDisable(GL_DITHER);
 	glEnable(GL_BLEND);
+	
+	glDepthFunc(GL_LEQUAL);
+	glDepthMask(GL_TRUE);
+	glClearDepth(1.0f);
+	glClear(GL_DEPTH_BUFFER_BIT);
 
 	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -444,6 +495,7 @@ void RasterizerCanvasBaseGLES2::_copy_texscreen(const Rect2 &p_rect) {
 }
 
 void RasterizerCanvasBaseGLES2::_draw_polygon(const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor, const float *p_weights, const int *p_bones) {
+	glClear(GL_DEPTH_BUFFER_BIT);
 
 	glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
 
@@ -1079,6 +1131,10 @@ void RasterizerCanvasBaseGLES2::initialize() {
 	state.using_light = NULL;
 	state.using_transparent_rt = false;
 	state.using_skeleton = false;
+	
+	state.using_custom_transform = false;
+	state.using_clipper = false;
+	state.using_deform = false;
 }
 
 void RasterizerCanvasBaseGLES2::finalize() {

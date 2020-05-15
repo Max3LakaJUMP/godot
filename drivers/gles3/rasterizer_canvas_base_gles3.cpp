@@ -203,6 +203,9 @@ void RasterizerCanvasBaseGLES3::canvas_begin() {
 	state.using_large_vertex = false;
 
 	state.using_skeleton = false;
+	state.using_custom_transform = false;
+	state.using_clipper = false;
+	state.using_deform = false;
 }
 
 void RasterizerCanvasBaseGLES3::canvas_end() {
@@ -342,6 +345,40 @@ void RasterizerCanvasBaseGLES3::_set_texture_rect_mode(bool p_enable, bool p_nin
 	state.using_light_angle = p_light_angle;
 	state.using_modulate = p_modulate;
 	state.using_large_vertex = p_large_vertex;
+	if (state.using_custom_transform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::OLD_CUSTOM_MATRIX, state.old_custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SOFT_BODY, state.soft_body);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_POSITION, state.depth_position);
+	}
+	if (state.using_clipper) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC1, state.clipper_calc1);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC2, state.clipper_calc2);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC3, state.clipper_calc3);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC4, state.clipper_calc4);
+	}
+	if (state.using_deform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX, state.deform_object_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_OBJECT_MATRIX_INVERSE, state.deform_object_matrix_inverse);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::OBJECT_ROTATION, state.object_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::UV_ORIGIN, state.uv_origin);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
+
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_TIME, state.wind2_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_STRENGTH, state.wind2_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_TIME, state.scale_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_STRENGTH, state.scale_strength);
+	}
 }
 
 void RasterizerCanvasBaseGLES3::_draw_polygon(const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor, const int *p_bones, const float *p_weights) {

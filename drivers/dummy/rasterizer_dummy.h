@@ -462,6 +462,46 @@ public:
 	RID immediate_get_material(RID p_immediate) const { return RID(); }
 	AABB immediate_get_aabb(RID p_immediate) const { return AABB(); }
 
+	/* FRAME API */
+
+	RID clipper_create() { return RID(); }
+	void frame_form(RID p_frame, bool triangle) {}
+	void clipper_set_points(RID p_clipper, const Vector3 &p_calc1, const Vector3 &p_calc2, const Vector3 &p_calc3, const Vector3 &p_calc4) {}
+
+	/* CUSTOM TRANSFORM API */
+
+	RID custom_transform_create() { return RID(); }
+	void custom_transform_set(RID p_custom_transform, const Transform &p_transform) {}
+	void custom_transform_set_global(RID p_custom_transform, const Transform &p_transform) {}
+	void custom_transform_set_old(RID p_custom_transform, const Transform &p_transform) {}
+	void physics_strength_set(RID p_custom_transform, float p_physics_strength) {}
+	
+	/*DEFORM API */
+
+	RID deform_create() { return RID(); }
+	// float deform_get_wind_rotation(RID p_deform) const {return 0.0;}
+	// float deform_get_wind_time(RID p_deform) const {return 0.0;}
+	// float deform_get_wind_strength(RID p_deform) const {return 0.0;}
+	// float deform_get_wind2_time(RID p_deform) const {return 0.0;}
+	// float deform_get_wind2_strength(RID p_deform) const {return 0.0;}
+	// float deform_get_scale_time(RID p_deform) const {return 0.0;}
+	// Vector2 deform_get_scale_center(RID p_deform) const {return Vector2();}
+	// float deform_get_uv_origin(RID p_deform) const {return 0.0;}
+	// float deform_get_waves_count(RID p_deform) const {return 0.0;}
+	// float deform_get_elasticity(RID p_deform) const {return 0.0;}
+	void deform_set_wind_rotation(RID p_deform, float p_rotation) {}
+	void deform_set_wind_offset(RID p_deform, float p_wind_offset) {}
+	void deform_set_wind_time(RID p_deform, float p_wind_time) {}
+	void deform_set_wind_strength(RID p_deform, float p_wind_strength) {}
+	void deform_set_wind2_time(RID p_deform, float p_wind2_time) {}
+	void deform_set_wind2_strength(RID p_deform, float p_wind2_strength) {}
+	void deform_set_scale_time(RID p_deform, float p_scale_time) {}
+	void deform_set_scale_strength(RID p_deform, float p_scale_strength) {}
+	void deform_set_scale_center(RID p_deform, const &Vector2 p_scale_center) {}
+	void deform_set_uv_origin(RID p_deform, float p_uv_origin) {}
+	void deform_set_waves_count(RID p_deform, float p_waves_count) {}
+	void deform_set_elasticity(RID p_deform, float p_elasticity) {}
+
 	/* SKELETON API */
 
 	RID skeleton_create() { return RID(); }

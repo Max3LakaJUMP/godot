@@ -215,6 +215,21 @@ public:
 	void canvas_item_set_copy_to_backbuffer(RID p_item, bool p_enable, const Rect2 &p_rect);
 	void canvas_item_attach_skeleton(RID p_item, RID p_skeleton);
 
+	void canvas_item_attach_custom_transform(RID p_item, RID p_transform);
+	void canvas_item_custom_transform_set_depth_position(RID p_item, float p_depth);
+	void canvas_item_custom_transform_set_depth_size(RID p_item, float p_depth);
+	void canvas_item_custom_transform_set_depth_offset(RID p_item, float p_depth);
+	void canvas_item_custom_transform_set_soft_body(RID p_item, float p_soft_body);
+	void canvas_item_attach_clipper(RID p_item, RID p_clipper);
+	void canvas_item_clipper_top(RID p_item, bool b_top);
+	void canvas_item_attach_deform(RID p_item, RID p_deform);
+	void canvas_item_deform_set_object_rotation(RID p_item, float p_object_rotation);
+	void canvas_item_deform_set_uv_origin(RID p_item, float uv_origin);
+	void canvas_item_deform_set_scale_center(RID p_item, const Vector2 &p_scale_center);
+	void canvas_item_deform_set_wind_strength(RID p_item, const Vector2 &p_wind_strength);
+	void canvas_item_deform_set_elasticity(RID p_item, const Vector2 &p_elasticity);
+	void canvas_item_deform_set_time_offset(RID p_item, float p_time_offset);
+	
 	void canvas_item_clear(RID p_item);
 	void canvas_item_set_draw_index(RID p_item, int p_index);
 

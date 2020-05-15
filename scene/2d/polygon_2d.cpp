@@ -32,6 +32,10 @@
 
 #include "core/math/geometry.h"
 #include "skeleton_2d.h"
+#include "modules/red/red_transform.h"
+#include "modules/red/red_deform.h"
+#include "modules/red/red_frame.h"
+#include "modules/red/red_engine.h"
 
 #ifdef TOOLS_ENABLED
 Dictionary Polygon2D::_edit_get_state() const {
@@ -102,6 +106,48 @@ void Polygon2D::_notification(int p_what) {
 
 			if (polygon.size() < 3)
 				return;
+
+			REDFrame *red_clipper_node = NULL;
+			if (has_node(clipper)) {
+				red_clipper_node = Object::cast_to<REDFrame>(get_node(clipper));
+			}
+			if (red_clipper_node) {
+				VS::get_singleton()->canvas_item_add_clip_ignore(get_canvas_item(), !clipper_top);
+				VS::get_singleton()->canvas_item_attach_clipper(get_canvas_item(), red_clipper_node->get_ci());
+				VS::get_singleton()->canvas_item_clipper_top(get_canvas_item(), clipper_top);
+			} else {
+				VS::get_singleton()->canvas_item_attach_clipper(get_canvas_item(), RID());
+			}
+
+			REDTransform *red_transform_node = NULL;
+			if (has_node(custom_transform)) {
+				red_transform_node = Object::cast_to<REDTransform>(get_node(custom_transform));
+			}
+			if (red_transform_node) {
+				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), red_transform_node->get_ci());
+				VS::get_singleton()->canvas_item_custom_transform_set_depth_position(get_canvas_item(), depth_position);
+				VS::get_singleton()->canvas_item_custom_transform_set_depth_size(get_canvas_item(), depth_size);
+				VS::get_singleton()->canvas_item_custom_transform_set_depth_offset(get_canvas_item(), depth_offset);
+				VS::get_singleton()->canvas_item_custom_transform_set_soft_body(get_canvas_item(), soft_body);
+			} else {
+				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), RID());
+			}
+
+			REDDeform *red_deform_node = NULL;
+			if (has_node(deform)) {
+				red_deform_node = Object::cast_to<REDDeform>(get_node(deform));
+			}
+			if (red_deform_node) {
+				VS::get_singleton()->canvas_item_attach_deform(get_canvas_item(), red_deform_node->get_ci());
+				VS::get_singleton()->canvas_item_deform_set_object_rotation(get_canvas_item(), object_rotation);
+				VS::get_singleton()->canvas_item_deform_set_uv_origin(get_canvas_item(), uv_origin);
+				VS::get_singleton()->canvas_item_deform_set_scale_center(get_canvas_item(), scale_center);
+				VS::get_singleton()->canvas_item_deform_set_wind_strength(get_canvas_item(), wind_strength);
+				VS::get_singleton()->canvas_item_deform_set_elasticity(get_canvas_item(), wave);
+				VS::get_singleton()->canvas_item_deform_set_time_offset(get_canvas_item(), time_offset);
+			} else {
+				VS::get_singleton()->canvas_item_attach_deform(get_canvas_item(), RID());
+			}
 
 			Skeleton2D *skeleton_node = NULL;
 			if (has_node(skeleton)) {
@@ -206,7 +252,46 @@ void Polygon2D::_notification(int p_what) {
 
 				len = points.size();
 			}
+			
+			if (texture.is_valid()) {
 
+				Transform2D texmat(tex_rot, tex_ofs);
+				texmat.scale(tex_scale);
+
+
+				uvs.resize(len);
+				Ref<AtlasTexture> texture_atlas = texture;
+				if (texture_atlas != NULL){
+					Size2 tex_size = texture_atlas->get_atlas()->get_size();
+					Vector2 size_k = (texture_atlas->get_region().get_size() + texture_atlas->get_margin().get_size()) / tex_size;
+					Vector2 offset = (texture_atlas->get_region().get_position() - texture_atlas->get_margin().get_position()) / tex_size;
+					if (points.size() == uv.size()) {
+						PoolVector<Vector2>::Read uvr = uv.read();
+						for (int i = 0; i < len; i++) {
+							uvs.write[i] = texmat.xform(uvr[i]) * size_k + offset;
+						}
+					} else {
+						Size2 tex_k = Size2(1.0f, 1.0f) / texture->get_size();
+						for (int i = 0; i < len; i++) {
+							uvs.write[i] = texmat.xform((points[i]) * tex_k + texture_atlas->get_region().get_position());
+						}
+					}
+				}else{
+					Size2 tex_size = texture->get_size();
+					if (points.size() == uv.size()) {
+						PoolVector<Vector2>::Read uvr = uv.read();
+						for (int i = 0; i < len; i++) {
+							uvs.write[i] = texmat.xform(uvr[i]);
+						}
+					} else {
+						Size2 tex_k = Size2(1.0f, 1.0f) / texture->get_size();
+						for (int i = 0; i < len; i++) {
+							uvs.write[i] = texmat.xform(points[i]) * tex_k;
+						}
+					}
+				}
+			}
+/*
 			if (texture.is_valid()) {
 
 				Transform2D texmat(tex_rot, tex_ofs);
@@ -229,7 +314,7 @@ void Polygon2D::_notification(int p_what) {
 					}
 				}
 			}
-
+*/
 			if (skeleton_node && !invert && bone_weights.size()) {
 				//a skeleton is set! fill indices and weights
 				int vc = len;
@@ -310,7 +395,7 @@ void Polygon2D::_notification(int p_what) {
 			if (invert || polygons.size() == 0) {
 				Vector<int> indices = Geometry::triangulate_polygon(points);
 				if (indices.size()) {
-					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, RID(), antialiased);
+					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, normalmap.is_valid() ? normalmap->get_rid() : RID(), antialiased);
 				}
 			} else {
 				//draw individual polygons
@@ -344,7 +429,7 @@ void Polygon2D::_notification(int p_what) {
 				}
 
 				if (total_indices.size()) {
-					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), total_indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, RID(), antialiased);
+					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), total_indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, normalmap.is_valid() ? normalmap->get_rid() : RID(), antialiased);
 				}
 			}
 
@@ -353,6 +438,11 @@ void Polygon2D::_notification(int p_what) {
 }
 
 void Polygon2D::set_polygon(const PoolVector<Vector2> &p_polygon) {
+	if (move_polygon_with_uv){
+		if (polygon.size() > 2){
+			set_uv(red::new_uv(polygon, p_polygon, uv, red::get_rect(polygon).size, red::get_rect(uv).size));
+		}
+	}
 	polygon = p_polygon;
 	rect_cache_dirty = true;
 	update();
@@ -583,7 +673,256 @@ NodePath Polygon2D::get_skeleton() const {
 	return skeleton;
 }
 
+void Polygon2D::set_normalmap(const Ref<Texture> &p_normalmap) {
+
+	normalmap = p_normalmap;
+
+	update();
+}
+Ref<Texture> Polygon2D::get_normalmap() const {
+
+	return normalmap;
+}
+
+void Polygon2D::set_move_polygon_with_uv(bool p_move_polygon_with_uv) {
+
+	move_polygon_with_uv = p_move_polygon_with_uv;
+}
+
+bool Polygon2D::get_move_polygon_with_uv() const {
+
+	return move_polygon_with_uv;
+}
+
+void Polygon2D::set_clipper(const NodePath &p_frame){
+	if (clipper == p_frame)
+		return;
+	clipper = p_frame;
+	update();
+}
+
+NodePath Polygon2D::get_clipper() const{
+	return clipper;
+}
+
+void Polygon2D::set_clipper_top(bool p_top){
+	if (clipper_top == p_top)
+		return;
+	clipper_top = p_top;
+	update();
+}
+
+bool Polygon2D::get_clipper_top() const{
+	return clipper_top;
+}
+
+float Polygon2D::get_depth_position() const{
+	return depth_position;
+}
+
+void Polygon2D::set_depth_position(float p_depth){
+	if (depth_position == p_depth)
+		return;
+	depth_position = p_depth;
+	VS::get_singleton()->canvas_item_custom_transform_set_depth_position(get_canvas_item(), depth_position);
+}
+
+float Polygon2D::get_depth_size() const{
+	return depth_size;
+}
+
+void Polygon2D::set_depth_size(float p_depth){
+	if (depth_size == p_depth)
+		return;
+	depth_size = p_depth;
+	VS::get_singleton()->canvas_item_custom_transform_set_depth_size(get_canvas_item(), depth_size);
+}
+
+float Polygon2D::get_depth_offset() const{
+	return depth_offset;
+}
+
+void Polygon2D::set_depth_offset(float p_depth){
+	if (depth_offset == p_depth)
+		return;
+	depth_offset = p_depth;
+	VS::get_singleton()->canvas_item_custom_transform_set_depth_offset(get_canvas_item(), depth_offset);
+}
+
+
+float Polygon2D::get_soft_body() const{
+	return soft_body;
+}
+
+void Polygon2D::set_soft_body(float p_soft_body){
+	if (soft_body == p_soft_body)
+		return;
+	soft_body = p_soft_body;
+	VS::get_singleton()->canvas_item_custom_transform_set_soft_body(get_canvas_item(), soft_body);
+}
+
+float Polygon2D::get_object_rotation() const{
+	return object_rotation;
+}
+
+void Polygon2D::set_object_rotation(float p_object_rotation){
+	if (object_rotation == p_object_rotation)
+		return;
+	object_rotation = p_object_rotation;
+	VS::get_singleton()->canvas_item_deform_set_object_rotation(get_canvas_item(), object_rotation);
+}
+
+void Polygon2D::set_uv_origin(float p_uv_origin){
+	if (uv_origin == p_uv_origin)
+		return;
+	uv_origin = p_uv_origin;
+	VS::get_singleton()->canvas_item_deform_set_uv_origin(get_canvas_item(), uv_origin);
+}
+
+float Polygon2D::get_uv_origin() const{
+	return uv_origin;
+}
+
+Vector2 Polygon2D::get_scale_center() const{
+	return scale_center;
+}
+
+void Polygon2D::set_scale_center(const Vector2 &p_scale_center){
+	if (scale_center == p_scale_center)
+		return;
+	scale_center = p_scale_center;
+	VS::get_singleton()->canvas_item_deform_set_scale_center(get_canvas_item(), scale_center);
+}
+
+Vector2 Polygon2D::get_wind_strength() const{
+	return wind_strength;
+}
+
+void Polygon2D::set_wind_strength(const Vector2 &p_wind_strength){
+	if (wind_strength == p_wind_strength)
+		return;
+	wind_strength = p_wind_strength;
+	VS::get_singleton()->canvas_item_deform_set_wind_strength(get_canvas_item(), wind_strength);
+}
+
+Vector2 Polygon2D::get_wave() const{
+	return wave;
+}
+
+void Polygon2D::set_wave(const Vector2 &p_wave){
+	if (wave == p_wave)
+		return;
+	wave = p_wave;
+	VS::get_singleton()->canvas_item_deform_set_elasticity(get_canvas_item(), p_wave);
+}
+
+
+void Polygon2D::set_time_offset(float p_time_offset){
+	if (time_offset == p_time_offset)
+		return;
+	time_offset = p_time_offset;
+	VS::get_singleton()->canvas_item_deform_set_time_offset(get_canvas_item(), time_offset);
+}
+
+float Polygon2D::get_time_offset() const{
+	return time_offset;
+}
+
+
+void Polygon2D::set_custom_transform(const NodePath &p_custom_transform){
+	if (custom_transform == p_custom_transform)
+		return;
+	custom_transform = p_custom_transform;
+	update();
+}
+
+NodePath Polygon2D::get_custom_transform() const{
+	return custom_transform;
+}
+
+void Polygon2D::set_deform(const NodePath &p_deform){
+	if (deform == p_deform)
+		return;
+	deform = p_deform;
+	update();
+}
+
+NodePath Polygon2D::get_deform() const{
+	return deform;
+}
+
+PoolVector<Vector2> Polygon2D::_get_absolute_uv() const{
+	PoolVector<Vector2> uv_absolute;
+	PoolVector<Vector2> uv_normalized = get_uv();
+	int uv_normalized_count = uv_normalized.size();
+	PoolVector<Vector2>::Read uv_normalized_read = uv_normalized.read();
+	Vector2 k;
+	if(get_texture().is_valid()){
+		k = get_texture()->get_size();
+	}
+	else{
+		k = Vector2(1024, 1024);
+	}
+	for (int i = 0; i < uv_normalized_count; i++) {
+		uv_absolute.append(uv_normalized_read[i]*k);
+	}
+	return uv_absolute;
+}
+
+void Polygon2D::_set_absolute_uv(const PoolVector<Vector2> &p_uv){
+	PoolVector<Vector2> uv_normalized;
+	int uv_count = p_uv.size();
+	PoolVector<Vector2>::Read uv_read = p_uv.read();
+	Vector2 k;
+	if(get_texture().is_valid()){
+		k = get_texture()->get_size();
+	}
+	else{
+		k = Vector2(1024, 1024);
+	}
+	for (int i = 0; i < uv_count; i++) {
+		uv_normalized.append(uv_read[i]/k);
+	}
+	set_uv(uv_normalized);
+}
+
 void Polygon2D::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_normalmap", "normalmap"), &Polygon2D::set_normalmap);
+	ClassDB::bind_method(D_METHOD("get_normalmap"), &Polygon2D::get_normalmap);
+	ClassDB::bind_method(D_METHOD("set_clipper", "clipper"), &Polygon2D::set_clipper);
+	ClassDB::bind_method(D_METHOD("get_clipper"), &Polygon2D::get_clipper);
+	ClassDB::bind_method(D_METHOD("set_custom_transform", "custom_transform"), &Polygon2D::set_custom_transform);
+	ClassDB::bind_method(D_METHOD("get_custom_transform"), &Polygon2D::get_custom_transform);
+	ClassDB::bind_method(D_METHOD("set_deform", "deform"), &Polygon2D::set_deform);
+	ClassDB::bind_method(D_METHOD("get_deform"), &Polygon2D::get_deform);
+	ClassDB::bind_method(D_METHOD("_set_absolute_uv", "uv"), &Polygon2D::_set_absolute_uv);
+	ClassDB::bind_method(D_METHOD("_get_absolute_uv"), &Polygon2D::_get_absolute_uv);
+	
+	ClassDB::bind_method(D_METHOD("set_clipper_top", "clipper_top"), &Polygon2D::set_clipper_top);
+	ClassDB::bind_method(D_METHOD("get_clipper_top"), &Polygon2D::get_clipper_top);
+	ClassDB::bind_method(D_METHOD("set_depth_position", "depth_position"), &Polygon2D::set_depth_position);
+	ClassDB::bind_method(D_METHOD("get_depth_position"), &Polygon2D::get_depth_position);
+	ClassDB::bind_method(D_METHOD("set_depth_size", "depth_size"), &Polygon2D::set_depth_size);
+	ClassDB::bind_method(D_METHOD("get_depth_size"), &Polygon2D::get_depth_size);
+	ClassDB::bind_method(D_METHOD("set_depth_offset", "depth_offset"), &Polygon2D::set_depth_offset);
+	ClassDB::bind_method(D_METHOD("get_depth_offset"), &Polygon2D::get_depth_offset);
+	ClassDB::bind_method(D_METHOD("set_soft_body", "soft_body"), &Polygon2D::set_soft_body);
+	ClassDB::bind_method(D_METHOD("get_soft_body"), &Polygon2D::get_soft_body);
+	ClassDB::bind_method(D_METHOD("set_object_rotation", "object_rotation"), &Polygon2D::set_object_rotation);
+	ClassDB::bind_method(D_METHOD("get_object_rotation"), &Polygon2D::get_object_rotation);
+	ClassDB::bind_method(D_METHOD("set_uv_origin", "uv_origin"), &Polygon2D::set_uv_origin);
+	ClassDB::bind_method(D_METHOD("get_uv_origin"), &Polygon2D::get_uv_origin);
+	ClassDB::bind_method(D_METHOD("set_scale_center", "scale_center"), &Polygon2D::set_scale_center);
+	ClassDB::bind_method(D_METHOD("get_scale_center"), &Polygon2D::get_scale_center);
+	ClassDB::bind_method(D_METHOD("set_wind_strength", "wind_strength"), &Polygon2D::set_wind_strength);
+	ClassDB::bind_method(D_METHOD("get_wind_strength"), &Polygon2D::get_wind_strength);
+	ClassDB::bind_method(D_METHOD("set_wave", "wave"), &Polygon2D::set_wave);
+	ClassDB::bind_method(D_METHOD("get_wave"), &Polygon2D::get_wave);
+	ClassDB::bind_method(D_METHOD("set_time_offset", "time_offset"), &Polygon2D::set_time_offset);
+	ClassDB::bind_method(D_METHOD("get_time_offset"), &Polygon2D::get_time_offset);
+
+	ClassDB::bind_method(D_METHOD("set_move_polygon_with_uv", "move_polygon_with_uv"), &Polygon2D::set_move_polygon_with_uv);
+	ClassDB::bind_method(D_METHOD("get_move_polygon_with_uv"), &Polygon2D::get_move_polygon_with_uv);
 
 	ClassDB::bind_method(D_METHOD("set_polygon", "polygon"), &Polygon2D::set_polygon);
 	ClassDB::bind_method(D_METHOD("get_polygon"), &Polygon2D::get_polygon);
@@ -650,8 +989,11 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset"), "set_offset", "get_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "move_polygon_with_uv"), "set_move_polygon_with_uv", "get_move_polygon_with_uv");
+
 	ADD_GROUP("Texture", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_texture", "get_texture");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "normalmap", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_normalmap", "get_normalmap");
 	ADD_GROUP("Texture", "texture_");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "texture_offset"), "set_texture_offset", "get_texture_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "texture_scale"), "set_texture_scale", "get_texture_scale");
@@ -671,9 +1013,42 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "polygons"), "set_polygons", "get_polygons");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "bones", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_bones", "_get_bones");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "internal_vertex_count", PROPERTY_HINT_RANGE, "0,1000"), "set_internal_vertex_count", "get_internal_vertex_count");
+	
+	ADD_GROUP("Mask", "");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "clipper", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDFrame"), "set_clipper", "get_clipper");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clipper_top"), "set_clipper_top", "get_clipper_top");
+
+	ADD_GROUP("3D", "");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "custom_transform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTransform"), "set_custom_transform", "get_custom_transform");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_position"), "set_depth_position", "get_depth_position");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_size"), "set_depth_size", "get_depth_size");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_offset"), "set_depth_offset", "get_depth_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "soft_body"), "set_soft_body", "get_soft_body");
+
+	ADD_GROUP("Deformation", "");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "deform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDDeform"), "set_deform", "get_deform");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "object_rotation", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater"), "set_object_rotation", "get_object_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "time_offset"), "set_time_offset", "get_time_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "uv_origin", PROPERTY_HINT_RANGE, "0,1"), "set_uv_origin", "get_uv_origin");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "scale_center"), "set_scale_center", "get_scale_center");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "wind_strength"), "set_wind_strength", "get_wind_strength");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "wave"), "set_wave", "get_wave");
 }
 
 Polygon2D::Polygon2D() {
+
+	clipper_top = true;
+	depth_position = 0.0f;
+	depth_size = 0.0;
+	depth_offset = 0.0;
+	soft_body = 0.0f;
+	uv_origin = 0.55;
+	object_rotation = 0.0;
+	scale_center = Vector2(0.5, 0.5);
+	wind_strength = Vector2(1.0, 1.0);
+	wave = Vector2(0.5, 0.5);
+	time_offset = 0;
+	move_polygon_with_uv = false;
 
 	invert = 0;
 	invert_border = 100;

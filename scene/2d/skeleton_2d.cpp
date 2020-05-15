@@ -29,6 +29,19 @@
 /*************************************************************************/
 
 #include "skeleton_2d.h"
+#include "modules/red/red_transform.h"
+
+Skeleton2D *Bone2D::get_skeleton() const {
+	return skeleton;
+}
+
+Skeleton2D::Bone Skeleton2D::get_bone_struct(int p_idx) {
+
+	ERR_FAIL_COND_V(!is_inside_tree(), Skeleton2D::Bone());
+	ERR_FAIL_INDEX_V(p_idx, bones.size(), Skeleton2D::Bone());
+
+	return bones[p_idx];
+}
 
 void Bone2D::_notification(int p_what) {
 
@@ -40,7 +53,7 @@ void Bone2D::_notification(int p_what) {
 			skeleton = Object::cast_to<Skeleton2D>(parent);
 			if (skeleton)
 				break;
-			if (!Object::cast_to<Bone2D>(parent))
+			if (!Object::cast_to<Bone2D>(parent) && !Object::cast_to<REDTransform>(parent))
 				break; //skeletons must be chained to Bone2Ds.
 
 			parent = parent->get_parent();
@@ -200,6 +213,10 @@ void Skeleton2D::_update_bone_setup() {
 			bones.write[i].parent_index = -1;
 		}
 	}
+	for (int i = 0; i < red_transforms.size(); i++) {
+		if (red_transforms[i])
+			red_transforms.write[i]->_make_rest_dirty();
+	}
 
 	transform_dirty = true;
 	_update_transform();
@@ -235,6 +252,10 @@ void Skeleton2D::_update_transform() {
 		} else {
 			bones.write[i].accum_transform = bones[i].bone->get_transform();
 		}
+	}
+	for (int i = 0; i < red_transforms.size(); i++) {
+		if (red_transforms[i])
+			red_transforms.write[i]->_make_transform_dirty();
 	}
 
 	for (int i = 0; i < bones.size(); i++) {
@@ -276,6 +297,9 @@ void Skeleton2D::_notification(int p_what) {
 	}
 
 	if (p_what == NOTIFICATION_TRANSFORM_CHANGED) {
+		for (int i = 0; i < red_transforms.size(); i++) {
+			red_transforms.write[i]->_make_root_dirty();
+		}
 		VS::get_singleton()->skeleton_set_base_transform_2d(skeleton, get_global_transform());
 	}
 }

@@ -919,6 +919,67 @@ public:
 	virtual RID immediate_get_material(RID p_immediate) const;
 	virtual AABB immediate_get_aabb(RID p_immediate) const;
 
+	/* CLIPPER API */
+
+	struct Clipper : RID_Data {
+
+		bool triangle;
+		Vector3 calc1;
+		Vector3 calc2;
+		Vector3 calc3;
+		Vector3 calc4;
+	};
+	mutable RID_Owner<Clipper> clipper_owner;
+	virtual RID clipper_create();
+	virtual void frame_form(RID p_frame, bool triangle);
+	virtual void clipper_set_points(RID p_clipper, const Vector3 &p_calc1, const Vector3 &p_calc2, const Vector3 &p_calc3, const Vector3 &p_calc4);
+
+	/* CUSTOM TRANSFORM API */
+
+	struct CustomTransform : RID_Data {
+
+		bool enable;
+		Transform transform;
+		Transform root_transform;
+		Transform old_transform;
+		float physics_strength;
+		Transform global;
+		Transform offset;
+		Transform global_offset;
+	};
+	mutable RID_Owner<CustomTransform> custom_transform_owner;
+	virtual RID custom_transform_create();
+	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform);
+	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_transform);
+	virtual void custom_transform_set_old(RID p_custom_transform, const Transform &p_transform);
+	virtual void physics_strength_set(RID p_custom_transform, float p_physics_strength);
+
+	/*DEFORM API */
+	struct Deform : RID_Data {
+		float wind_rotation;
+		float wind_offset;
+		float wind_time;
+		float wind_strength;
+		float wind2_time;
+		float wind2_strength;
+		float scale_time;
+		float scale_strength;
+	};
+	mutable RID_Owner<Deform> deform_owner;
+	virtual RID deform_create();
+	virtual void deform_set_wind_rotation(RID p_deform, float p_rotation);
+	virtual void deform_set_wind_offset(RID p_deform, float p_rotation);
+	virtual void deform_set_wind_time(RID p_deform, float p_wind_time);
+	virtual void deform_set_wind_strength(RID p_deform, float p_wind_strength);
+	virtual void deform_set_wind2_time(RID p_deform, float p_wind2_time);
+	virtual void deform_set_wind2_strength(RID p_deform, float p_wind2_strength);
+	virtual void deform_set_scale_time(RID p_deform, float p_scale_time);
+	virtual void deform_set_scale_strength(RID p_deform, float p_scale_strength);
+	virtual void deform_set_scale_center(RID p_deform, const Vector2 &p_scale_center);
+	virtual void deform_set_uv_origin(RID p_deform, float p_uv_origin);
+	virtual void deform_set_waves_count(RID p_deform, float p_waves_count);
+	virtual void deform_set_elasticity(RID p_deform, float p_elasticity);
+
 	/* SKELETON API */
 
 	struct Skeleton : RID_Data {

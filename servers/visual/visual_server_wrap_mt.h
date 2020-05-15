@@ -225,6 +225,36 @@ public:
 	FUNC2(immediate_set_material, RID, RID)
 	FUNC1RC(RID, immediate_get_material, RID)
 
+	/* CLIPPER API */
+
+	FUNCRID(clipper)
+	FUNC2(frame_form, RID, bool)
+	FUNC5(clipper_set_points, RID, const Vector3 &, const Vector3 &, const Vector3 &, const Vector3 &)
+
+	/* CUSTOM TRANSFORM API */
+
+	FUNCRID(custom_transform)
+	FUNC2(custom_transform_set, RID, const Transform &)
+	FUNC2(custom_transform_set_global, RID, const Transform &)
+	FUNC2(custom_transform_set_old, RID, const Transform &)
+	FUNC2(physics_strength_set, RID, float)
+
+	/*DEFORM API */
+	
+	FUNCRID(deform)
+	FUNC2(deform_set_wind_rotation, RID, float)
+	FUNC2(deform_set_wind_offset, RID, float)
+	FUNC2(deform_set_wind_time, RID, float)
+	FUNC2(deform_set_wind_strength, RID, float)
+	FUNC2(deform_set_wind2_time, RID, float)
+	FUNC2(deform_set_wind2_strength, RID, float)
+	FUNC2(deform_set_scale_time, RID, float)
+	FUNC2(deform_set_scale_strength, RID, float)
+	FUNC2(deform_set_scale_center, RID, const Vector2 &)
+	FUNC2(deform_set_uv_origin, RID, float)
+	FUNC2(deform_set_waves_count, RID, float)
+	FUNC2(deform_set_elasticity, RID, float)
+
 	/* SKELETON API */
 
 	FUNCRID(skeleton)
@@ -540,6 +570,21 @@ public:
 	FUNC2(canvas_item_set_z_as_relative_to_parent, RID, bool)
 	FUNC3(canvas_item_set_copy_to_backbuffer, RID, bool, const Rect2 &)
 	FUNC2(canvas_item_attach_skeleton, RID, RID)
+
+	FUNC2(canvas_item_attach_custom_transform, RID, RID)
+	FUNC2(canvas_item_custom_transform_set_depth_position, RID, float)
+	FUNC2(canvas_item_custom_transform_set_depth_size, RID, float)
+	FUNC2(canvas_item_custom_transform_set_depth_offset, RID, float)
+	FUNC2(canvas_item_custom_transform_set_soft_body, RID, float)
+	FUNC2(canvas_item_attach_clipper, RID, RID)
+	FUNC2(canvas_item_clipper_top, RID, bool)
+	FUNC2(canvas_item_attach_deform, RID, RID)
+	FUNC2(canvas_item_deform_set_object_rotation, RID, float)
+	FUNC2(canvas_item_deform_set_uv_origin, RID, float)
+	FUNC2(canvas_item_deform_set_scale_center, RID, const Vector2 &)
+	FUNC2(canvas_item_deform_set_wind_strength, RID, const Vector2 &)
+	FUNC2(canvas_item_deform_set_elasticity, RID, const Vector2 &)
+	FUNC2(canvas_item_deform_set_time_offset, RID, float)
 
 	FUNC1(canvas_item_clear, RID)
 	FUNC2(canvas_item_set_draw_index, RID, int)
