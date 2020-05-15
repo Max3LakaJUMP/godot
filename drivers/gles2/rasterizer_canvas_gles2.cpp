@@ -1230,6 +1230,10 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
 
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_DEFORM, false);
+	
 	state.current_tex = RID();
 	state.current_tex_ptr = NULL;
 	state.current_normal = RID();
@@ -1256,6 +1260,9 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 	}
 
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_DEFORM, false);
 }
 
 // This function is a dry run of the state changes when drawing the item.
@@ -1295,6 +1302,75 @@ bool RasterizerCanvasGLES2::try_join_item(Item *p_ci, RenderItemState &r_ris, bo
 
 	if (p_ci->copy_back_buffer) {
 		join = false;
+	}
+
+	RasterizerStorageGLES2::Clipper *clipper = NULL;
+	{
+		//clipper
+		if (p_ci->clipper.is_valid() && storage->clipper_owner.owns(p_ci->clipper)) {
+			clipper = storage->clipper_owner.get(p_ci->clipper);
+		}
+
+		bool use_clipper = clipper != NULL;
+		if (r_ris.prev_use_clipper != use_clipper) {
+			r_ris.rebind_shader = true;
+			r_ris.prev_use_clipper = use_clipper;
+			join = false;
+			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, use_clipper);
+		}
+
+		if (clipper) {
+			//join = false;
+			state.using_clipper = true;
+		} else {
+			state.using_clipper = false;
+		}
+	}
+	
+	RasterizerStorageGLES2::CustomTransform *custom_transform = NULL;
+	{
+		//custom_transform
+		if (p_ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(p_ci->custom_transform)) {
+			custom_transform = storage->custom_transform_owner.get(p_ci->custom_transform);
+		}
+
+		bool use_custom_transform = custom_transform != NULL;
+		if (r_ris.prev_use_custom_transform != use_custom_transform) {
+			r_ris.rebind_shader = true;
+			r_ris.prev_use_custom_transform = use_custom_transform;
+			join = false;
+			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
+		}
+
+		if (custom_transform) {
+			//join = false;
+			state.using_custom_transform = true;
+		} else {
+			state.using_custom_transform = false;
+		}
+	}
+	
+	RasterizerStorageGLES2::Deform *deform = NULL;
+	{
+		//deform
+		if (p_ci->deform.is_valid() && storage->deform_owner.owns(p_ci->deform)) {
+			deform = storage->deform_owner.get(p_ci->deform);
+		}
+
+		bool use_deform = deform != NULL;
+		if (r_ris.prev_use_deform != use_deform) {
+			r_ris.rebind_shader = true;
+			r_ris.prev_use_deform = deform;
+			join = false;
+			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
+		}
+
+		if (deform) {
+			//join = false;
+			state.using_deform = true;
+		} else {
+			state.using_deform = false;
+		}
 	}
 
 	RasterizerStorageGLES2::Skeleton *skeleton = NULL;
@@ -1596,6 +1672,147 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			_copy_texscreen(p_ci->copy_back_buffer->rect);
 		}
 	}
+	
+	Transform2D world_pos = r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform;
+	RasterizerStorageGLES2::Clipper *clipper = NULL;
+	{
+		//clipper
+		if (p_ci->clipper.is_valid() && storage->clipper_owner.owns(p_ci->clipper)) {
+			clipper = storage->clipper_owner.get(p_ci->clipper);
+			state.clipper_calc1 = clipper->calc1;
+			state.clipper_calc2 = clipper->calc2;
+			if (!p_ci->clipper_top){
+				state.clipper_calc1.z = clipper->calc1.z - 100000.0f;
+				state.clipper_calc2.z = clipper->calc2.z - 100000.0f;
+			}
+			state.clipper_calc3 = clipper->calc3;
+			state.clipper_calc4 = clipper->calc4;
+		}
+
+		bool use_clipper = clipper != NULL;
+		if (r_ris.prev_use_clipper != use_clipper) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, use_clipper);
+			r_ris.prev_use_clipper = use_clipper;
+		}
+
+		if (clipper) {
+			state.using_clipper = true;
+		} else {
+			state.using_clipper = false;
+		}
+	}
+	RasterizerStorageGLES2::CustomTransform *custom_transform = NULL;
+	{
+		//custom_transform
+		if (p_ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(p_ci->custom_transform)) {
+			custom_transform = storage->custom_transform_owner.get(p_ci->custom_transform);
+			state.depth_size = p_ci->depth_size;
+			state.depth_offset = p_ci->depth_offset;
+			state.soft_body = p_ci->soft_body;
+
+			Transform pos = Variant(world_pos.affine_inverse());
+			pos.origin.z = -p_ci->depth_position;
+			Transform custom_transform_root = pos * custom_transform->root_transform;
+			Transform custom_transform_root_inverse = custom_transform_root.affine_inverse();
+			state.custom_transform = custom_transform_root * custom_transform->transform * custom_transform_root_inverse;
+			state.old_custom_transform = custom_transform_root * custom_transform->old_transform * custom_transform_root_inverse;
+			if (state.depth_size <= 0){
+				Vector3 offset = state.custom_transform.origin;
+				Vector3 scale = state.custom_transform.basis.get_scale();
+				Vector3 euler = state.custom_transform.basis.get_euler();
+				Quat quat = state.custom_transform.basis.get_rotation_quat();
+				quat.x = quat.x * quat.x * quat.x;
+				quat.y = quat.y * quat.y * quat.y;
+				state.custom_transform.basis.set_quat(quat);
+				state.custom_transform = Transform(state.custom_transform.basis[0].x * scale.x, state.custom_transform.basis[0].y, 0,
+													state.custom_transform.basis[1].x, state.custom_transform.basis[1].y * scale.y, 0,
+													0, 0, scale.z, 
+													offset.x, offset.y, offset.z);
+				Vector3 old_offset = state.old_custom_transform.origin;
+				Vector3 old_scale = state.old_custom_transform.basis.get_scale();
+				Vector3 old_euler = state.old_custom_transform.basis.get_euler();
+				Quat old_quat = state.old_custom_transform.basis.get_rotation_quat();
+				old_quat.x = old_quat.x * old_quat.x * old_quat.x;
+				old_quat.y = old_quat.y * old_quat.y * old_quat.y;
+				state.old_custom_transform.basis.set_quat(old_quat);
+				state.old_custom_transform = Transform(	state.old_custom_transform.basis[0].x * old_scale.x, state.old_custom_transform.basis[0].y, 0,
+														state.old_custom_transform.basis[1].x, state.old_custom_transform.basis[1].y * old_scale.y, 0,
+														0,0, old_scale.z, 
+														old_offset.x, old_offset.y, old_offset.z);
+			}
+		}
+
+		bool use_custom_transform = custom_transform != NULL;
+		if (r_ris.prev_use_custom_transform != use_custom_transform) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
+			r_ris.prev_use_custom_transform = use_custom_transform;
+		}
+
+		if (custom_transform) {
+			state.using_custom_transform = true;
+		} else {
+			state.using_custom_transform = false;
+		}
+	}
+	
+	RasterizerStorageGLES2::Deform *deform = NULL;
+	{
+		//deform
+		if (p_ci->deform.is_valid() && storage->deform_owner.owns(p_ci->deform)) {
+			deform = storage->deform_owner.get(p_ci->deform);
+			{
+				state.object_rotation = p_ci->object_rotation * 3.14 / 180.0;
+				float s = sin(state.object_rotation);
+				float c = cos(state.object_rotation);
+				state.deform_object_matrix = Transform(c, -s, 0.0,
+														s, c, 0.0,
+														0.0, 0.0, 1.0, 
+														0.0, 0.0, 0.0);
+				if (state.using_custom_transform){
+					state.deform_object_matrix = state.deform_object_matrix * state.custom_transform;
+				}
+			}
+			state.deform_object_matrix_inverse = state.deform_object_matrix.affine_inverse();
+			state.uv_origin = p_ci->uv_origin;
+			state.scale_center = p_ci->scale_center;
+			state.wind_strength_object = p_ci->wind_strength;
+			state.elasticity = p_ci->elasticity;
+			state.time_offset = p_ci->time_offset * 6.28;
+			{
+				state.wind_rotation = deform->wind_rotation * 3.14 / 180.0;
+				float s = sin(state.wind_rotation);
+				float c = cos(state.wind_rotation);
+				state.deform_wind_matrix = Transform(c, -s, 0.0,
+													s, c, 0.0,
+													0.0, 0.0, 1.0, 
+													0.0, 0.0, 0.0);
+				state.deform_wind_matrix = Transform(Variant(world_pos.affine_inverse())) * state.deform_object_matrix_inverse * state.deform_wind_matrix;				
+			}
+			state.wind_rotation = deform->wind_rotation;
+			state.wind_offset = deform->wind_offset;
+			state.wind_time = deform->wind_time;
+			state.wind_strength = deform->wind_strength;
+			state.wind2_time = deform->wind2_time;
+			state.wind2_strength = deform->wind2_strength;
+			state.scale_time = deform->scale_time;
+			state.scale_strength = deform->scale_strength;
+		}
+
+		bool use_deform = deform != NULL;
+		if (r_ris.prev_use_deform != use_deform) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_DEFORM, use_deform);
+			r_ris.prev_use_deform = use_deform;
+		}
+
+		if (deform) {
+			state.using_deform = true;
+		} else {
+			state.using_deform = false;
+		}
+	}
 
 	RasterizerStorageGLES2::Skeleton *skeleton = NULL;
 
@@ -1606,7 +1823,8 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			if (!skeleton->use_2d) {
 				skeleton = NULL;
 			} else {
-				state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
+				//state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
+				state.skeleton_transform = world_pos.affine_inverse() * skeleton->base_transform_2d;
 				state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 				state.skeleton_texture_size = Vector2(skeleton->size * 2, 0);
 			}
@@ -1791,6 +2009,8 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 	state.uniforms.final_modulate = unshaded ? p_ci->final_modulate : Color(p_ci->final_modulate.r * r_ris.item_group_modulate.r, p_ci->final_modulate.g * r_ris.item_group_modulate.g, p_ci->final_modulate.b * r_ris.item_group_modulate.b, p_ci->final_modulate.a * r_ris.item_group_modulate.a);
 
 	state.uniforms.modelview_matrix = p_ci->final_transform;
+	state.uniforms.world_matrix = r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform;
+	state.uniforms.inv_world_matrix = state.uniforms.world_matrix.affine_inverse();
 	state.uniforms.extra_matrix = Transform2D();
 
 	_set_uniforms();
@@ -1948,7 +2168,6 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 
 	// all the joined items will share the same state with the first item
 	Item *ci = bdata.item_refs[p_bij.first_item_ref].item;
-
 	if (r_ris.current_clip != ci->final_clip_owner) {
 
 		r_ris.current_clip = ci->final_clip_owner;
@@ -1973,8 +2192,154 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			_copy_texscreen(ci->copy_back_buffer->rect);
 		}
 	}
+	
+	Transform2D world_pos = r_ris.item_group_base_transform.affine_inverse() * ci->final_transform;
+	RasterizerStorageGLES2::Clipper *clipper = NULL;
+	{
+		//clipper
+		if (ci->clipper.is_valid() && storage->clipper_owner.owns(ci->clipper)) {
+			clipper = storage->clipper_owner.get(ci->clipper);
+			state.clipper_calc1 = clipper->calc1;
+			state.clipper_calc2 = clipper->calc2;
+			if (!ci->clipper_top){
+				state.clipper_calc1.z = clipper->calc1.z - 100000.0f;
+				state.clipper_calc2.z = clipper->calc2.z - 100000.0f;
+			}
+			state.clipper_calc3 = clipper->calc3;
+			state.clipper_calc4 = clipper->calc4;
+		}
 
+		bool use_clipper = clipper != NULL;
+		if (r_ris.prev_use_clipper != use_clipper) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, use_clipper);
+			r_ris.prev_use_clipper = use_clipper;
+		}
+
+		if (clipper) {
+			//join = false;
+			state.using_clipper = true;
+		} else {
+			state.using_clipper = false;
+		}
+	}
+	
+	RasterizerStorageGLES2::CustomTransform *custom_transform = NULL;
+	{
+		//custom_transform
+		if (ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(ci->custom_transform)) {
+			custom_transform = storage->custom_transform_owner.get(ci->custom_transform);
+			state.depth_size = ci->depth_size;
+			state.depth_offset = ci->depth_offset;
+			state.soft_body = ci->soft_body;
+
+			Transform pos = Variant(world_pos.affine_inverse());
+			pos.origin.z = -ci->depth_position;
+			Transform custom_transform_root = pos * custom_transform->root_transform;
+			Transform custom_transform_root_inverse = custom_transform_root.affine_inverse();
+			state.custom_transform = custom_transform_root * custom_transform->transform * custom_transform_root_inverse;
+			state.old_custom_transform = custom_transform_root * custom_transform->old_transform * custom_transform_root_inverse;
+			if (state.depth_size <= 0){
+				Vector3 offset = state.custom_transform.origin;
+				Vector3 scale = state.custom_transform.basis.get_scale();
+				Vector3 euler = state.custom_transform.basis.get_euler();
+				Quat quat = state.custom_transform.basis.get_rotation_quat();
+				quat.x = quat.x * quat.x * quat.x;
+				quat.y = quat.y * quat.y * quat.y;
+				state.custom_transform.basis.set_quat(quat);
+				state.custom_transform = Transform(state.custom_transform.basis[0].x * scale.x, state.custom_transform.basis[0].y, 0,
+													state.custom_transform.basis[1].x, state.custom_transform.basis[1].y * scale.y, 0,
+													0,0, scale.z, 
+													offset.x, offset.y, offset.z);
+				Vector3 old_offset = state.old_custom_transform.origin;
+				Vector3 old_scale = state.old_custom_transform.basis.get_scale();
+				Vector3 old_euler = state.old_custom_transform.basis.get_euler();
+				Quat old_quat = state.old_custom_transform.basis.get_rotation_quat();
+				old_quat.x = old_quat.x * old_quat.x * old_quat.x;
+				old_quat.y = old_quat.y * old_quat.y * old_quat.y;
+				state.old_custom_transform.basis.set_quat(old_quat);
+				state.old_custom_transform = Transform(	state.old_custom_transform.basis[0].x * old_scale.x, state.old_custom_transform.basis[0].y, 0,
+														state.old_custom_transform.basis[1].x, state.old_custom_transform.basis[1].y * old_scale.y, 0,
+														0,0, old_scale.z, 
+														old_offset.x, old_offset.y, old_offset.z);
+			}
+		}
+
+		bool use_custom_transform = custom_transform != NULL;
+		if (r_ris.prev_use_custom_transform != use_custom_transform) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
+			r_ris.prev_use_custom_transform = use_custom_transform;
+		}
+
+		if (custom_transform) {
+			//join = false;
+			state.using_custom_transform = true;
+		} else {
+			state.using_custom_transform = false;
+		}
+	}
+	
+	RasterizerStorageGLES2::Deform *deform = NULL;
+	{
+		//deform
+		if (ci->deform.is_valid() && storage->deform_owner.owns(ci->deform)) {
+			deform = storage->deform_owner.get(ci->deform);
+			{
+				state.object_rotation = ci->object_rotation * 3.14 / 180.0;
+				float s = sin(state.object_rotation);
+				float c = cos(state.object_rotation);
+				state.deform_object_matrix = Transform(c, -s, 0.0,
+														s, c, 0.0,
+														0.0, 0.0, 1.0, 
+														0.0, 0.0, 0.0);
+				if (state.using_custom_transform){
+					state.deform_object_matrix = state.deform_object_matrix * state.custom_transform;
+				}
+			}
+			state.deform_object_matrix_inverse = state.deform_object_matrix.affine_inverse();
+			state.uv_origin = ci->uv_origin;
+			state.scale_center = ci->scale_center;
+			state.wind_strength_object = ci->wind_strength;
+			state.elasticity = ci->elasticity;
+			state.time_offset = ci->time_offset * 6.28;
+			{
+				state.wind_rotation = deform->wind_rotation * 3.14 / 180.0;
+				float s = sin(state.wind_rotation);
+				float c = cos(state.wind_rotation);
+				state.deform_wind_matrix = Transform(c, -s, 0.0,
+													s, c, 0.0,
+													0.0, 0.0, 1.0, 
+													0.0, 0.0, 0.0);
+				state.deform_wind_matrix = Transform(Variant(world_pos.affine_inverse())) * state.deform_object_matrix_inverse * state.deform_wind_matrix;				
+			}
+			state.wind_rotation = deform->wind_rotation;
+			state.wind_offset = deform->wind_offset;
+			state.wind_time = deform->wind_time;
+			state.wind_strength = deform->wind_strength;
+			state.wind2_time = deform->wind2_time;
+			state.wind2_strength = deform->wind2_strength;
+			state.scale_time = deform->scale_time;
+			state.scale_strength = deform->scale_strength;
+		}
+
+		bool use_deform = deform != NULL;
+		if (r_ris.prev_use_deform != use_deform) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_DEFORM, use_deform);
+			r_ris.prev_use_deform = use_deform;
+		}
+
+		if (deform) {
+			//join = false;
+			state.using_deform = true;
+		} else {
+			state.using_deform = false;
+		}
+	}
+	
 	if (!bdata.settings_use_batching || !bdata.settings_use_software_skinning) {
+
 		RasterizerStorageGLES2::Skeleton *skeleton = NULL;
 
 		//skeleton handling
@@ -1983,7 +2348,8 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			if (!skeleton->use_2d) {
 				skeleton = NULL;
 			} else {
-				state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
+				//state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
+				state.skeleton_transform = world_pos.affine_inverse() * skeleton->base_transform_2d;
 				state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 				state.skeleton_texture_size = Vector2(skeleton->size * 2, 0);
 			}
@@ -2171,13 +2537,18 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 	// or large fvf where the transform is done in the shader from transform stored in the fvf.)
 	if (!p_bij.use_hardware_transform()) {
 		state.uniforms.modelview_matrix = Transform2D();
+		state.uniforms.world_matrix = Transform2D();
+		state.uniforms.inv_world_matrix = Transform2D();
 		// final_modulate will be baked per item ref so the final_modulate can be an identity color
 		state.uniforms.final_modulate = Color(1, 1, 1, 1);
 	} else {
 		state.uniforms.modelview_matrix = ci->final_transform;
+		state.uniforms.world_matrix = r_ris.item_group_base_transform.affine_inverse() * ci->final_transform;
+		state.uniforms.inv_world_matrix = state.uniforms.world_matrix.affine_inverse();
 		// could use the stored version of final_modulate in item ref? Test which is faster NYI
 		state.uniforms.final_modulate = unshaded ? ci->final_modulate : (ci->final_modulate * r_ris.item_group_modulate);
 	}
+
 	state.uniforms.extra_matrix = Transform2D();
 
 	_set_uniforms();

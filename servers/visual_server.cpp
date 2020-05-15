@@ -1757,7 +1757,20 @@ void VisualServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("skeleton_bone_get_transform", "skeleton", "bone"), &VisualServer::skeleton_bone_get_transform);
 	ClassDB::bind_method(D_METHOD("skeleton_bone_set_transform_2d", "skeleton", "bone", "transform"), &VisualServer::skeleton_bone_set_transform_2d);
 	ClassDB::bind_method(D_METHOD("skeleton_bone_get_transform_2d", "skeleton", "bone"), &VisualServer::skeleton_bone_get_transform_2d);
-
+	
+	ClassDB::bind_method(D_METHOD("clipper_create"), &VisualServer::clipper_create);
+	ClassDB::bind_method(D_METHOD("frame_form", "triangle"), &VisualServer::frame_form);
+	ClassDB::bind_method(D_METHOD("clipper_set_points", "calc1", "calc2", "calc3", "calc4"), &VisualServer::clipper_set_points);
+	ClassDB::bind_method(D_METHOD("deform_create"), &VisualServer::deform_create);
+	ClassDB::bind_method(D_METHOD("deform_set_wind_rotation", "wind_rotation"), &VisualServer::deform_set_wind_rotation);
+	ClassDB::bind_method(D_METHOD("deform_set_wind_time", "wind_time"), &VisualServer::deform_set_wind_time);
+	ClassDB::bind_method(D_METHOD("deform_set_wind2_time", "wind2_time"), &VisualServer::deform_set_wind2_time);
+	ClassDB::bind_method(D_METHOD("deform_set_wind2_strength", "wind2_strength"), &VisualServer::deform_set_wind2_strength);
+	ClassDB::bind_method(D_METHOD("deform_set_scale_time", "scale_time"), &VisualServer::deform_set_scale_time);
+	ClassDB::bind_method(D_METHOD("deform_set_scale_center", "scale_center"), &VisualServer::deform_set_scale_center);
+	ClassDB::bind_method(D_METHOD("deform_set_uv_origin", "uv_origin"), &VisualServer::deform_set_uv_origin);
+	ClassDB::bind_method(D_METHOD("deform_set_waves_count", "waves_count"), &VisualServer::deform_set_waves_count);
+	ClassDB::bind_method(D_METHOD("deform_set_elasticity", "elasticity"), &VisualServer::deform_set_elasticity);
 #ifndef _3D_DISABLED
 	ClassDB::bind_method(D_METHOD("directional_light_create"), &VisualServer::directional_light_create);
 	ClassDB::bind_method(D_METHOD("omni_light_create"), &VisualServer::omni_light_create);
