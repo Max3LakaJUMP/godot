@@ -15,7 +15,16 @@ uniform highp mat4 projection_matrix;
 
 #include "stdlib.glsl"
 
+#ifdef USE_CUSTOM_TRANSFORM
+uniform highp mat4 custom_matrix;
+#endif
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
+	varying vec4 world_pos_out;
+#endif
+
 uniform highp mat4 modelview_matrix;
+uniform highp mat4 world_matrix;
+uniform highp mat4 inv_world_matrix;
 uniform highp mat4 extra_matrix;
 attribute highp vec2 vertex; // attrib:0
 attribute vec4 color_attrib; // attrib:3
@@ -152,33 +161,6 @@ void main() {
 	uv = uv_attrib;
 #endif
 
-	float point_size = 1.0;
-
-	{
-		vec2 src_vtx = outvec.xy;
-		/* clang-format off */
-
-VERTEX_SHADER_CODE
-
-		/* clang-format on */
-	}
-
-	gl_PointSize = point_size;
-
-#if !defined(SKIP_TRANSFORM_USED)
-	outvec = extra_matrix_instance * outvec;
-	outvec = modelview_matrix * outvec;
-#endif
-
-	color_interp = color;
-
-#ifdef USE_PIXEL_SNAP
-	outvec.xy = floor(outvec + 0.5).xy;
-	// precision issue on some hardware creates artifacts within texture
-	// offset uv by a small amount to avoid
-	uv += 1e-5;
-#endif
-
 #ifdef USE_SKELETON
 
 	// look up transform from the "pose texture"
@@ -205,6 +187,56 @@ VERTEX_SHADER_CODE
 
 #endif
 
+#if defined(DEPTH_USED)
+	float depth = 0.0;
+	float max_depth = 0.001;
+#endif
+#if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
+	float transform_mask = 1.0;
+#endif
+
+	float point_size = 1.0;
+
+	{
+		vec2 src_vtx = outvec.xy;
+		/* clang-format off */
+
+VERTEX_SHADER_CODE
+
+		/* clang-format on */
+	}
+
+	gl_PointSize = point_size;
+
+#if !defined(SKIP_TRANSFORM_USED)
+	outvec = extra_matrix_instance * outvec;
+	
+	#ifdef USE_CUSTOM_TRANSFORM
+		#if defined(DEPTH_USED)
+			outvec.z = depth;
+		#endif
+		outvec = outvec + transform_mask * (custom_matrix * outvec - outvec);
+		#if defined(DEPTH_USED)
+			outvec.z *= max_depth;
+		#endif
+	#endif
+	#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
+		world_pos_out = world_matrix * outvec;
+	#endif
+	
+	outvec = modelview_matrix * outvec;
+#endif
+	color_interp = color;
+
+#ifdef USE_PIXEL_SNAP
+	outvec.xy = floor(outvec + 0.5).xy;
+	// precision issue on some hardware creates artifacts within texture
+	// offset uv by a small amount to avoid
+	uv += 1e-5;
+#endif
+
+// USE_SKELETON moved before vertex shader
+
 	uv_interp = uv;
 	gl_Position = projection_matrix * outvec;
 
@@ -219,8 +251,18 @@ VERTEX_SHADER_CODE
 	pos = outvec.xy;
 #endif
 
-	local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
-	local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	//local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+	//local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	
+	#if defined(USE_CUSTOM_TRANSFORM)
+		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#else
+		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#endif
+	
+	
 #ifdef USE_TEXTURE_RECT
 	local_rot.xy *= sign(src_rect.z);
 	local_rot.zw *= sign(src_rect.w);
@@ -357,8 +399,20 @@ LIGHT_SHADER_CODE
 #endif
 }
 
-void main() {
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
+varying vec4 world_pos_out;
+#endif
+#ifdef USE_CLIPPER
+uniform highp vec3 clipper_calc1;
+uniform highp vec3 clipper_calc2;
+uniform highp vec3 clipper_calc3;
+uniform highp vec3 clipper_calc4;
+#endif
 
+void main() {
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
+	vec2 world_pos = world_pos_out.xy;
+#endif
 	vec4 color = color_interp;
 	vec2 uv = uv_interp;
 #ifdef USE_FORCE_REPEAT
@@ -405,6 +459,40 @@ void main() {
 FRAGMENT_SHADER_CODE
 
 		/* clang-format on */
+
+#ifdef USE_CLIPPER
+{
+	bool oddNodes = false;
+	bool previous = clipper_calc4.z > world_pos.y;
+	bool current = clipper_calc1.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc1.x + clipper_calc1.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc2.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc2.x + clipper_calc2.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	
+	previous = current;
+	current = clipper_calc3.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc3.x + clipper_calc3.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc4.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc4.x + clipper_calc4.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	if (!oddNodes){
+		color.a = 0.0f;
+	}
+}
+#endif
 
 #if defined(NORMALMAP_USED)
 		normal = mix(vec3(0.0, 0.0, 1.0), normal_map * vec3(2.0, -2.0, 1.0) - vec3(1.0, -1.0, 0.0), normal_depth);

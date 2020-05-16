@@ -388,6 +388,17 @@ public:
 	virtual void immediate_set_material(RID p_immediate, RID p_material) = 0;
 	virtual RID immediate_get_material(RID p_immediate) const = 0;
 
+	/* CLIPPER API */
+
+	virtual RID clipper_create() = 0;
+	virtual void frame_form(RID p_frame, bool triangle) = 0;
+	virtual void clipper_set_points(RID p_clipper, const Vector3 &p_point1, const Vector3 &p_point2, const Vector3 &p_point3, const Vector3 &p_point4) = 0;
+
+	/* CUSTOM TRANSFORM API */
+
+	virtual RID custom_transform_create() = 0;
+	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform) = 0;
+
 	/* SKELETON API */
 
 	virtual RID skeleton_create() = 0;
@@ -923,6 +934,10 @@ public:
 	virtual void canvas_item_set_copy_to_backbuffer(RID p_item, bool p_enable, const Rect2 &p_rect) = 0;
 
 	virtual void canvas_item_attach_skeleton(RID p_item, RID p_skeleton) = 0;
+
+	virtual void canvas_item_attach_custom_transform(RID p_item, RID p_transform) = 0;
+	virtual void canvas_item_attach_clipper(RID p_item, RID p_clipper) = 0;
+	virtual void canvas_item_clipper_top(RID p_item, bool b_top) = 0;
 
 	virtual void canvas_item_clear(RID p_item) = 0;
 	virtual void canvas_item_set_draw_index(RID p_item, int p_index) = 0;

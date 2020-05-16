@@ -121,6 +121,9 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 	state.uniforms.modelview_matrix = Transform2D();
 	state.uniforms.extra_matrix = Transform2D();
 
+	state.uniforms.world_matrix = Transform2D();
+	state.uniforms.inv_world_matrix = Transform2D();
+	
 	_set_uniforms();
 	_bind_quad_buffer();
 }
@@ -142,6 +145,8 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 	}
 
 	state.using_texture_rect = false;
+	state.using_custom_transform = false;
+	state.using_clipper = false;
 	state.using_skeleton = false;
 	state.using_ninepatch = false;
 	state.using_transparent_rt = false;
@@ -362,6 +367,18 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 			canvas_shader.set_uniform(CanvasShaderGLES2::SHADOW_ESM_MULTIPLIER,light->shadow_esm_mult);
 			canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_SHADOW_COLOR,light->shadow_color);*/
 		}
+	}
+	
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::WORLD_MATRIX, state.uniforms.world_matrix);
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::INV_WORLD_MATRIX, state.uniforms.inv_world_matrix);
+	if (state.using_custom_transform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX, state.custom_transform);
+	}
+	if (state.using_clipper) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC1, state.clipper_calc1);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC2, state.clipper_calc2);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC3, state.clipper_calc3);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC4, state.clipper_calc4);
 	}
 }
 
@@ -1001,6 +1018,9 @@ void RasterizerCanvasBaseGLES2::initialize() {
 	state.using_light = NULL;
 	state.using_transparent_rt = false;
 	state.using_skeleton = false;
+	
+	state.using_custom_transform = false;
+	state.using_clipper = false;
 }
 
 void RasterizerCanvasBaseGLES2::finalize() {

@@ -42,6 +42,14 @@ layout(std140) uniform CanvasItemData { //ubo:0
 	highp mat4 projection_matrix;
 	highp float time;
 };
+#ifdef USE_CUSTOM_TRANSFORM
+uniform highp mat4 custom_matrix;
+#endif
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
+	out vec4 world_pos_out;
+#endif
+uniform highp mat4 world_matrix;
+uniform highp mat4 inv_world_matrix;
 
 uniform highp mat4 modelview_matrix;
 uniform highp mat4 extra_matrix;
@@ -151,42 +159,6 @@ void main() {
 	outvec.xy /= color_texpixel_size;
 #endif
 
-#define extra_matrix extra_matrix_instance
-
-	float point_size = 1.0;
-	//for compatibility with the fragment shader we need to use uv here
-	vec2 uv = uv_interp;
-	{
-		/* clang-format off */
-
-VERTEX_SHADER_CODE
-
-		/* clang-format on */
-	}
-
-	gl_PointSize = point_size;
-	uv_interp = uv;
-
-#ifdef USE_NINEPATCH
-
-	pixel_size_interp = abs(dst_rect.zw) * vertex;
-#endif
-
-#if !defined(SKIP_TRANSFORM_USED)
-	outvec = extra_matrix * outvec;
-	outvec = modelview_matrix * outvec;
-#endif
-
-#undef extra_matrix
-
-	color_interp = color;
-
-#ifdef USE_PIXEL_SNAP
-	outvec.xy = floor(outvec + 0.5).xy;
-	// precision issue on some hardware creates artifacts within texture
-	// offset uv by a small amount to avoid
-	uv_interp += 1e-5;
-#endif
 
 #ifdef USE_SKELETON
 
@@ -230,8 +202,77 @@ VERTEX_SHADER_CODE
 	}
 
 #endif
+#if defined(DEPTH_USED)
+	float depth = 0.0;
+	float max_depth = 0.001;
+#endif
+#if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
+	float transform_mask = 1.0;
+#endif
 
-	gl_Position = projection_matrix * outvec;
+#define extra_matrix extra_matrix_instance
+
+	float point_size = 1.0;
+	//for compatibility with the fragment shader we need to use uv here
+	vec2 uv = uv_interp;
+	{
+		/* clang-format off */
+
+VERTEX_SHADER_CODE
+
+		/* clang-format on */
+	}
+
+	gl_PointSize = point_size;
+	uv_interp = uv;
+
+#ifdef USE_NINEPATCH
+
+	pixel_size_interp = abs(dst_rect.zw) * vertex;
+#endif
+#if !defined(SKIP_TRANSFORM_USED)
+	#ifdef USE_CUSTOM_TRANSFORM
+		#if defined(DEPTH_USED)
+			outvec.z = depth;
+		#endif
+		outvec = outvec + transform_mask * (custom_matrix * outvec - outvec);
+		#if defined(DEPTH_USED)
+			outvec.z *= max_depth;
+		#endif
+	#endif
+	#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
+		world_pos_out = world_matrix * outvec;
+	#endif
+	
+	outvec = extra_matrix * outvec;
+	outvec = modelview_matrix * outvec;
+#else
+	#if (defined(WORLD_POS_USED) || defined(USE_CLIPPER))
+		world_pos_out = outvec;
+	#endif
+#endif
+#undef extra_matrix
+
+	color_interp = color;
+
+#ifdef USE_PIXEL_SNAP
+	outvec.xy = floor(outvec + 0.5).xy;
+	// precision issue on some hardware creates artifacts within texture
+	// offset uv by a small amount to avoid
+	uv_interp += 1e-5;
+#endif
+
+// skeleton moved
+
+	//gl_Position = projection_matrix * outvec;
+	highp mat4 projection_matrix2 = projection_matrix;
+	#if defined(DEPTH_USED)
+		float far = outvec.z + 1.0;
+		float near = -outvec.z - 1.0;
+		projection_matrix2[2][2] = -2.0 / (far - near);
+		projection_matrix2[2][3] = -((far + near) / (far - near));
+	#endif
+	gl_Position = projection_matrix2 * outvec;
 
 #ifdef USE_LIGHTING
 
@@ -248,8 +289,17 @@ VERTEX_SHADER_CODE
 	pos = outvec.xy;
 #endif
 
-	local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
-	local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	//local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+	//local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+
+	#if defined(USE_CUSTOM_TRANSFORM)
+		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#else
+		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
+		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#endif
+
 #ifdef USE_TEXTURE_RECT
 	local_rot.xy *= sign(src_rect.z);
 	local_rot.zw *= sign(src_rect.w);
@@ -432,7 +482,21 @@ float map_ninepatch_axis(float pixel, float draw_size, float tex_pixel_size, flo
 
 uniform bool use_default_normal;
 
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
+in vec4 world_pos_out;
+#endif
+#ifdef USE_CLIPPER
+uniform highp vec3 clipper_calc1;
+uniform highp vec3 clipper_calc2;
+uniform highp vec3 clipper_calc3;
+uniform highp vec3 clipper_calc4;
+#endif
+
 void main() {
+
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
+	vec2 world_pos = world_pos_out.xy;
+#endif
 
 	vec4 color = color_interp;
 	vec2 uv = uv_interp;
@@ -510,6 +574,40 @@ void main() {
 FRAGMENT_SHADER_CODE
 
 		/* clang-format on */
+
+#ifdef USE_CLIPPER
+{
+	bool oddNodes = false;
+	bool previous = clipper_calc4.z > world_pos.y;
+	bool current = clipper_calc1.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc1.x + clipper_calc1.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc2.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc2.x + clipper_calc2.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+
+	previous = current;
+	current = clipper_calc3.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc3.x + clipper_calc3.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	previous = current;
+	current = clipper_calc4.z > world_pos.y;
+	if (current != previous){
+		if (world_pos.y * clipper_calc4.x + clipper_calc4.y < world_pos.x)
+			oddNodes =! oddNodes;
+	}
+	if (!oddNodes){
+		color.a = 0.0f;
+	}
+}
+#endif
 
 #if defined(NORMALMAP_USED)
 		normal = mix(vec3(0.0, 0.0, 1.0), normal_map * vec3(2.0, -2.0, 1.0) - vec3(1.0, -1.0, 0.0), normal_depth);

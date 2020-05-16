@@ -56,7 +56,7 @@
 #include "editor/editor_node.h" 
 #include "editor/import/resource_importer_texture_atlas.h"
 
-#include "modules/red/red_polygon.h"
+//#include "modules/red/red_polygon.h"
 #include "modules/red/red_engine.h"
 #include "modules/red/red_parallax_folder.h"
 #include "modules/red/red_target.h"
@@ -117,7 +117,7 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/root", PROPERTY_HINT_ENUM, "Node2D, Parallax, Page, Frame"), 2));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/second_level", PROPERTY_HINT_ENUM, "Node2D, Parallax, Page, Frame, Frame external"), 4));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/folder", PROPERTY_HINT_ENUM, "Node2D, Parallax, Page, Frame, Frame external"), 1));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/layer", PROPERTY_HINT_ENUM, "Polygon2D, REDPolygon"), 1));
+	//r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "types/layer", PROPERTY_HINT_ENUM, "Polygon2D, REDPolygon"), 1));
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "texture/max_size"), 4096));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "texture/scale", PROPERTY_HINT_ENUM, "Original, Downscale, Upscale, Closest"), 1));
@@ -332,7 +332,8 @@ void ResourceImporterPSD::_mask_to_node(_psd_layer_record *layer, float target_w
 
 
 Node *ResourceImporterPSD::get_edited_scene_root(String p_path) const{
-	EditorData editor_data = EditorNode::get_singleton()->get_editor_data();
+	EditorData &editor_data = EditorNode::get_editor_data();
+	//EditorData editor_data = EditorNode::get_editor_data();
 	for (int i = 0; i < editor_data.get_edited_scene_count(); i++) {
 		if (editor_data.get_scene_path(i) == p_path)
 			return editor_data.get_edited_scene_root(i);
@@ -370,8 +371,8 @@ Node *ResourceImporterPSD::_get_root(_psd_context *context, const String &target
 	}
 	return root;
 }
-
-void MeshData::calc(REDPolygon *poly, bool vtx, bool uv, bool faces, bool obj){
+/*
+void MeshData::calc(Polygon2D *poly, bool vtx, bool uv, bool faces, bool obj){
 	if (vtx && poly->get_polygon().size() > 0){
 		PoolVector<Vector2>::Read vtxr = poly->get_polygon().read();
 		vtx_min = vtxr[0];
@@ -410,7 +411,7 @@ void MeshData::calc(REDPolygon *poly, bool vtx, bool uv, bool faces, bool obj){
 	if (obj){
 		obj_pos = poly->get_global_position();
 	}
-}
+}*/
 
 void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
 	Vector<Node*> nodes;
@@ -624,7 +625,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 			} break;
 			case psd_layer_type::psd_layer_type_normal:{
 				Node2D *node;
-				int mode = p_options["types/layer"];
+				//int mode = p_options["types/layer"];
 				bool need_create = parent->has_node(name) ? false : true;
 				
 				int len = layer->width*layer->height;
@@ -667,6 +668,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					polygon.append(Vector2(polygon_size.x, 0));
 					polygon.append(polygon_size);
 					polygon.append(Vector2(0, polygon_size.y));
+					/*
 					if (mode==LAYER_POLYGON2D){
 						Polygon2D *poly = memnew(Polygon2D);
 						node = (Node2D*)poly;
@@ -683,8 +685,9 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						uv.append(Vector2(0, texture_size.y));
 						poly->set_uv(uv);
 					}
-					else{
-						REDPolygon *poly = memnew(REDPolygon);
+					else{*/
+					{
+						Polygon2D *poly = memnew(Polygon2D);
 						node = (Node2D*)poly;
 						poly->set_polygon(polygon);
 						if (texture.is_valid())
@@ -697,6 +700,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						if (parent_clipper != nullptr)
 							poly->set_clipper(poly->get_path_to(parent_clipper));
 					}
+					//}
 					switch(layer->blend_mode){
 						case psd_blend_mode_multiply:{
 							if (parent_clipper == nullptr){
@@ -751,17 +755,16 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					node->set_owner(owner);
 					node->set_name(name);
 					node->set_draw_behind_parent(true);
-					if (mode==LAYER_POLYGON){
-						REDPolygon *poly = (REDPolygon*)node;
-						if (parent_clipper != nullptr)
-							poly->set_clipper(poly->get_path_to(parent_clipper));
-					}
+					Polygon2D *poly = (Polygon2D*)node;
+					if (parent_clipper != nullptr)
+						poly->set_clipper(poly->get_path_to(parent_clipper));
 				}
 				else {
 					node = (Node2D*)(parent->get_node(NodePath(name)));
 				}
 				if (!need_create && updateble && p_options["update/layer_size"]){
 					node = (Node2D*)(parent->get_node(NodePath(name)));
+					/*
 					{
 						Polygon2D *poly = (Polygon2D*)node;
 						if (poly){
@@ -789,9 +792,9 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 								}
 							}
 						}
-					}
+					}*/
 					{
-						REDPolygon *poly = (REDPolygon*)node;
+						Polygon2D *poly = (Polygon2D*)node;
 						if (poly){
 							PoolVector<Vector2> uvs = poly->get_uv();
 							if (uvs.size() > 0){
@@ -821,15 +824,16 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 
 				if (node != nullptr && update_pos_mode != LAYER_POS_IGNORE){
 					if (update_pos_mode==LAYER_POS_MOVE){
+						/*
 						{
 							Polygon2D *poly = (Polygon2D*)node;
 							if (poly){
 								//node->set_global_position(global_pos - poly->get_offset());
 								node->set_position(global_pos - parent_pos - poly->get_offset() - parent_offset);
 							}
-						}
+						}*/
 						{
-							REDPolygon *poly = (REDPolygon*)node;
+							Polygon2D *poly = (Polygon2D*)node;
 							if (poly){
 								//node->set_global_position(global_pos - poly->get_offset() + poly->get_psd_offset());
 								node->set_position(global_pos - parent_pos - poly->get_offset() + poly->get_psd_offset() - parent_offset);
@@ -837,7 +841,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						}
 					}
 					else if (update_pos_mode == LAYER_POS_NEW_UV || update_pos_mode == LAYER_POS_KEEP_UV){
-						{
+						/*{
 							Polygon2D *poly = (Polygon2D*)node;
 							if (poly && update_pos_mode == LAYER_POS_NEW_UV){
 								Vector2 real_size = poly->_edit_get_rect().get_size();
@@ -859,9 +863,9 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 								}
 								poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset - parent_offset);
 							}
-						}
+						}*/
 						{
-							REDPolygon *poly = (REDPolygon*)node;
+							Polygon2D *poly = (Polygon2D*)node;
 							if (poly){
 								Vector2 real_size = poly->_edit_get_rect().get_size();
 								Vector2 old_psd_offset = poly->get_psd_uv_offset();

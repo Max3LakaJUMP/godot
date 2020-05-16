@@ -73,7 +73,8 @@ struct MeshData{
 	Vector2 uv_offset;
 	Vector2 vtx_offset;
 	Point2 obj_pos;
-	void calc(REDPolygon *poly, bool vtx=false, bool uv=false, bool faces=false, bool obj=false);
+	
+	//void calc(REDPolygon *poly, bool vtx=false, bool uv=false, bool faces=false, bool obj=false);
 };
 
 

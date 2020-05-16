@@ -1757,7 +1757,12 @@ void VisualServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("skeleton_bone_get_transform", "skeleton", "bone"), &VisualServer::skeleton_bone_get_transform);
 	ClassDB::bind_method(D_METHOD("skeleton_bone_set_transform_2d", "skeleton", "bone", "transform"), &VisualServer::skeleton_bone_set_transform_2d);
 	ClassDB::bind_method(D_METHOD("skeleton_bone_get_transform_2d", "skeleton", "bone"), &VisualServer::skeleton_bone_get_transform_2d);
-
+	
+	ClassDB::bind_method(D_METHOD("clipper_create"), &VisualServer::clipper_create);
+	ClassDB::bind_method(D_METHOD("frame_form", "triangle"), &VisualServer::frame_form);
+	ClassDB::bind_method(D_METHOD("clipper_set_points", "calc1", "calc2", "calc3", "calc4"), &VisualServer::clipper_set_points);
+	ClassDB::bind_method(D_METHOD("custom_transform_create"), &VisualServer::custom_transform_create);
+	ClassDB::bind_method(D_METHOD("custom_transform_set", "transform"), &VisualServer::custom_transform_set);
 #ifndef _3D_DISABLED
 	ClassDB::bind_method(D_METHOD("directional_light_create"), &VisualServer::directional_light_create);
 	ClassDB::bind_method(D_METHOD("omni_light_create"), &VisualServer::omni_light_create);

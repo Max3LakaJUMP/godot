@@ -1,12 +1,12 @@
 #ifndef RED_LINE_2D_EDITOR_H
 #define RED_LINE_2D_EDITOR_H
 
-#include "red_abstract_polygon_editor.h"
+#include "editor/plugins/abstract_polygon_2d_editor.h"
 #include "modules/red/red_line.h"
 
-class REDLineEditor : public REDAbstractPolygonEditor {
+class REDLineEditor : public AbstractPolygon2DEditor {
 
-	GDCLASS(REDLineEditor, REDAbstractPolygonEditor);
+	GDCLASS(REDLineEditor, AbstractPolygon2DEditor);
 
 	REDLine *node;
 
@@ -23,9 +23,9 @@ public:
 	REDLineEditor(EditorNode *p_editor);
 };
 
-class REDLineEditorPlugin : public REDAbstractPolygonEditorPlugin {
+class REDLineEditorPlugin : public AbstractPolygon2DEditorPlugin {
 
-	GDCLASS(REDLineEditorPlugin, REDAbstractPolygonEditorPlugin);
+	GDCLASS(REDLineEditorPlugin, AbstractPolygon2DEditorPlugin);
 
 public:
 	REDLineEditorPlugin(EditorNode *p_node);

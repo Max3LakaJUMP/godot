@@ -288,6 +288,17 @@ public:
 	BIND2(immediate_set_material, RID, RID)
 	BIND1RC(RID, immediate_get_material, RID)
 
+	/* CLIPPER API */
+
+	BIND0R(RID, clipper_create)
+	BIND2(frame_form, RID, bool)
+	BIND5(clipper_set_points, RID, const Vector3 &, const Vector3 &, const Vector3 &, const Vector3 &)
+
+	/* CUSTOM TRANSFORM API */
+
+	BIND0R(RID, custom_transform_create)
+	BIND2(custom_transform_set, RID, const Transform &)
+
 	/* SKELETON API */
 
 	BIND0R(RID, skeleton_create)
@@ -616,7 +627,11 @@ public:
 	BIND2(canvas_item_set_z_as_relative_to_parent, RID, bool)
 	BIND3(canvas_item_set_copy_to_backbuffer, RID, bool, const Rect2 &)
 	BIND2(canvas_item_attach_skeleton, RID, RID)
-
+	
+	BIND2(canvas_item_attach_custom_transform, RID, RID)
+	BIND2(canvas_item_attach_clipper, RID, RID)
+	BIND2(canvas_item_clipper_top, RID, bool)
+	
 	BIND1(canvas_item_clear, RID)
 	BIND2(canvas_item_set_draw_index, RID, int)
 

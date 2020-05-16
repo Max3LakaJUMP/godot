@@ -907,6 +907,14 @@ ShaderCompilerGLES3::ShaderCompilerGLES3() {
 	actions[VS::SHADER_CANVAS_ITEM].renames["SHADOW_COLOR"] = "shadow_color";
 	actions[VS::SHADER_CANVAS_ITEM].renames["SHADOW_VEC"] = "shadow_vec";
 
+	actions[VS::SHADER_CANVAS_ITEM].renames["CUSTOM_TRANSFORM"] = "custom_transform_matrix";
+	actions[VS::SHADER_CANVAS_ITEM].renames["GLOBAL_MATRIX"] = "world_matrix";
+	actions[VS::SHADER_CANVAS_ITEM].renames["INV_GLOBAL_MATRIX"] = "inv_world_matrix";
+	actions[VS::SHADER_CANVAS_ITEM].renames["DEPTH"] = "depth";
+	actions[VS::SHADER_CANVAS_ITEM].renames["MAX_DEPTH"] = "max_depth";
+	actions[VS::SHADER_CANVAS_ITEM].renames["TRANSFORM_MASK"] = "transform_mask";
+	actions[VS::SHADER_CANVAS_ITEM].renames["WORLD_POS"] = "world_pos";
+
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["COLOR"] = "#define COLOR_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["MODULATE"] = "#define MODULATE_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["SCREEN_TEXTURE"] = "#define SCREEN_TEXTURE_USED\n";
@@ -916,6 +924,12 @@ ShaderCompilerGLES3::ShaderCompilerGLES3() {
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["NORMALMAP"] = "#define NORMALMAP_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["LIGHT"] = "#define USE_LIGHT_SHADER_CODE\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["SHADOW_VEC"] = "#define SHADOW_VEC_USED\n";
+
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["DEPTH"] = "#define DEPTH_USED\n";
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["MAX_DEPTH"] = "#define DEPTH_USED\n";
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["TRANSFORM_MASK"] = "#define TRANSFORM_MASK_USED\n";
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["WORLD_POS"] = "#define WORLD_POS_USED\n";
+
 	actions[VS::SHADER_CANVAS_ITEM].render_mode_defines["skip_vertex_transform"] = "#define SKIP_TRANSFORM_USED\n";
 
 	/** SPATIAL SHADER **/

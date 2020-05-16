@@ -255,6 +255,8 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 		RasterizerStorageGLES2::Shader *shader_cache;
 		bool rebind_shader;
 		bool prev_use_skeleton;
+		bool prev_use_custom_transform;
+		bool prev_use_clipper;
 		int last_blend_mode;
 		RID canvas_last_material;
 		Color final_modulate;

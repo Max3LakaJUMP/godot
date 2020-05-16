@@ -51,7 +51,9 @@ public:
 
 		Transform2D modelview_matrix;
 		Transform2D extra_matrix;
-
+		Transform2D world_matrix;
+		Transform2D inv_world_matrix;
+		
 		Color final_modulate;
 
 		float time;
@@ -79,10 +81,17 @@ public:
 		bool using_texture_rect;
 		bool using_ninepatch;
 		bool using_skeleton;
+		bool using_custom_transform;
+		bool using_clipper;
 
 		Transform2D skeleton_transform;
 		Transform2D skeleton_transform_inverse;
 		Size2i skeleton_texture_size;
+		Transform custom_transform;
+		Vector3 clipper_calc1;
+		Vector3 clipper_calc2;
+		Vector3 clipper_calc3;
+		Vector3 clipper_calc4;
 
 		RID current_tex;
 		RID current_normal;

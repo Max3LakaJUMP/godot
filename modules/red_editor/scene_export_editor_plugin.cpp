@@ -33,7 +33,7 @@
 #include "core/io/json.h"
 #include "core/bind/core_bind.h"
 #include "modules/red/red_engine.h"
-#include "modules/red/red_polygon.h"
+//#include "modules/red/red_polygon.h"
 #include "modules/red/red_json.h"
 
 SceneExportEditorPlugin::SceneExportEditorPlugin(EditorNode *p_node) {
@@ -125,7 +125,7 @@ Dictionary SceneExportEditorPlugin::node_to_dict(Node *node){
 				if (r.is_valid())
 					serialized[name] = r->get_shader()->get_path();
 			}else if (name == "bones"){
-				if (cl=="REDPolygon"){
+				/*if (cl=="REDPolygon"){
 					REDPolygon *polygon = (REDPolygon*)node;
 					Array bones;
 					for (int i = 0; i < polygon->get_bone_count(); i++){
@@ -136,7 +136,8 @@ Dictionary SceneExportEditorPlugin::node_to_dict(Node *node){
 					}
 					serialized["bones"] = bones;
 
-				} else if (cl=="Polygon2D"){
+				} else */
+				if (cl=="Polygon2D"){
 					Polygon2D *polygon = (Polygon2D*)node;
 					Array bones;
 					for (int i = 0; i < polygon->get_bone_count(); i++){

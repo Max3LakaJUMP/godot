@@ -9,7 +9,6 @@
 #include "red.h"
 #include "red_issue.h"
 #include "red_shape.h"
-#include "red_polygon.h"
 
 #include "core/math/geometry.h"
 #include "red_line.h"

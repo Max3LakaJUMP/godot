@@ -351,6 +351,17 @@ public:
 	virtual RID immediate_get_material(RID p_immediate) const = 0;
 	virtual AABB immediate_get_aabb(RID p_immediate) const = 0;
 
+	/* CLIPPER API */
+
+	virtual RID clipper_create() = 0;
+	virtual void frame_form(RID p_frame, bool triangle) = 0;
+	virtual void clipper_set_points(RID p_clipper, const Vector3 &p_point1, const Vector3 &p_point2, const Vector3 &p_point3, const Vector3 &p_point4) = 0;
+
+	/* CUSTOM TRANSFORM API */
+
+	virtual RID custom_transform_create() = 0;
+	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform) = 0;
+
 	/* SKELETON API */
 
 	virtual RID skeleton_create() = 0;
@@ -864,7 +875,11 @@ public:
 		mutable Rect2 rect;
 		RID material;
 		RID skeleton;
-
+		
+		RID custom_transform;
+		RID clipper;
+		bool clipper_top;
+		
 		Item *next;
 
 		struct CopyBackBuffer {
@@ -1056,6 +1071,7 @@ public:
 			distance_field = false;
 			light_masked = false;
 			update_when_visible = false;
+			clipper_top = true;
 		}
 		virtual ~Item() {
 			clear();

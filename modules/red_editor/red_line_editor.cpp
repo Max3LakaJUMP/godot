@@ -34,10 +34,10 @@ void REDLineEditor::_action_set_polygon(int p_idx, const Variant &p_previous, co
 }
 
 REDLineEditor::REDLineEditor(EditorNode *p_editor) :
-        REDAbstractPolygonEditor(p_editor) {
+        AbstractPolygon2DEditor(p_editor) {
 	node = NULL;
 }
 
 REDLineEditorPlugin::REDLineEditorPlugin(EditorNode *p_node) :
-		REDAbstractPolygonEditorPlugin(p_node, memnew(REDLineEditor(p_node)), "REDLine") {
+		AbstractPolygon2DEditorPlugin(p_node, memnew(REDLineEditor(p_node)), "REDLine") {
 }

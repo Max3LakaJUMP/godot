@@ -79,6 +79,14 @@ public:
 		bool using_texture_rect;
 		bool using_ninepatch;
 
+		bool using_clipper;
+		Vector3 clipper_calc1;
+		Vector3 clipper_calc2;
+		Vector3 clipper_calc3;
+		Vector3 clipper_calc4;
+		bool using_custom_transform;
+		Transform custom_transform;
+
 		RID current_tex;
 		RID current_normal;
 		RasterizerStorageGLES3::Texture *current_tex_ptr;
@@ -88,9 +96,14 @@ public:
 		Color canvas_item_modulate;
 		Transform2D extra_matrix;
 		Transform2D final_transform;
+		Transform2D world_transform;
+		Transform2D inv_world_transform;
+
 		bool using_skeleton;
 		Transform2D skeleton_transform;
 		Transform2D skeleton_transform_inverse;
+		Transform2D skeleton_transform_global;
+		Transform2D skeleton_transform_global_inverse;
 
 	} state;
 

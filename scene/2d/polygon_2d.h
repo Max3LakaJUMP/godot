@@ -71,6 +71,16 @@ class Polygon2D : public Node2D {
 	void _set_bones(const Array &p_bones);
 
 	void _skeleton_bone_setup_changed();
+	
+	bool move_uv_with_polygon;
+	
+	Vector2 psd_offset;
+	Vector2 psd_applied_offset;
+	Vector2 psd_uv_offset;
+	Vector2 psd_uv_scale;
+	NodePath custom_transform;
+	NodePath clipper;
+	bool clipper_top;
 
 protected:
 	void _notification(int p_what);
@@ -146,6 +156,26 @@ public:
 
 	void set_skeleton(const NodePath &p_skeleton);
 	NodePath get_skeleton() const;
+	
+	void set_clipper_top(bool p_top);
+	bool get_clipper_top() const;
+	void set_clipper(const NodePath &p_clipper);
+	NodePath get_clipper() const;
+	void set_custom_transform(const NodePath &p_custom_transform);
+	NodePath get_custom_transform() const;
+	PoolVector<Vector2> _get_absolute_uv() const;
+	void _set_absolute_uv(const PoolVector<Vector2> &p_uv);
+
+	void set_move_uv_with_polygon(bool p_move_uv_with_polygon);
+	bool get_move_uv_with_polygon() const;
+	void set_psd_offset(const Vector2 &p_psd_offset);
+	Vector2 get_psd_offset() const;
+	void set_psd_applied_offset(const Vector2 &p_psd_applied_offset);
+	Vector2 get_psd_applied_offset() const;
+	void set_psd_uv_offset(const Vector2 &p_psd_uv_offset);
+	Vector2 get_psd_uv_offset() const;
+	void set_psd_uv_scale(const Vector2 &p_psd_uv_scale);
+	Vector2 get_psd_uv_scale() const;
 
 	Polygon2D();
 };

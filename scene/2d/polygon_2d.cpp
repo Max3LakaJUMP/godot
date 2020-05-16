@@ -32,6 +32,8 @@
 
 #include "core/math/geometry.h"
 #include "skeleton_2d.h"
+#include "modules/red/red_transform.h"
+#include "modules/red/red_frame.h"
 
 #ifdef TOOLS_ENABLED
 Dictionary Polygon2D::_edit_get_state() const {
@@ -102,6 +104,28 @@ void Polygon2D::_notification(int p_what) {
 
 			if (polygon.size() < 3)
 				return;
+
+			REDFrame *red_clipper_node = NULL;
+			if (has_node(clipper)) {
+				red_clipper_node = Object::cast_to<REDFrame>(get_node(clipper));
+			}
+			if (red_clipper_node) {
+				VS::get_singleton()->canvas_item_add_clip_ignore(get_canvas_item(), !clipper_top);
+				VS::get_singleton()->canvas_item_attach_clipper(get_canvas_item(), red_clipper_node->get_ci());
+				VS::get_singleton()->canvas_item_clipper_top(get_canvas_item(), clipper_top);
+			} else {
+				VS::get_singleton()->canvas_item_attach_clipper(get_canvas_item(), RID());
+			}
+
+			REDTransform *red_transform_node = NULL;
+			if (has_node(custom_transform)) {
+				red_transform_node = Object::cast_to<REDTransform>(get_node(custom_transform));
+			}
+			if (red_transform_node) {
+				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), red_transform_node->get_ci());
+			} else {
+				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), RID());
+			}
 
 			Skeleton2D *skeleton_node = NULL;
 			if (has_node(skeleton)) {
@@ -206,7 +230,45 @@ void Polygon2D::_notification(int p_what) {
 
 				len = points.size();
 			}
+			
+			if (texture.is_valid()) {
 
+				Transform2D texmat(tex_rot, tex_ofs);
+				texmat.scale(tex_scale);
+
+
+				uvs.resize(len);
+				Ref<AtlasTexture> texture_atlas = texture;
+				if (texture_atlas != NULL){
+					Size2 tex_size = texture_atlas->get_atlas()->get_size();
+					Vector2 size_k = (texture_atlas->get_region().get_size() + texture_atlas->get_margin().get_size()) / tex_size;
+					Vector2 offset = (texture_atlas->get_region().get_position() - texture_atlas->get_margin().get_position()) / tex_size;
+					if (points.size() == uv.size()) {
+						PoolVector<Vector2>::Read uvr = uv.read();
+						for (int i = 0; i < len; i++) {
+							uvs.write[i] = texmat.xform(uvr[i]) * size_k + offset;
+						}
+					} else {
+						
+						for (int i = 0; i < len; i++) {
+							uvs.write[i] = texmat.xform(points[i] + texture_atlas->get_region().get_position());
+						}
+					}
+				}else{
+					Size2 tex_size = texture->get_size();
+					if (points.size() == uv.size()) {
+						PoolVector<Vector2>::Read uvr = uv.read();
+						for (int i = 0; i < len; i++) {
+							uvs.write[i] = texmat.xform(uvr[i]);
+						}
+					} else {
+						for (int i = 0; i < len; i++) {
+							uvs.write[i] = texmat.xform(points[i] / _edit_get_rect().size);
+						}
+					}
+				}
+			}
+/*
 			if (texture.is_valid()) {
 
 				Transform2D texmat(tex_rot, tex_ofs);
@@ -229,7 +291,7 @@ void Polygon2D::_notification(int p_what) {
 					}
 				}
 			}
-
+*/
 			if (skeleton_node && !invert && bone_weights.size()) {
 				//a skeleton is set! fill indices and weights
 				int vc = len;
@@ -583,7 +645,134 @@ NodePath Polygon2D::get_skeleton() const {
 	return skeleton;
 }
 
+void Polygon2D::set_move_uv_with_polygon(bool p_move_uv_with_polygon) {
+
+	move_uv_with_polygon = p_move_uv_with_polygon;
+}
+bool Polygon2D::get_move_uv_with_polygon() const {
+
+	return move_uv_with_polygon;
+}
+
+void Polygon2D::set_psd_offset(const Vector2 &p_psd_offset){
+	//set_offset(get_offset() - psd_offset + p_psd_offset);
+	psd_offset = p_psd_offset;
+}
+Vector2 Polygon2D::get_psd_offset() const{
+	return psd_offset;
+}
+
+void Polygon2D::set_psd_applied_offset(const Vector2 &p_psd_applied_offset){
+	//set_offset(get_offset() - psd_offset + p_psd_offset);
+	psd_applied_offset = p_psd_applied_offset;
+}
+Vector2 Polygon2D::get_psd_applied_offset() const{
+	return psd_applied_offset;
+}
+
+void Polygon2D::set_psd_uv_offset(const Vector2 &p_psd_uv_offset){
+	//set_offset(get_offset() - psd_offset + p_psd_offset);
+	psd_uv_offset = p_psd_uv_offset;
+}
+Vector2 Polygon2D::get_psd_uv_offset() const{
+	return psd_uv_offset;
+}
+
+void Polygon2D::set_psd_uv_scale(const Vector2 &p_psd_uv_scale){
+	psd_uv_scale = p_psd_uv_scale;
+}
+Vector2 Polygon2D::get_psd_uv_scale() const{
+	return psd_uv_scale;
+}
+
+void Polygon2D::set_clipper(const NodePath &p_frame){
+	if (clipper == p_frame)
+		return;
+	clipper = p_frame;
+	update();
+}
+
+NodePath Polygon2D::get_clipper() const{
+	return clipper;
+}
+
+void Polygon2D::set_clipper_top(bool p_top){
+	if (clipper_top == p_top)
+		return;
+	clipper_top = p_top;
+	update();
+}
+
+bool Polygon2D::get_clipper_top() const{
+	return clipper_top;
+}
+
+void Polygon2D::set_custom_transform(const NodePath &p_custom_transform){
+	if (custom_transform == p_custom_transform)
+		return;
+	custom_transform = p_custom_transform;
+	update();
+}
+
+NodePath Polygon2D::get_custom_transform() const{
+	return custom_transform;
+}
+
+PoolVector<Vector2> Polygon2D::_get_absolute_uv() const{
+	PoolVector<Vector2> uv_absolute;
+	PoolVector<Vector2> uv_normalized = get_uv();
+	int uv_normalized_count = uv_normalized.size();
+	PoolVector<Vector2>::Read uv_normalized_read = uv_normalized.read();
+	Vector2 k;
+	if(get_texture().is_valid()){
+		k = get_texture()->get_size();
+	}
+	else{
+		k = Vector2(1024, 1024);
+	}
+	for (int i = 0; i < uv_normalized_count; i++) {
+		uv_absolute.append(uv_normalized_read[i]*k);
+	}
+	return uv_absolute;
+}
+
+void Polygon2D::_set_absolute_uv(const PoolVector<Vector2> &p_uv){
+	PoolVector<Vector2> uv_normalized;
+	int uv_count = p_uv.size();
+	PoolVector<Vector2>::Read uv_read = p_uv.read();
+	Vector2 k;
+	if(get_texture().is_valid()){
+		k = get_texture()->get_size();
+	}
+	else{
+		k = Vector2(1024, 1024);
+	}
+	for (int i = 0; i < uv_count; i++) {
+		uv_normalized.append(uv_read[i]/k);
+	}
+	set_uv(uv_normalized);
+}
+
 void Polygon2D::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_clipper_top", "clipper_top"), &Polygon2D::set_clipper_top);
+	ClassDB::bind_method(D_METHOD("get_clipper_top"), &Polygon2D::get_clipper_top);
+	ClassDB::bind_method(D_METHOD("set_clipper", "clipper"), &Polygon2D::set_clipper);
+	ClassDB::bind_method(D_METHOD("get_clipper"), &Polygon2D::get_clipper);
+	ClassDB::bind_method(D_METHOD("set_custom_transform", "custom_transform"), &Polygon2D::set_custom_transform);
+	ClassDB::bind_method(D_METHOD("get_custom_transform"), &Polygon2D::get_custom_transform);
+	ClassDB::bind_method(D_METHOD("_set_absolute_uv", "uv"), &Polygon2D::_set_absolute_uv);
+	ClassDB::bind_method(D_METHOD("_get_absolute_uv"), &Polygon2D::_get_absolute_uv);
+	
+	ClassDB::bind_method(D_METHOD("set_move_uv_with_polygon", "move_uv_with_polygon"), &Polygon2D::set_move_uv_with_polygon);
+	ClassDB::bind_method(D_METHOD("get_move_uv_with_polygon"), &Polygon2D::get_move_uv_with_polygon);
+	ClassDB::bind_method(D_METHOD("set_psd_offset", "psd_offset"), &Polygon2D::set_psd_offset);
+	ClassDB::bind_method(D_METHOD("get_psd_offset"), &Polygon2D::get_psd_offset);
+	ClassDB::bind_method(D_METHOD("set_psd_applied_offset", "psd_applied_offset"), &Polygon2D::set_psd_applied_offset);
+	ClassDB::bind_method(D_METHOD("get_psd_applied_offset"), &Polygon2D::get_psd_applied_offset);
+	ClassDB::bind_method(D_METHOD("set_psd_uv_offset", "psd_uv_offset"), &Polygon2D::set_psd_uv_offset);
+	ClassDB::bind_method(D_METHOD("get_psd_uv_offset"), &Polygon2D::get_psd_uv_offset);
+	ClassDB::bind_method(D_METHOD("set_psd_uv_scale", "psd_uv_scale"), &Polygon2D::set_psd_uv_scale);
+	ClassDB::bind_method(D_METHOD("get_psd_uv_scale"), &Polygon2D::get_psd_uv_scale);
 
 	ClassDB::bind_method(D_METHOD("set_polygon", "polygon"), &Polygon2D::set_polygon);
 	ClassDB::bind_method(D_METHOD("get_polygon"), &Polygon2D::get_polygon);
@@ -671,10 +860,28 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "polygons"), "set_polygons", "get_polygons");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "bones", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_bones", "_get_bones");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "internal_vertex_count", PROPERTY_HINT_RANGE, "0,1000"), "set_internal_vertex_count", "get_internal_vertex_count");
+	
+	ADD_GROUP("Deformation", "");
+	//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "move_uv_with_polygon"), "set_move_uv_with_polygon", "get_move_uv_with_polygon");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "custom_transform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTransform"), "set_custom_transform", "get_custom_transform");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "clipper", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDFrame"), "set_clipper", "get_clipper");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clipper_top"), "set_clipper_top", "get_clipper_top");
+
+	ADD_GROUP("PSD", "");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_offset"), "set_psd_offset", "get_psd_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_applied_offset"), "set_psd_applied_offset", "get_psd_applied_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_uv_offset"), "set_psd_uv_offset", "get_psd_uv_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_uv_scale"), "set_psd_uv_scale", "get_psd_uv_scale");
 }
 
 Polygon2D::Polygon2D() {
-
+	clipper_top = true;
+	move_uv_with_polygon = false;
+	psd_offset = Vector2(0, 0);
+	psd_applied_offset = Vector2(0, 0);
+	psd_uv_offset = Vector2(0, 0);
+	psd_uv_scale = Vector2(1, 1);
+	
 	invert = 0;
 	invert_border = 100;
 	antialiased = false;

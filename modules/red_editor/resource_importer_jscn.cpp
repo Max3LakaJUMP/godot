@@ -56,7 +56,7 @@
 #include "editor/editor_node.h" 
 #include "editor/import/resource_importer_texture_atlas.h"
 
-#include "modules/red/red_polygon.h"
+//#include "modules/red/red_polygon.h"
 #include "core/io/json.h"
 #include "scene/2d/skeleton_2d.h"
 #include "modules/red/red_engine.h"
@@ -133,8 +133,8 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 		else if (type=="Polygon2D"){
 			node = red::create_node<Polygon2D>(parent, name);
 			print_line(type);}
-		else if (type=="REDPolygon")
-			node = red::create_node<REDPolygon>(parent, name);
+		//else if (type=="REDPolygon")
+		//	node = red::create_node<REDPolygon>(parent, name);
 		else if (type=="REDFrame")
 			node = red::create_node<REDFrame>(parent, name);
 		else if (type=="REDPage")
@@ -173,7 +173,7 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 				material->set_shader(shader);
 				node->set(name, material);
 			}else if (name == "bones"){
-				if (type=="REDPolygon"){
+				/*if (type=="REDPolygon"){
 					REDPolygon *polygon = (REDPolygon*)node;
 					Array bones = serialized[name];
 					for (int i = 0; i < bones.size(); i++){
@@ -193,7 +193,8 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 							polygon->add_bone(bone_path, weights);
 						}
 					}
-				} else if (type=="Polygon2D"){
+				} else */
+				if (type=="Polygon2D"){
 					Polygon2D *polygon = (Polygon2D*)node;
 					Array bones = serialized[name];
 					for (int i = 0; i < bones.size(); i++){
