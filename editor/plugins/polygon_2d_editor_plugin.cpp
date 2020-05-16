@@ -365,7 +365,7 @@ void Polygon2DEditor::_cancel_editing() {
 	if (uv_create) {
 		uv_drag = false;
 		uv_create = false;
-		node->set_uv(uv_create_uv_prev);
+		node->_set_absolute_uv(uv_create_uv_prev);
 		node->set_polygon(uv_create_poly_prev);
 		node->set_internal_vertex_count(uv_create_prev_internal_vertices);
 		node->set_vertex_colors(uv_create_colors_prev);
@@ -376,7 +376,7 @@ void Polygon2DEditor::_cancel_editing() {
 	} else if (uv_drag) {
 		uv_drag = false;
 		if (uv_edit_mode[0]->is_pressed()) { // Edit UV.
-			node->set_uv(points_prev);
+			node->_set_absolute_uv(points_prev);
 		} else if (uv_edit_mode[1]->is_pressed()) { // Edit polygon.
 			node->set_polygon(points_prev);
 		}
@@ -501,7 +501,7 @@ void Polygon2DEditor::_uv_input(const Ref<InputEvent> &p_input) {
 						polygons_prev = node->get_polygons();
 						disable_polygon_editing(false, String());
 						node->set_polygon(points_prev);
-						node->set_uv(points_prev);
+						node->_set_absolute_uv(points_prev);
 						node->set_internal_vertex_count(0);
 
 						uv_edit_draw->update();
@@ -537,7 +537,7 @@ void Polygon2DEditor::_uv_input(const Ref<InputEvent> &p_input) {
 							uv_drag_from = tuv;
 						}
 						node->set_polygon(points_prev);
-						node->set_uv(points_prev);
+						node->_set_absolute_uv(points_prev);
 					}
 
 					CanvasItemEditor::get_singleton()->update_viewport();
@@ -836,7 +836,7 @@ void Polygon2DEditor::_uv_input(const Ref<InputEvent> &p_input) {
 					uv_new.set(point_drag_index, uv_new[point_drag_index] + drag);
 
 					if (uv_edit_mode[0]->is_pressed()) { //edit uv
-						node->set_uv(uv_new);
+						node->_set_absolute_uv(uv_new);
 					} else if (uv_edit_mode[1]->is_pressed()) { //edit polygon
 						node->set_polygon(uv_new);
 					}
@@ -848,7 +848,7 @@ void Polygon2DEditor::_uv_input(const Ref<InputEvent> &p_input) {
 						uv_new.set(i, uv_new[i] + drag);
 
 					if (uv_edit_mode[0]->is_pressed()) { //edit uv
-						node->set_uv(uv_new);
+						node->_set_absolute_uv(uv_new);
 					} else if (uv_edit_mode[1]->is_pressed()) { //edit polygon
 						node->set_polygon(uv_new);
 					}
@@ -871,7 +871,7 @@ void Polygon2DEditor::_uv_input(const Ref<InputEvent> &p_input) {
 					}
 
 					if (uv_edit_mode[0]->is_pressed()) { //edit uv
-						node->set_uv(uv_new);
+						node->_set_absolute_uv(uv_new);
 					} else if (uv_edit_mode[1]->is_pressed()) { //edit polygon
 						node->set_polygon(uv_new);
 					}
@@ -899,7 +899,7 @@ void Polygon2DEditor::_uv_input(const Ref<InputEvent> &p_input) {
 					}
 
 					if (uv_edit_mode[0]->is_pressed()) { //edit uv
-						node->set_uv(uv_new);
+						node->_set_absolute_uv(uv_new);
 					} else if (uv_edit_mode[1]->is_pressed()) { //edit polygon
 						node->set_polygon(uv_new);
 					}
