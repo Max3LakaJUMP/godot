@@ -372,7 +372,7 @@ void Polygon2D::_notification(int p_what) {
 			if (invert || polygons.size() == 0) {
 				Vector<int> indices = Geometry::triangulate_polygon(points);
 				if (indices.size()) {
-					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, RID(), antialiased);
+					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, normalmap.is_valid() ? normalmap->get_rid() : RID(), antialiased);
 				}
 			} else {
 				//draw individual polygons
@@ -406,7 +406,7 @@ void Polygon2D::_notification(int p_what) {
 				}
 
 				if (total_indices.size()) {
-					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), total_indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, RID(), antialiased);
+					VS::get_singleton()->canvas_item_add_triangle_array(get_canvas_item(), total_indices, points, colors, uvs, bones, weights, texture.is_valid() ? texture->get_rid() : RID(), -1, normalmap.is_valid() ? normalmap->get_rid() : RID(), antialiased);
 				}
 			}
 
@@ -645,6 +645,17 @@ NodePath Polygon2D::get_skeleton() const {
 	return skeleton;
 }
 
+void Polygon2D::set_normalmap(const Ref<Texture> &p_normalmap) {
+
+	normalmap = p_normalmap;
+
+	update();
+}
+Ref<Texture> Polygon2D::get_normalmap() const {
+
+	return normalmap;
+}
+
 void Polygon2D::set_move_uv_with_polygon(bool p_move_uv_with_polygon) {
 
 	move_uv_with_polygon = p_move_uv_with_polygon;
@@ -754,6 +765,8 @@ void Polygon2D::_set_absolute_uv(const PoolVector<Vector2> &p_uv){
 }
 
 void Polygon2D::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_normalmap", "normalmap"), &Polygon2D::set_normalmap);
+	ClassDB::bind_method(D_METHOD("get_normalmap"), &Polygon2D::get_normalmap);
 	ClassDB::bind_method(D_METHOD("set_clipper_top", "clipper_top"), &Polygon2D::set_clipper_top);
 	ClassDB::bind_method(D_METHOD("get_clipper_top"), &Polygon2D::get_clipper_top);
 	ClassDB::bind_method(D_METHOD("set_clipper", "clipper"), &Polygon2D::set_clipper);
@@ -841,6 +854,7 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
 	ADD_GROUP("Texture", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_texture", "get_texture");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "normalmap", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_normalmap", "get_normalmap");
 	ADD_GROUP("Texture", "texture_");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "texture_offset"), "set_texture_offset", "get_texture_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "texture_scale"), "set_texture_scale", "get_texture_scale");

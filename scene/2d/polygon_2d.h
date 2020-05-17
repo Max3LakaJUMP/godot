@@ -72,8 +72,8 @@ class Polygon2D : public Node2D {
 
 	void _skeleton_bone_setup_changed();
 	
+	Ref<Texture> normalmap;
 	bool move_uv_with_polygon;
-	
 	Vector2 psd_offset;
 	Vector2 psd_applied_offset;
 	Vector2 psd_uv_offset;
@@ -157,6 +157,8 @@ public:
 	void set_skeleton(const NodePath &p_skeleton);
 	NodePath get_skeleton() const;
 	
+	void set_normalmap(const Ref<Texture> &p_texture);
+	Ref<Texture> get_normalmap() const;
 	void set_clipper_top(bool p_top);
 	bool get_clipper_top() const;
 	void set_clipper(const NodePath &p_clipper);
