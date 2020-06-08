@@ -59,6 +59,7 @@ struct Materials{
 	Ref<ShaderMaterial> masked_material_add;
 	Ref<ShaderMaterial> masked_material_sub;
 	void init(const Map<StringName, Variant> &p_options, Node *node);
+	void apply_material(_psd_layer_record *layer, Node2D *node, REDFrame *parent_clipper);
 };
 
 struct MeshData{
@@ -108,9 +109,11 @@ public:
 
 	enum UpdateLayerPos {
 		LAYER_POS_IGNORE,
-		LAYER_POS_MOVE,
-		LAYER_POS_NEW_UV,
-		LAYER_POS_KEEP_UV,
+		LAYER_MOVE_AND_SCALE,
+		LAYER_RESET_UV,
+		LAYER_MOVE_UV,
+		LAYER_MOVE_AND_RESET_UV,
+		LAYER_MOVE_AND_MOVE_UV,
 	};
 
 	enum Anchor {
@@ -132,15 +135,19 @@ public:
 
 	virtual Error import(const String &p_source_file, const String &p_save_path, const Map<StringName, Variant> &p_options, List<String> *r_platform_variants, List<String> *r_gen_files = NULL, Variant *r_metadata = NULL);
 	
-	Vector<Vector2> load_polygon_from_mask(_psd_layer_record *layer, float target_width, int psd_width);
-	void simplify_polygon(Vector<Vector2> &p_polygon, float min_dot);
-	void save_png(_psd_layer_record *layer, String png_path, int texture_max_size=2048, int texture_scale=0);
+	Vector<Vector2> simplify_polygon_distance(Vector<Vector2> &p_polygon, float min_distance = 4.0f, Size2 size=Size2(128.0f, 128.0f));
+	Vector<Vector2> simplify_polygon_direction(Vector<Vector2> &p_polygon, float min_dot = -0.75f);
+	Rect2 crop_alpha(Ref<BitMap> bitmap, int grow = 8);
+	Ref<Image> read_mask(_psd_layer_record *layer);
+	Ref<BitMap> read_bitmap(Ref<Image> p_img, float p_threshold, Size2 max_size=Size2(128.0f, 128.0f));
+	Ref<BitMap> read_bitmap(_psd_layer_record *layer, float p_threshold = 0.1f, Size2 max_size=Size2(128.0f, 128.0f));
+	Ref<Image> read_image(_psd_layer_record *layer);
+	void apply_scale(Ref<Image> img, int texture_scale, int texture_max_size);
+	void apply_border(Ref<Image> img, float p_threshold = 0.75f);
 	void create_polygon(_psd_layer_record *layer, Ref<ShaderMaterial> material, Vector2 polygon_size, String png_path, Node2D *parent);
 
 	int load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 
 					Node *parent, Vector2 parent_post, Vector2 parent_offset, const Map<StringName, Variant> &p_options, bool force_save=false, int counter=0, int folder_level=-1, REDFrame *parent_clipper=nullptr);
-	
-	void _mask_to_node(_psd_layer_record *layer, float target_width, Node2D *node2d, _psd_context *context, int anchor_second_level);
 	Node *_get_root(_psd_context *context, const String &target_dir, bool &force_save, const Map<StringName, Variant> &p_options) const;
 	Node *get_edited_scene_root(String p_path) const;
 	ResourceImporterPSD();

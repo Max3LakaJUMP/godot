@@ -107,9 +107,9 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/page_height"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/frame_targets"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/folder_mask"), true));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/layer_size"), false));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "update/folder_pos", PROPERTY_HINT_ENUM, "Ignore, Reset, Move layers"), 2));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "update/layer_pos", PROPERTY_HINT_ENUM, "Ignore, Move, New UV, Keep UV"), 1));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/order"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "update/folder_pos", PROPERTY_HINT_ENUM, "Ignore, Move, Move layers"), 1));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "update/layer_pos", PROPERTY_HINT_ENUM, "Ignore, Move and scale, Reset UV, Move UV, Move and reset UV, Move and move UV"), 2));
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "anchor/second_level", PROPERTY_HINT_ENUM, "Top left, Center"), 1));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "anchor/folder", PROPERTY_HINT_ENUM, "Top left, Center"), 1));
@@ -121,6 +121,8 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "texture/max_size"), 4096));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "texture/scale", PROPERTY_HINT_ENUM, "Original, Downscale, Upscale, Closest"), 1));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "texture/bitmap_size"), 128));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "texture/alpha_to_polygon"), false));
 	
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/outline_shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/outline_shader.shader")));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/default.shader")));
@@ -132,12 +134,70 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/masked_shader_mul", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/masked_shader_mul.shader")));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/masked_shader_add", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/masked_shader_add.shader")));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "shaders/masked_shader_sub", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), ResourceLoader::load("res://redot/shaders/masked_shader_sub.shader")));
-	
 }
 
+Vector<Vector2> ResourceImporterPSD::simplify_polygon_distance(Vector<Vector2> &p_polygon, float min_distance, Size2 size){
+	int prev = 0;
+	int next = 0;
+	Vector<Vector2> output;
+	bool prev_added = true;
+	int points_count = p_polygon.size();
+	int l = points_count - 1;
+	Point2 point = p_polygon[l];
+	bool last_on_side = point.x == 0 || point.y == 0 || point.x == size.x || point.y == size.y;
+	for (int i = 0; i < points_count; i++){
+		if (prev_added){
+			if (i==0)
+				prev = l;
+			else
+				prev = i - 1;
+		}else{
+			if (i<=1)
+				prev = points_count - 2;
+			else
+				prev = i - 2;
+		}
+		if (i == l)
+			next = 0;
+		else
+			next = i + 1;
+		point = p_polygon[i];
+		float p_dist = p_polygon[prev].distance_to(point);
+		float n_dist = p_polygon[next].distance_to(point);
+		bool on_side = point.x == 0 || point.y == 0 || point.x == size.x || point.y == size.y;
+		if ((n_dist >= min_distance && p_dist >= min_distance) || (i == 0 && !last_on_side) || on_side){
+			prev_added = true;
+			output.push_back(point);
+		}else{
+			prev_added = false;
+		}
+	}
+	return output;
+}
+
+Vector<Vector2> ResourceImporterPSD::simplify_polygon_direction(Vector<Vector2> &p_polygon, float min_dot){
+	int prev = 0;
+	int next = 0;
+	Vector<Vector2> polygon_dist;
+	for (int i = 0; i < p_polygon.size(); i++){
+		if (i==0)
+			prev = p_polygon.size()-1;
+		else
+			prev = i - 1;
+		if (i == p_polygon.size()-1)
+			next = 0;
+		else
+			next = i + 1;
+		Vector2 p = (p_polygon[prev] - p_polygon[i]).normalized();
+		Vector2 n = (p_polygon[next] - p_polygon[i]).normalized();
+		if (p.dot(n)>min_dot)
+			polygon_dist.push_back(p_polygon[i]);
+	}
+	return polygon_dist;
+}
+/*
 Vector<Vector2> ResourceImporterPSD::load_polygon_from_mask(_psd_layer_record *layer, float target_width, int psd_width){
 	PoolVector<uint8_t> data;
-
 	int len = layer->layer_mask_info.width*layer->layer_mask_info.height;
 	if ((layer->layer_mask_info.width)<2 || (layer->layer_mask_info.height)<2){
 		Vector<Vector2> output;
@@ -156,7 +216,7 @@ Vector<Vector2> ResourceImporterPSD::load_polygon_from_mask(_psd_layer_record *l
 	img.instance();
 	img->create(layer->layer_mask_info.width, layer->layer_mask_info.height, false, Image::FORMAT_LA8, data);
 	Vector2 image_size = img->get_size();
-	Vector2 max_size(512, 512);
+	Vector2 max_size(128, 128);
 	Vector2 resized_size = Vector2(MIN(max_size.x, image_size.x), MIN(max_size.y, image_size.y));
 	img->resize(resized_size.x, resized_size.y);
 
@@ -197,33 +257,56 @@ Vector<Vector2> ResourceImporterPSD::load_polygon_from_mask(_psd_layer_record *l
 		Vector<Vector2> output;
 		return output;
 	}
-}
+}*/
 
-void ResourceImporterPSD::simplify_polygon(Vector<Vector2> &p_polygon, float min_dot=-0.75f){
-	int prev = 0;
-	int next = 0;
-	Vector<Vector2> polygon_dist;
-	for (int i = 0; i < p_polygon.size(); i++){
-		if (i==0)
-			prev = p_polygon.size()-1;
-		else
-			prev = i - 1;
-		if (i == p_polygon.size()-1)
-			next = 0;
-		else
-			next = i + 1;
-		Vector2 p = (p_polygon[prev] - p_polygon[i]).normalized();
-		Vector2 n = (p_polygon[next] - p_polygon[i]).normalized();
-		if (p.dot(n)>min_dot)
-			polygon_dist.push_back(p_polygon[i]);
+Ref<Image> ResourceImporterPSD::read_mask(_psd_layer_record *layer){
+	PoolVector<uint8_t> data;
+	int len = layer->layer_mask_info.width*layer->layer_mask_info.height;
+	if (layer->layer_mask_info.width < 2 || layer->layer_mask_info.height < 2){
+		Ref<BitMap> bitmap;
+		return bitmap;
 	}
-	p_polygon = polygon_dist;
+	data.resize(len * 2);
+	PoolVector<uint8_t>::Write w = data.write();
+	int j = 0;
+	for (int i = 0; i < len; i++) {
+		uint8_t alpha = (uint8_t)((char)(layer->layer_mask_info.mask_data[i]));
+		w[j] = alpha;
+		w[j+1] = alpha;
+		j+=2;
+	}
+	Ref<Image> img;
+	img.instance();
+	img->create(layer->layer_mask_info.width, layer->layer_mask_info.height, false, Image::FORMAT_LA8, data);
+	return img;
 }
 
-void ResourceImporterPSD::save_png(_psd_layer_record *layer, String png_path, int texture_max_size, int texture_scale){
+Ref<BitMap> ResourceImporterPSD::read_bitmap(Ref<Image> p_img, float p_threshold, Size2 max_size){
+	Ref<Image> img = p_img->duplicate();
+	Vector2 image_size = img->get_size();
+	Size2 resized_size = Vector2(MIN(max_size.x, image_size.x), MIN(max_size.y, image_size.y));
+	img->resize(resized_size.x, resized_size.y);
+	Ref<BitMap> bitmap;
+	bitmap.instance();
+	bitmap->create_from_image_alpha(img);
+	return bitmap;
+}
+
+Ref<BitMap> ResourceImporterPSD::read_bitmap(_psd_layer_record *layer, float p_threshold, Size2 max_size){
+	Ref<Image> img = read_image(layer);
+	Vector2 image_size = img->get_size();
+	Size2 resized_size = Vector2(MIN(max_size.x, image_size.x), MIN(max_size.y, image_size.y));
+	img->resize(resized_size.x, resized_size.y);
+	Ref<BitMap> bitmap;
+	bitmap.instance();
+	bitmap->create_from_image_alpha(img);
+	return bitmap;
+}
+
+Ref<Image> ResourceImporterPSD::read_image(_psd_layer_record *layer){
 	Ref<Image> img;
+	int len = layer->width * layer->height;
 	{
-		int len = layer->width * layer->height;
 		PoolVector<uint8_t> data;
 		data.resize(len*4);
 		PoolVector<uint8_t>::Write w = data.write();
@@ -236,25 +319,50 @@ void ResourceImporterPSD::save_png(_psd_layer_record *layer, String png_path, in
 			w[j+3] = (uint8_t) ((pixel & 0xFF000000) >> 24);
 			j+=4;
 		}
-
 		img.instance();
 		img->create(layer->width, layer->height, false, Image::FORMAT_RGBA8, data);
 	}
+	return img;
+}
 
+Rect2 ResourceImporterPSD::crop_alpha(Ref<BitMap> bitmap, int grow){
+	int x_min = 0;
+	int x_max = 0;
+	int y_min = 0;
+	int y_max = 0;
+	Size2 size = bitmap->get_size();
+	bitmap->grow_mask(grow, Rect2(Point2(0.0f, 0.0f), size));
+	Point2 xt = Point2(0.f, 0.f);
+	for (int x = 0; x < size.width; x++) {
+		for (int y = 0; y < size.height; y++) {
+			xt.x = x;
+			xt.y = y;
+			if (bitmap->get_bit(xt)){
+				x_min = MIN(x_min, x);
+				x_max = MAX(x_min, x);
+				y_min = MIN(y_min, y);
+				y_max = MAX(y_max, y);
+			}
+		}
+	}
+	return Rect2(x_min, y_min, x_max - x_min, y_max - y_min);
+}
+
+void ResourceImporterPSD::apply_scale(Ref<Image> img, int texture_scale, int texture_max_size){
 	if (texture_scale != ORIGINAL)
 	{
 		int new_width = img->get_width();
 		int new_height = img->get_height();
 		if (texture_scale == DOWNSCALE)
 		{
-			new_width = previous_power_of_2(layer->width);
-			new_height = previous_power_of_2(layer->height);
+			new_width = previous_power_of_2(new_width);
+			new_height = previous_power_of_2(new_height);
 		}else if (texture_scale == UPSCALE){
-			new_width = next_power_of_2(layer->width);
-			new_height = next_power_of_2(layer->height);
+			new_width = next_power_of_2(new_width);
+			new_height = next_power_of_2(new_height);
 		}else if (texture_scale == CLOSEST){
-			new_width = closest_power_of_2(layer->width);
-			new_height = closest_power_of_2(layer->height);
+			new_width = closest_power_of_2(new_width);
+			new_height = closest_power_of_2(new_height);
 		}
 		if (new_width > texture_max_size){
 			new_width = texture_max_size;
@@ -265,71 +373,40 @@ void ResourceImporterPSD::save_png(_psd_layer_record *layer, String png_path, in
 		if (new_width != img->get_width() || new_height != img->get_height())
 			img->resize(new_width, new_height, Image::INTERPOLATE_CUBIC);
 	}
-	img->save_png(png_path);
-	if (ResourceLoader::import){
-		ResourceLoader::import(png_path);
-	}
 }
 
-void ResourceImporterPSD::_mask_to_node(_psd_layer_record *layer, float target_width, Node2D *node2d, _psd_context *context, int anchor_second_level){
-	Vector<Vector2> polygon = load_polygon_from_mask(layer, target_width, context->width);
-	if (polygon.size()>3)
-		simplify_polygon(polygon);
-	if (polygon.size()<3){
-		float width = target_width;
-		float height = (target_width*(float)context->height)/context->width;
-		polygon.clear();
-		polygon.push_back(Vector2(0, 0));
-		polygon.push_back(Vector2(width, 0));
-		polygon.push_back(Vector2(width, height));
-		polygon.push_back(Vector2(0, height));
+void ResourceImporterPSD::apply_border(Ref<Image> img, float p_threshold){
+	int new_width = img->get_width();
+	int new_height = img->get_height();
+	int last = new_height - 1;
+	img->lock();
+	for (int x = 0; x < new_width; x++) {
+		Color pixel = img->get_pixel(x, 0);
+		if (pixel.a < p_threshold){
+			pixel.a = 0.0;
+			img->set_pixel(x, 0, pixel);
+		}
+		pixel = img->get_pixel(x, last);
+		if (pixel.a < p_threshold){
+			pixel.a = 0.0;
+			img->set_pixel(x, last, pixel);
+		}
 	}
-	PoolVector<Vector2> polygon_pool;
-	Rect2 item_rect = Rect2();
-	for (int i = 0; i < polygon.size(); i++){
-		polygon_pool.append(polygon[i]);
-		Vector2 pos = polygon[i];
-		if (i == 0)
-			item_rect.position = pos;
-		else
-			item_rect.expand_to(pos);
+	last = new_width - 1;
+	for (int y = 0; y < new_height; y++) {
+		Color pixel = img->get_pixel(0, y);
+		if (pixel.a < p_threshold){
+			pixel.a = 0.0;
+			img->set_pixel(0, y, pixel);
+		}
+		pixel = img->get_pixel(last, y);
+		if (pixel.a < p_threshold){
+			pixel.a = 0.0;
+			img->set_pixel(last, y, pixel);
+		}
 	}
-
-	REDFrame *clipper = Object::cast_to<REDFrame>(node2d);	
-	if (clipper){
-		clipper->set_polygon(polygon_pool);
-	}
-	/*
-	Point2 center_pos = item_rect.size/2.0f;
-	Point2 output_offset = Point2(0, 0);
-	Vector2 move_val = -node2d->get_position();
-	switch (anchor_second_level){
-		case ANCHOR_CENTER:{
-			output_offset = center_pos;
-
-			//node2d->set_position(center_pos);
-
-		} break;
-		case ANCHOR_TOP_LEFT:
-			output_offset = Point2(0, 0);
-		default:{
-		}break;
-	}
-	if (clipper){
-		clipper->set_offset(-center_pos);
-	}
-	//move_val += node2d->get_position();
-	//if (move_val.length() > 0){
-	//	for (int i = 0; i < node2d->get_child_count(); i++)
-	//	{
-	//		Node2D *child = Object::cast_to<Node2D>(node2d->get_child(i));
-	//		if (child)
-	//			child->set_position(child->get_position()-move_val);
-	//	}
-	//}
-	*/
+	img->unlock();
 }
-
 
 Node *ResourceImporterPSD::get_edited_scene_root(String p_path) const{
 	EditorData &editor_data = EditorNode::get_editor_data();
@@ -353,65 +430,29 @@ Node *ResourceImporterPSD::_get_root(_psd_context *context, const String &target
 	bool b_update = p_options["main/update"];
 	bool b_update_only_editor = p_options["main/update_only_editor"];
 	_File file_сheck;
+	
 	if (file_сheck.file_exists(scene_path)){
 		force_save = false;
 		if (!b_update){
 			return nullptr;
 		}
-		if (b_update_only_editor){
-			if (EditorNode::get_singleton()->is_scene_open(scene_path)){
-				root = get_edited_scene_root(scene_path);
-			}
-		}
 	}
-	if (root == nullptr){
+	else{
 		red::scene_loader(scene_path);
+	}
+	//if (b_update_only_editor){
+	if (!EditorNode::get_singleton()->is_scene_open(scene_path)){
+		EditorNode::get_singleton()->load_scene(scene_path);
+	}
+	root = get_edited_scene_root(scene_path);
+	//}
+	if (root == nullptr){
+		
 		Ref<PackedScene> scene = ResourceLoader::load(scene_path, "PackedScene");
 		root = scene->instance();
 	}
 	return root;
 }
-/*
-void MeshData::calc(Polygon2D *poly, bool vtx, bool uv, bool faces, bool obj){
-	if (vtx && poly->get_polygon().size() > 0){
-		PoolVector<Vector2>::Read vtxr = poly->get_polygon().read();
-		vtx_min = vtxr[0];
-		vtx_max = vtxr[0];
-		int count = poly->get_polygon().size();
-		for (int i = 0; i < count; i++)
-		{
-			Vector2 vtx = vtxr[i];
-			vtx_min.x = MIN(vtx.x, vtx_min.x);
-			vtx_max.x = MAX(vtx.x, vtx_max.x);
-			vtx_min.y = MIN(vtx.y, vtx_min.y);
-			vtx_max.y = MAX(vtx.y, vtx_max.y);
-		}
-		vtx_size = vtx_max - vtx_min;
-	}
-	if (uv && poly->get_uv().size() > 0){
-		PoolVector<Vector2>::Read uvr = poly->get_uv().read();
-		uv_min = uvr[0];
-		uv_max = uvr[0];
-		int count = poly->get_uv().size();
-		for (int i = 0; i < count; i++)
-		{
-			Vector2 uv = uvr[i];
-			uv_min.x = MIN(uv.x, uv_min.x);
-			uv_min.y = MIN(uv.y, uv_min.y);
-			
-			uv_max.x = MAX(uv.x, uv_max.x);
-			uv_max.y = MAX(uv.y, uv_max.y);
-		}
-		uv_size = uv_max - uv_min;
-       	uv_offset = Vector2(uv_min.x, uv_min.y);
-	}
-	if (vtx && uv){
-		vtx_offset = Vector2(uv_min.x * vtx_size.x/uv_size.x, (1.0-uv_max.y) * uv_size.y/uv_size.y);
-	}
-	if (obj){
-		obj_pos = poly->get_global_position();
-	}
-}*/
 
 void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
 	Vector<Node*> nodes;
@@ -431,7 +472,6 @@ void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
 	Ref<Shader> masked_shader_sub = p_options["shaders/masked_shader_sub"];
 	for (int i = 0; i < count; i++)
 	{
-		print_line(nodes[i]->get_class_name());
 		if (!nodes[i]->is_class("CanvasItem"))
 			continue;
 		CanvasItem *c = (CanvasItem*)nodes[i];
@@ -529,6 +569,55 @@ void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
 	}
 }
 
+void Materials::apply_material(_psd_layer_record *layer, Node2D *node, REDFrame *parent_clipper){
+	switch(layer->blend_mode){
+		case psd_blend_mode_multiply:{
+			if (parent_clipper == nullptr){
+				if (material_mul.is_valid())
+					node->set_material(material_mul);
+			}else{
+				if (masked_material_mul.is_valid())
+					node->set_material(material_mul);
+			}
+			break;
+		}
+		case psd_blend_mode_linear_dodge:{
+			if (parent_clipper == nullptr){
+				if (material_add.is_valid())
+					node->set_material(material_add);
+			}else{
+				if (masked_material_add.is_valid())
+					node->set_material(material_add);
+			}
+			break;
+		}
+
+		case psd_blend_mode_difference:{
+			if (parent_clipper == nullptr){
+				if (material_sub.is_valid())
+					node->set_material(material_sub);
+			}else{
+				if (masked_material_sub.is_valid())
+					node->set_material(material_sub);
+			}
+			break;	
+		}
+
+		default:{
+			if (parent_clipper == nullptr){
+				if (material.is_valid()){
+					node->set_material(material);
+				}
+			}else{
+				if (masked_material.is_valid()){
+					node->set_material(material);
+				}
+			}
+			break;
+		}
+	}
+}
+
 
 int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, int start, Materials &materials, 
 									 Node *parent, Vector2 parent_pos, Vector2 parent_offset, const Map<StringName, Variant> &p_options, bool force_save, int counter, int folder_level, REDFrame *parent_clipper){
@@ -536,14 +625,12 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 	int count = 0;
 	int offset = 0;
 	int final_iter = 0;
-
 	int end = context->layer_count;
 	bool loop = true;
 
 	float resolution_width = p_options["main/resolution_width"];
 	bool b_update = p_options["main/update"];
 	bool b_update_only_editor = p_options["main/update_only_editor"];
-
 	bool updateble = true;
 	if (parent->get_owner()){
 		updateble = p_options["main/update"] && (!p_options["main/update_only_editor"] || EditorNode::get_singleton()->is_scene_open(parent->get_owner()->get_filename()));
@@ -551,9 +638,11 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 	else{
 		updateble = p_options["main/update"] && (!p_options["main/update_only_editor"] || EditorNode::get_singleton()->is_scene_open(parent->get_filename()));
 	}
-	
 	bool saveble = force_save || (!p_options["main/update_only_editor"] && p_options["main/update"]);
-	
+	Vector<String> names;
+	for (int iter = start; iter + offset < end && loop; iter++){
+		names.push_back(reinterpret_cast<char const*>(layers[iter + offset].layer_name));
+	}
 	_File file_сheck;
 	for (int iter = start; iter + offset < end && loop; iter++){	
 		final_iter = iter + offset; count++;
@@ -564,357 +653,169 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 			case psd_layer_type::psd_layer_type_folder:{
 				if (counter > 0){
 					loop = false;
-					/*
-					int mode = 0;
-					if(folder_level == 0)
-						mode = p_options["types/root"];
-					else if (folder_level == 1)
-						mode = p_options["types/second_level"];
-					else if (folder_level>1)
-						mode = p_options["types/folder"];
-					
-					if (parent_clipper != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
-						REDFrame* clipper = parent_clipper;
-						Vector<NodePath> mat_objs = red::vector<NodePath>(clipper->get_material_objects());
-
-						Vector<Ref<ShaderMaterial> > mats = clipper->get_cached_materials();
-						int mat_objs_old_size = mat_objs.size();
-						Vector<Node*> all_children;
-						red::get_all_children(clipper, all_children);
-						for (int i = 0; i < all_children.size(); i++)
-						{
-							if (!all_children[i]->is_class("CanvasItem"))
-								continue;
-							CanvasItem *c = (CanvasItem*)all_children[i];
-							if (c!=nullptr){
-								Ref<ShaderMaterial> mat = Ref<ShaderMaterial>(c->get_material());
-								if (mat.is_valid()){
-									bool found = false;
-									int mats_size = mats.size();
-									for (int j = 0; j < mats_size; j++){
-										if (mat == mats[j]){
-											found = true;
-											break;
-										}
-									}
-									if (!found){
-										mats.push_back(mat);
-										mat_objs.push_back(clipper->get_path_to(c));
-									}
-								}
-							}
-						}
-						clipper->set_material_objects(red::array(mat_objs));
-					}
-
-					if((mode == FOLDER_PAGE)){
-						if (parent->is_class("REDPage")){
-							REDPage *page = (REDPage *)parent;
-							Array frames;
-							int l = parent->get_child_count();
-							frames.resize(l);
-
-							for (int i = 0; i < l; i++){
-								Node *child = parent->get_child(i);
-								frames[l-1-i] = NodePath(child->get_name());
-							}
-							page->set_frames(frames);
-						}
-					}*/
 				}
 			} break;
 			case psd_layer_type::psd_layer_type_normal:{
-				Node2D *node;
-				//int mode = p_options["types/layer"];
-				bool need_create = parent->has_node(name) ? false : true;
-				
 				int len = layer->width*layer->height;
-				if (len==0) 
-
+				if (len == 0) 
 					continue;
 				red::create_dir( target_dir + "/textures");
 				String png_path = target_dir + "/textures/"+ name +".png";
-				
-				Vector2 texture_resize(1, 1);
-				Vector2 old_texture_size(0, 0);
-				if (file_сheck.file_exists(png_path)){
-					Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
-					if (texture.is_valid())
-						old_texture_size = texture->get_size();
-				}
+				bool save_texture = !file_сheck.file_exists(png_path) || (p_options["update/texture"] && updateble);
+				int update_pos = p_options["update/layer_pos"];
 
-				if (!file_сheck.file_exists(png_path))
-					save_png(layer, png_path, p_options["texture/max_size"], p_options["texture/scale"]);
-				else if (p_options["update/texture"] && updateble){
-					save_png(layer, png_path, p_options["texture/max_size"], p_options["texture/scale"]);
-				}
-				
-				if (old_texture_size.x != 0){
-					Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
-					if (texture.is_valid())
-						old_texture_size = texture->get_size()/old_texture_size;
-				}
-
-				
-				Vector2 polygon_size(layer->width * resolution_width / context->width, layer->height * resolution_width / context->width);
-				Point2 global_pos = Point2(layer->left * resolution_width / context->width, layer->top * resolution_width / context->width);
-
-				float k = layer->height/layer->width;
+				bool update_material = false;
+				bool update_polygon = false;
+				bool update_polygon_pos = updateble && (update_pos == LAYER_MOVE_AND_RESET_UV || update_pos == LAYER_MOVE_AND_MOVE_UV);
+				bool update_polygon_transform = updateble && update_pos == LAYER_MOVE_AND_SCALE;
+				bool update_uv = updateble && (update_pos == LAYER_RESET_UV ||
+											   update_pos == LAYER_MOVE_UV ||
+											   update_pos == LAYER_MOVE_AND_RESET_UV || 
+											   update_pos == LAYER_MOVE_AND_MOVE_UV);
+				bool reset_uv = update_pos == LAYER_RESET_UV || update_pos == LAYER_MOVE_AND_RESET_UV;
+				bool reorder =  updateble && p_options["update/order"];
+				bool need_create = parent->has_node(name) ? false : true;
+				Polygon2D *poly;
 				if (need_create){
-					Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
-					PoolVector<Vector2> uv;
-					PoolVector<Vector2> polygon;
-					polygon.append(Vector2(0,0));
-					polygon.append(Vector2(polygon_size.x, 0));
-					polygon.append(polygon_size);
-					polygon.append(Vector2(0, polygon_size.y));
-					/*
-					if (mode==LAYER_POLYGON2D){
-						Polygon2D *poly = memnew(Polygon2D);
-						node = (Node2D*)poly;
-						Size2 texture_size;
-						if (texture.is_valid()){
-							poly->set_texture(texture);
-							texture_size = texture->get_size();
-						}
-						else
-							texture_size = Size2(1024, 1024);
-						uv.append(Vector2(0,0));
-						uv.append(Vector2(texture_size.x, 0));
-						uv.append(texture_size);
-						uv.append(Vector2(0, texture_size.y));
-						poly->set_uv(uv);
-					}
-					else{*/
-					{
-						Polygon2D *poly = memnew(Polygon2D);
-						node = (Node2D*)poly;
-						poly->set_polygon(polygon);
-						if (texture.is_valid())
-							poly->set_texture(texture);
-						uv.append(Vector2(0, 0));
-						uv.append(Vector2(1, 0));
-						uv.append(Vector2(1, 1));
-						uv.append(Vector2(0, 1));
-						poly->set_uv(uv);
-						if (parent_clipper != nullptr)
-							poly->set_clipper(poly->get_path_to(parent_clipper));
-					}
-					//}
-					switch(layer->blend_mode){
-						case psd_blend_mode_multiply:{
-							if (parent_clipper == nullptr){
-								if (materials.material_mul.is_valid())
-									node->set_material(materials.material_mul);
-							}else{
-								if (materials.masked_material_mul.is_valid())
-									node->set_material(materials.material_mul);
-							}
-							break;
-						}
-						case psd_blend_mode_linear_dodge:{
-							if (parent_clipper == nullptr){
-								if (materials.material_add.is_valid())
-									node->set_material(materials.material_add);
-							}else{
-								if (materials.masked_material_add.is_valid())
-									node->set_material(materials.material_add);
-							}
-							break;
-						}
-
-						case psd_blend_mode_difference:{
-							if (parent_clipper == nullptr){
-								if (materials.material_sub.is_valid())
-									node->set_material(materials.material_sub);
-							}else{
-								if (materials.masked_material_sub.is_valid())
-									node->set_material(materials.material_sub);
-							}
-							break;	
-						}
-
-						default:{
-							if (parent_clipper==nullptr){
-								if (materials.material.is_valid()){
-									node->set_material(materials.material);
-								}
-							}else{
-								if (materials.masked_material.is_valid()){
-									node->set_material(materials.material);
-								}
-							}
-							break;
-						}
-					}
-					parent->add_child(node);
 					Node *owner = parent->get_owner();
-					if (!owner){
-						owner = parent;
-					}
-					node->set_owner(owner);
-					node->set_name(name);
-					node->set_draw_behind_parent(true);
-					Polygon2D *poly = (Polygon2D*)node;
+					poly = red::create_node<Polygon2D>(parent, name, owner ? owner : parent);
+					poly->set_draw_behind_parent(true);
 					if (parent_clipper != nullptr)
 						poly->set_clipper(poly->get_path_to(parent_clipper));
-				}
+					update_material = true;
+					update_polygon = true;
+					update_polygon_pos = true;
+					update_polygon_transform = false;
+					update_uv = true;
+					reset_uv = true;
+					reorder = true;
+				} 
 				else {
-					node = (Node2D*)(parent->get_node(NodePath(name)));
+					poly = (Polygon2D*)parent->get_node(name);
 				}
-				if (!need_create && updateble && p_options["update/layer_size"]){
-					node = (Node2D*)(parent->get_node(NodePath(name)));
-					/*
+				if (poly == nullptr){
+					continue;
+				}
+				bool old_move_polygon_with_uv = poly->get_move_polygon_with_uv();
+				poly->set_move_polygon_with_uv(true);
+				poly->set_move_polygon_with_uv(false);
+				Size2 bitmap_size = Size2(p_options["texture/bitmap_size"], p_options["texture/bitmap_size"]);
+				Ref<Image> img = read_image(layer);
+				Ref<BitMap> bitmap = read_bitmap(img, 0.1f, bitmap_size);
+				bitmap_size = bitmap->get_size();
+				Rect2 crop = crop_alpha(bitmap, bitmap_size.width / 16);
+				crop.position = crop.position * img->get_size() / bitmap_size;
+				crop.size = ((crop.size) * img->get_size()) / (bitmap_size - Vector2(1.0f, 1.0f));
+				Ref<Image> img_cropped = img->duplicate();
+				Ref<Image> img_save;
+				if (save_texture || update_polygon){
+					img_cropped->crop_from_point(crop.position.x, crop.position.y, crop.size.width, crop.size.height);
+					img_save = img_cropped->duplicate();
+				}
+				Vector2 polygon_size(crop.size.width * resolution_width / context->width, 
+									 crop.size.height * resolution_width / context->width);
+				Point2 global_pos = Point2((layer->left+crop.position.x) * resolution_width / context->width, 
+										   (layer->top+crop.position.y) * resolution_width / context->width);
+				if (save_texture){
+					apply_scale(img_save, p_options["texture/scale"], p_options["texture/max_size"]);
+					apply_border(img_save, 0.75f);
+					img_save->save_png(png_path);
+					if (ResourceLoader::import){
+						ResourceLoader::import(png_path);
+					}
+				}
+				if (update_material){
+					Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
+					if (texture.is_valid())
+						poly->set_texture(texture);
+					materials.apply_material(layer, poly, parent_clipper);
+				}
+				if (update_polygon){
+					PoolVector<Vector2> polygon;
+					Vector<Vector2> polygon_vec;
+					Ref<BitMap> bitmap_poly;
+					if(p_options["texture/alpha_to_polygon"]){
+						bitmap_poly = read_bitmap(img_cropped, 0.1f, Size2(128, 128));
+						Rect2 r = Rect2(Point2(0, 0), bitmap_poly->get_size());
+						bitmap_poly->grow_mask(8, r);
+						Vector<Vector<Vector2> > polygon_array = bitmap_poly->clip_opaque_to_polygons(r);
+						if (polygon_array.size() == 1){
+							polygon_vec = polygon_array[0];
+							polygon_vec = simplify_polygon_distance(polygon_vec, 4.0f, bitmap_poly->get_size());
+						}
+					}
+					if (polygon_vec.size() > 4){
+						Vector2 k = polygon_size / bitmap_poly->get_size();
+						for (int i = 0; i < polygon_vec.size(); i++){
+							polygon.append(polygon_vec[i]*k);
+						}
+					}else{
+						polygon.append(Vector2(0,0));
+						polygon.append(Vector2(polygon_size.x, 0));
+						polygon.append(polygon_size);
+						polygon.append(Vector2(0, polygon_size.y));
+					}
+					poly->set_polygon(polygon);
+				}
+				if (update_polygon_transform){
+					Rect2 k = red::get_rect(poly->get_uv());
+					Rect2 real = red::get_rect(poly->get_polygon());
+					PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+					Rect2 target = Rect2(polygon_size*k.position, polygon_size * k.size);
+					PoolVector<Vector2> new_poly;
+					for (int i = 0; i < poly->get_polygon().size(); i++)
+						new_poly.append(((polyr[i] - real.position) / real.size) * target.size + target.position);
+					poly->set_polygon(new_poly);
+					poly->set_position(global_pos - parent_pos - parent_offset - poly->get_offset());
+				}
+				else if (update_polygon_pos){
+					poly->set_position(global_pos - parent_pos - parent_offset - poly->get_offset());
+				}
+				if (update_uv){
+					Vector2 psd_offset = global_pos - parent_pos - parent_offset - poly->get_offset() - poly->get_position();
+					Rect2 poly_rect = red::get_rect(poly->get_polygon());
+					Vector<Vector2> uv_temp;
+					if (poly->get_uv().size() != poly->get_polygon().size() || reset_uv){
+						PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
+						for (int i = 0; i < poly->get_polygon().size(); i++)
+							uv_temp.push_back(polyr[i] / poly_rect.size);
+					}
+					else{
+						PoolVector<Vector2>::Read uvr = poly->get_uv().read();
+						Rect2 real = red::get_rect(poly->get_uv());
+						for (int i = 0; i < poly->get_uv().size(); i++)
+							uv_temp.push_back((uvr[i] - real.position) / (real.size));
+					}
+					PoolVector<Vector2> new_uv;
+					Vector2 uv_offset = psd_offset / polygon_size;
+					Vector2 uv_size = poly_rect.size / polygon_size;
+					for (int i = 0; i < uv_temp.size(); i++)
+						new_uv.append(uv_temp[i] * uv_size - uv_offset);
+					poly->set_uv(new_uv);
+				}
+				if (reorder){
+					Node *p = poly->get_parent();
+					int extra_nodes = 0;
+					for (int i = 0; i < MIN(p->get_child_count(), iter-start+extra_nodes+1); i++)
 					{
-						Polygon2D *poly = (Polygon2D*)node;
-						if (poly){
-							if (poly != nullptr){
-								PoolVector<Vector2> uvs = poly->get_uv();
-								if (uvs.size() > 0){
-									Vector2 real_size = poly->_edit_get_rect().get_size();
-									PoolVector<Vector2>::Read uvr = uvs.read();
-									Vector2 uv_min = uvr[0];
-									Vector2 uv_max = uv_min;
-									for (int i = 0; i < poly->get_uv().size(); i++)
-									{
-										Vector2 uv = uvr[i];
-										uv_min.x = MIN(uv.x, uv_min.x);
-										uv_max.x = MAX(uv.x, uv_max.x);
-										uv_min.y = MIN(uv.y, uv_min.y);
-										uv_max.y = MAX(uv.y, uv_max.y);
-									}
-									Vector2 resizer = (uv_max - uv_min)/poly->get_texture()->get_size()*polygon_size/real_size;
-									PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
-									PoolVector<Vector2> new_pool;
-									for (int i = 0; i < poly->get_polygon().size(); i++)
-										new_pool.append(polyr[i]*resizer);
-									poly->set_polygon(new_pool);
-								}
+						Node *child = p->get_child(i);
+						bool found = false;
+						for (int j = 0; j < names.size(); j++)
+						{
+							if (child->get_name() == names[j]){
+								found = true;
+								break;
 							}
 						}
-					}*/
-					{
-						Polygon2D *poly = (Polygon2D*)node;
-						if (poly){
-							PoolVector<Vector2> uvs = poly->get_uv();
-							if (uvs.size() > 0){
-								Vector2 real_size = poly->_edit_get_rect().get_size();
-								PoolVector<Vector2>::Read uvr = uvs.read();
-								Vector2 uv_min = uvr[0];
-								Vector2 uv_max = uv_min;
-								for (int i = 0; i < poly->get_uv().size(); i++)
-								{
-									Vector2 uv = uvr[i];
-									uv_min.x = MIN(uv.x, uv_min.x);
-									uv_max.x = MAX(uv.x, uv_max.x);
-									uv_min.y = MIN(uv.y, uv_min.y);
-									uv_max.y = MAX(uv.y, uv_max.y);
-								}
-								Vector2 resizer = (uv_max - uv_min)*polygon_size/real_size;
-								PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
-								PoolVector<Vector2> new_pool;
-								for (int i = 0; i < poly->get_polygon().size(); i++)
-									new_pool.append(polyr[i] * resizer);
-								poly->set_polygon(new_pool);
-							}
+						if (!found){
+							extra_nodes++;
 						}
 					}
+					p->move_child(poly, iter-start+extra_nodes);
 				}
-				int update_pos_mode = need_create ? LAYER_POS_MOVE : updateble ? p_options["update/layer_pos"] : LAYER_POS_IGNORE;
-
-				if (node != nullptr && update_pos_mode != LAYER_POS_IGNORE){
-					if (update_pos_mode==LAYER_POS_MOVE){
-						/*
-						{
-							Polygon2D *poly = (Polygon2D*)node;
-							if (poly){
-								//node->set_global_position(global_pos - poly->get_offset());
-								node->set_position(global_pos - parent_pos - poly->get_offset() - parent_offset);
-							}
-						}*/
-						{
-							Polygon2D *poly = (Polygon2D*)node;
-							if (poly){
-								//node->set_global_position(global_pos - poly->get_offset() + poly->get_psd_offset());
-								node->set_position(global_pos - parent_pos - poly->get_offset() + poly->get_psd_offset() - parent_offset);
-							}
-						}
-					}
-					else if (update_pos_mode == LAYER_POS_NEW_UV || update_pos_mode == LAYER_POS_KEEP_UV){
-						/*{
-							Polygon2D *poly = (Polygon2D*)node;
-							if (poly && update_pos_mode == LAYER_POS_NEW_UV){
-								Vector2 real_size = poly->_edit_get_rect().get_size();
-								Vector2 psd_offset = global_pos - poly->get_position() - poly->get_offset() - parent_pos - parent_offset;
-								{
-									Vector<Vector2> uv_temp;
-									if (poly->get_uv().size() != poly->get_polygon().size() || update_pos_mode==LAYER_POS_NEW_UV){
-										PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
-										for (int i = 0; i < poly->get_polygon().size(); i++)
-											uv_temp.push_back(polyr[i]/real_size);
-									}
-									else{
-
-									}
-									PoolVector<Vector2> new_uv;
-									for (int i = 0; i < uv_temp.size(); i++)
-										new_uv.append(uv_temp[i] *  real_size/polygon_size - psd_offset/polygon_size);
-									poly->set_uv(new_uv);
-								}
-								poly->set_position(global_pos - parent_pos - poly->get_offset() - psd_offset - parent_offset);
-							}
-						}*/
-						{
-							Polygon2D *poly = (Polygon2D*)node;
-							if (poly){
-								Vector2 real_size = poly->_edit_get_rect().get_size();
-								Vector2 old_psd_offset = poly->get_psd_uv_offset();
-
-								poly->set_position(poly->get_position() - poly->get_psd_applied_offset());
-								Vector2 psd_offset = global_pos - poly->get_position() - poly->get_offset() - parent_pos - parent_offset;
-								poly->set_psd_uv_offset(psd_offset);
-								poly->_change_notify("psd_uv_offset");
-
-								Vector2 old_psd_scale = poly->get_psd_uv_scale();
-								poly->set_psd_uv_scale(real_size/polygon_size);
-								poly->_change_notify("psd_uv_scale");
-								Vector2 psd_offset_uv = psd_offset/polygon_size;
-								Vector2 psd_scale_uv = real_size/polygon_size;
-								{
-									Vector<Vector2> uv_temp;
-									if (poly->get_uv().size() != poly->get_polygon().size() || update_pos_mode==LAYER_POS_KEEP_UV){
-										PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
-										for (int i = 0; i < poly->get_polygon().size(); i++)
-											uv_temp.push_back(polyr[i]/real_size);
-									}
-									else{
-										PoolVector<Vector2>::Read uvr = poly->get_uv().read();
-										for (int i = 0; i < poly->get_uv().size(); i++)
-											uv_temp.push_back(uvr[i]/old_psd_scale+old_psd_offset/polygon_size);
-									}
-									PoolVector<Vector2> new_uv;
-									for (int i = 0; i < uv_temp.size(); i++)
-										new_uv.append(uv_temp[i] * psd_scale_uv - psd_offset_uv);
-									poly->set_uv(new_uv);
-								}
-								poly->set_position(global_pos - parent_pos - poly->get_offset() + poly->get_psd_offset() - parent_offset - psd_offset);
-								poly->set_psd_applied_offset(poly->get_psd_offset());
-								poly->_change_notify("psd_applied_offset");
-							}
-						}
-					}
-				}
+				poly->set_move_polygon_with_uv(old_move_polygon_with_uv);
 			} break;
 			case psd_layer_type::psd_layer_type_hidden:{
-				Node *node_external = nullptr;
-				Node2D *node_2d = nullptr;
-				REDPage *page = nullptr;
-				REDFrame *frame = nullptr;
-				REDFrame *clipper = parent_clipper;
-
-				Node2D *anchor_object = nullptr;
-
-
 				_psd_layer_record *layer_folder;
 				int new_folder_level = folder_level;
 				{
@@ -940,9 +841,9 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				String folder_name = reinterpret_cast<char const*>(layer_folder->layer_name);
 				int mode = 0;
 				int anchor = ANCHOR_TOP_LEFT;
-				if(new_folder_level==0)
+				if(new_folder_level == 0)
 					mode = p_options["types/root"];
-				else if (new_folder_level==1){
+				else if (new_folder_level == 1){
 					mode = p_options["types/second_level"];
 					anchor = p_options["anchor/second_level"];
 				}
@@ -975,27 +876,28 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				{
 					new_target_dir += "/" + folder_name;	
 				}
-
-				
 				red::create_dir(new_target_dir);
 				Materials new_materials;
 				bool new_force_save = false;
-
 				bool need_create = parent->has_node(folder_name) ? false : true;
-
 				bool external_frame_created = false;
-
+				Node *node_external = nullptr;
+				Node2D *node_2d = nullptr;
+				REDPage *page = nullptr;
+				REDFrame *frame = nullptr;
+				REDFrame *clipper = parent_clipper;
+				Node2D *anchor_object = nullptr;
 				switch (mode){
 					case FOLDER_NODE2D:{
 						node_2d = need_create ? red::create_node<Node2D>(parent, folder_name) : (Node2D*)parent->get_node(folder_name);
 						anchor_object = node_2d;
+						anchor_object->set_draw_behind_parent(true);
 					} break;
 					case FOLDER_PAGE:{
 						page = need_create ? red::create_node<REDPage>(parent, folder_name) : (REDPage*)parent->get_node(folder_name);
 						node_2d = (Node2D*)page;
 						anchor_object = node_2d;
 					} break;
-
 					case FOLDER_FRAME:{
 						frame = need_create ? red::create_node<REDFrame>(parent, folder_name) : (REDFrame*)parent->get_node(NodePath(folder_name));
 						
@@ -1021,12 +923,13 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 							parent->add_child(instanced_scene);
 							instanced_scene->set_owner(parent->get_owner());
 						}
-
 						Node *root_node = nullptr;
-
-						if (b_update_only_editor){
-							root_node = get_edited_scene_root(scene_path);
+						//if (b_update_only_editor){
+						if (!EditorNode::get_singleton()->is_scene_open(scene_path)){
+							EditorNode::get_singleton()->load_scene(scene_path);
 						}
+						root_node = get_edited_scene_root(scene_path);
+						//}
 						if (root_node == nullptr){
 							Ref<PackedScene> scene = ResourceLoader::load(scene_path, "PackedScene");
 							root_node = scene->instance();
@@ -1042,34 +945,89 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						clipper = (REDFrame*)frame;
 						node_2d = (Node2D*)parent->get_node(folder_name);
 						anchor_object = (Node2D*)frame;
+
 					} break;
 					default:
 					case FOLDER_PARALLAX:{
 						node_2d = need_create ? (Node2D*)red::create_node<REDParallaxFolder>(parent, folder_name) : (Node2D*)parent->get_node(folder_name);
 						anchor_object = node_2d;
+						anchor_object->set_draw_behind_parent(true);
 					} break;
 				}
+				if (!node_2d || (frame == nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)) || (!page && (mode == FOLDER_PAGE)))
+					continue;
 				Vector2 new_parent_pos = parent_pos;
 				Vector2 new_parent_offset = Vector2(0, 0);
-
+				bool folder_mask = p_options["update/folder_mask"];
+				bool frame_targets = p_options["update/frame_targets"];
+				bool page_height = p_options["update/page_height"];
+				int folder_pos = p_options["update/folder_pos"];
+				bool apply_mask = (updateble && folder_mask) && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL) && clipper;
+				bool update_targets = (updateble && frame_targets) && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL);
+				bool update_page_height = updateble && page_height && mode == FOLDER_PAGE;
+				bool update_frame_params = updateble && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL);
+				bool update_pos_reset = updateble && (folder_pos == FOLDER_POS_RESET);
+				bool update_pos_move_layers = (updateble && folder_pos == FOLDER_MOVE_LAYERS);
 				
-				if (anchor_object){
-					if (((updateble && p_options["update/folder_mask"]) || need_create) && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
-						_mask_to_node(layer_folder, resolution_width, anchor_object, context, anchor);
-					}
-				}
 				float offset_x = layer_folder->layer_mask_info.left * resolution_width / context->width;
 				float offset_y = layer_folder->layer_mask_info.top * resolution_width / context->width;
 				Vector2 local_pos = Vector2(offset_x, offset_y);
 				Vector2 half_frame = (clipper) ? clipper->_edit_get_rect().size/2 : Vector2(0,0);
-				Vector2 frame_anchor_offset = (anchor==ANCHOR_CENTER) ? -half_frame : Vector2(0,0);
+				Vector2 frame_anchor_offset = (anchor == ANCHOR_CENTER) ? -half_frame : Vector2(0,0);
 				new_parent_pos += local_pos;
 				new_parent_offset = -frame_anchor_offset;
-
-				int folder_update_mode = p_options["update/folder_pos"];
-
-
-				if ((updateble && folder_update_mode == FOLDER_POS_RESET) || need_create){
+				if (need_create){
+					apply_mask = (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL) && clipper;
+					update_targets = (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL);
+					update_page_height = mode == FOLDER_PAGE;
+					update_frame_params = (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL);
+					update_pos_reset = true;
+					update_pos_move_layers = false;
+				}
+				if (apply_mask){
+					Ref<Image> bitmap_img = read_mask(layer_folder);
+					PoolVector<Vector2> polygon;
+					if (bitmap_img.is_valid()){
+						Vector2 image_size = bitmap_img->get_size();
+						Vector2 resized_size = Vector2(MIN(128, image_size.x), MIN(128, image_size.y));
+						bitmap_img->resize(resized_size.x, resized_size.y);
+						Ref<BitMap> bitmap_mask;
+						bitmap_mask.instance();
+						bitmap_mask->create_from_image_alpha(bitmap_img, 0.2f);
+						if (bitmap_mask.is_valid()){
+							Vector<Vector<Vector2> > polygon_array = bitmap_mask->clip_opaque_to_polygons(Rect2(Point2(), bitmap_mask->get_size()));
+							Vector<Vector2> polygon_vec;
+							if (polygon_array.size() > 0){
+								polygon_vec = polygon_array[0];
+								if (polygon_vec.size() > 4){
+									polygon_vec = simplify_polygon_distance(polygon_vec, 4.0f, bitmap_mask->get_size());
+								}
+								if (polygon_vec.size() > 4){
+									polygon_vec = simplify_polygon_direction(polygon_vec);
+								}
+								if (polygon_vec.size() > 2){
+									float aspect_ratio = (float)(image_size.height)/image_size.width;
+									float width = image_size.width*resolution_width/context->width;
+									float height = width*aspect_ratio;
+									Vector2 k = Vector2(width, height) / bitmap_mask->get_size();
+									for (int i = 0; i < polygon_vec.size(); i++){
+										polygon.append(polygon_vec[i] * k);
+									}
+								}
+							}
+						}
+					}
+					if (polygon.size() < 2){
+						float width = resolution_width;
+						float height = (resolution_width*(float)context->height)/context->width;
+						polygon.append(Vector2(0, 0));
+						polygon.append(Vector2(width, 0));
+						polygon.append(Vector2(width, height));
+						polygon.append(Vector2(0, height));
+					}
+					clipper->set_polygon(polygon);
+				}
+				if (update_pos_reset){
 					if (clipper && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
 						clipper->set_offset(frame_anchor_offset);
 						clipper->set_position(-frame_anchor_offset);
@@ -1078,46 +1036,42 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 						node_2d->set_position(local_pos - parent_pos - parent_offset - frame_anchor_offset);
 					}
 				}
-				else if (folder_update_mode == FOLDER_MOVE_LAYERS && node_2d){
+				else if (update_pos_move_layers){
 					if (mode == FOLDER_FRAME_EXTERNAL){
-						new_parent_pos += node_2d->get_position() + frame_anchor_offset;
+						new_parent_pos += node_2d->get_position();// - frame_anchor_offset;
 					}
 					else{
 						new_parent_pos -= (local_pos - parent_pos - parent_offset - frame_anchor_offset)-node_2d->get_position();
 					}
 				}
-
-				if (((updateble &&p_options["update/page_height"]) || need_create) && mode == FOLDER_PAGE){
+				if (update_page_height){
 					page->set_size(Size2(resolution_width, ((float)context->height) / context->width*resolution_width));
 				}
-
-				if (((updateble &&p_options["update/frame_targets"]) || need_create) && frame != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
+				if (update_targets){
 					Node2D *targets2d = red::create_node<Node2D>(anchor_object, "targets");
-					Node *targets = red::create_node<Node>(anchor_object, "targets");
-					if(targets){
-						REDTarget *camera_pos = red::create_node<REDTarget>(targets, "camera_pos");
-						REDTarget *camera_pos_in = red::create_node<REDTarget>(targets, "camera_pos_in");
-						REDTarget *camera_pos_out = red::create_node<REDTarget>(targets, "camera_pos_out");
-						REDTarget *parallax_pos = red::create_node<REDTarget>(targets, "parallax_pos");
-						REDTarget *parallax_pos_in = red::create_node<REDTarget>(targets, "parallax_pos_in");
-						REDTarget *parallax_pos_out = red::create_node<REDTarget>(targets, "parallax_pos_out");
-
+					//Node *targets = red::create_node<Node>(anchor_object, "targets");
+					if(targets2d){
+						REDTarget *camera_pos = red::create_node<REDTarget>(targets2d, "camera_pos");
+						REDTarget *camera_pos_in = red::create_node<REDTarget>(targets2d, "camera_pos_in");
+						REDTarget *camera_pos_out = red::create_node<REDTarget>(targets2d, "camera_pos_out");
+						REDTarget *parallax_pos = red::create_node<REDTarget>(targets2d, "parallax_pos");
+						REDTarget *parallax_pos_in = red::create_node<REDTarget>(targets2d, "parallax_pos_in");
+						REDTarget *parallax_pos_out = red::create_node<REDTarget>(targets2d, "parallax_pos_out");
 						frame->set_camera_pos_path(frame->get_path_to(camera_pos));
 						frame->set_camera_pos_in_path(frame->get_path_to(camera_pos_in));
 						frame->set_camera_pos_out_path(frame->get_path_to(camera_pos_out));
 						frame->set_parallax_pos_path(frame->get_path_to(parallax_pos));
 						frame->set_parallax_pos_in_path(frame->get_path_to(parallax_pos_in));
 						frame->set_parallax_pos_out_path(frame->get_path_to(parallax_pos_out));
-						camera_pos->set_position(half_frame-frame_anchor_offset);
-						camera_pos_in->set_position(half_frame-frame_anchor_offset);
-						camera_pos_out->set_position(half_frame-frame_anchor_offset);
-						parallax_pos->set_position(half_frame-frame_anchor_offset);
-						parallax_pos_in->set_position(half_frame-frame_anchor_offset);
-						parallax_pos_out->set_position(half_frame-frame_anchor_offset);
+						camera_pos->set_position(half_frame+frame_anchor_offset);
+						camera_pos_in->set_position(half_frame+frame_anchor_offset);
+						camera_pos_out->set_position(half_frame+frame_anchor_offset);
+						parallax_pos->set_position(half_frame+frame_anchor_offset);
+						parallax_pos_in->set_position(half_frame+frame_anchor_offset);
+						parallax_pos_out->set_position(half_frame+frame_anchor_offset);
 					}
 				}
-
-				if ((updateble || need_create) && frame != nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
+				if (update_frame_params){
 					new_materials.init(p_options, frame);
 					frame->set_material(new_materials.outline_material);
 					frame->set_line_texture(ResourceLoader::load("res://redot/textures/frame_outline.png", "Texture"));
@@ -1126,13 +1080,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				else{
 					new_materials = materials;
 				}
-				Node *node = nullptr;
-				if (mode == FOLDER_FRAME_EXTERNAL){
-					node = node_external;
-				}
-				else {
-					node = (Node*) node_2d;
-				}
+				Node *node = mode == FOLDER_FRAME_EXTERNAL ? node_external : node_2d;
 				if (node != nullptr)
 					offset += load_folder(context, new_target_dir, final_iter+1, new_materials, node, new_parent_pos, new_parent_offset, p_options, new_force_save, counter+1, new_folder_level, clipper);
 				else
@@ -1141,6 +1089,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 			default:
 				break;
 		}
+		
 	}
 	if (saveble){
 		int mode = (folder_level==0) ? p_options["types/root"] : (folder_level==1) ? p_options["types/folder"] : FOLDER_NODE2D;

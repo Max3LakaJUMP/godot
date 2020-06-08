@@ -34,6 +34,7 @@
 #include "skeleton_2d.h"
 #include "modules/red/red_transform.h"
 #include "modules/red/red_frame.h"
+#include "modules/red/red_engine.h"
 
 #ifdef TOOLS_ENABLED
 Dictionary Polygon2D::_edit_get_state() const {
@@ -249,9 +250,9 @@ void Polygon2D::_notification(int p_what) {
 							uvs.write[i] = texmat.xform(uvr[i]) * size_k + offset;
 						}
 					} else {
-						
+						Rect2 psd_poly_rect = red::get_rect(polygon);
 						for (int i = 0; i < len; i++) {
-							uvs.write[i] = texmat.xform(points[i] + texture_atlas->get_region().get_position());
+							uvs.write[i] = texmat.xform((points[i] + psd_poly_rect.position) / psd_poly_rect.size + texture_atlas->get_region().get_position());
 						}
 					}
 				}else{
@@ -262,8 +263,9 @@ void Polygon2D::_notification(int p_what) {
 							uvs.write[i] = texmat.xform(uvr[i]);
 						}
 					} else {
+						Rect2 psd_poly_rect = red::get_rect(polygon);
 						for (int i = 0; i < len; i++) {
-							uvs.write[i] = texmat.xform(points[i] / _edit_get_rect().size);
+							uvs.write[i] = texmat.xform((points[i] + psd_poly_rect.position) / psd_poly_rect.size);
 						}
 					}
 				}
@@ -415,6 +417,11 @@ void Polygon2D::_notification(int p_what) {
 }
 
 void Polygon2D::set_polygon(const PoolVector<Vector2> &p_polygon) {
+	if (move_polygon_with_uv){
+		if (polygon.size() > 2){
+			set_uv(red::new_uv(polygon, p_polygon, uv, red::get_rect(polygon).size, red::get_rect(uv).size));
+		}
+	}
 	polygon = p_polygon;
 	rect_cache_dirty = true;
 	update();
@@ -656,44 +663,14 @@ Ref<Texture> Polygon2D::get_normalmap() const {
 	return normalmap;
 }
 
-void Polygon2D::set_move_uv_with_polygon(bool p_move_uv_with_polygon) {
+void Polygon2D::set_move_polygon_with_uv(bool p_move_polygon_with_uv) {
 
-	move_uv_with_polygon = p_move_uv_with_polygon;
-}
-bool Polygon2D::get_move_uv_with_polygon() const {
-
-	return move_uv_with_polygon;
+	move_polygon_with_uv = p_move_polygon_with_uv;
 }
 
-void Polygon2D::set_psd_offset(const Vector2 &p_psd_offset){
-	//set_offset(get_offset() - psd_offset + p_psd_offset);
-	psd_offset = p_psd_offset;
-}
-Vector2 Polygon2D::get_psd_offset() const{
-	return psd_offset;
-}
+bool Polygon2D::get_move_polygon_with_uv() const {
 
-void Polygon2D::set_psd_applied_offset(const Vector2 &p_psd_applied_offset){
-	//set_offset(get_offset() - psd_offset + p_psd_offset);
-	psd_applied_offset = p_psd_applied_offset;
-}
-Vector2 Polygon2D::get_psd_applied_offset() const{
-	return psd_applied_offset;
-}
-
-void Polygon2D::set_psd_uv_offset(const Vector2 &p_psd_uv_offset){
-	//set_offset(get_offset() - psd_offset + p_psd_offset);
-	psd_uv_offset = p_psd_uv_offset;
-}
-Vector2 Polygon2D::get_psd_uv_offset() const{
-	return psd_uv_offset;
-}
-
-void Polygon2D::set_psd_uv_scale(const Vector2 &p_psd_uv_scale){
-	psd_uv_scale = p_psd_uv_scale;
-}
-Vector2 Polygon2D::get_psd_uv_scale() const{
-	return psd_uv_scale;
+	return move_polygon_with_uv;
 }
 
 void Polygon2D::set_clipper(const NodePath &p_frame){
@@ -776,16 +753,8 @@ void Polygon2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_set_absolute_uv", "uv"), &Polygon2D::_set_absolute_uv);
 	ClassDB::bind_method(D_METHOD("_get_absolute_uv"), &Polygon2D::_get_absolute_uv);
 	
-	ClassDB::bind_method(D_METHOD("set_move_uv_with_polygon", "move_uv_with_polygon"), &Polygon2D::set_move_uv_with_polygon);
-	ClassDB::bind_method(D_METHOD("get_move_uv_with_polygon"), &Polygon2D::get_move_uv_with_polygon);
-	ClassDB::bind_method(D_METHOD("set_psd_offset", "psd_offset"), &Polygon2D::set_psd_offset);
-	ClassDB::bind_method(D_METHOD("get_psd_offset"), &Polygon2D::get_psd_offset);
-	ClassDB::bind_method(D_METHOD("set_psd_applied_offset", "psd_applied_offset"), &Polygon2D::set_psd_applied_offset);
-	ClassDB::bind_method(D_METHOD("get_psd_applied_offset"), &Polygon2D::get_psd_applied_offset);
-	ClassDB::bind_method(D_METHOD("set_psd_uv_offset", "psd_uv_offset"), &Polygon2D::set_psd_uv_offset);
-	ClassDB::bind_method(D_METHOD("get_psd_uv_offset"), &Polygon2D::get_psd_uv_offset);
-	ClassDB::bind_method(D_METHOD("set_psd_uv_scale", "psd_uv_scale"), &Polygon2D::set_psd_uv_scale);
-	ClassDB::bind_method(D_METHOD("get_psd_uv_scale"), &Polygon2D::get_psd_uv_scale);
+	ClassDB::bind_method(D_METHOD("set_move_polygon_with_uv", "move_polygon_with_uv"), &Polygon2D::set_move_polygon_with_uv);
+	ClassDB::bind_method(D_METHOD("get_move_polygon_with_uv"), &Polygon2D::get_move_polygon_with_uv);
 
 	ClassDB::bind_method(D_METHOD("set_polygon", "polygon"), &Polygon2D::set_polygon);
 	ClassDB::bind_method(D_METHOD("get_polygon"), &Polygon2D::get_polygon);
@@ -852,6 +821,8 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset"), "set_offset", "get_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "antialiased"), "set_antialiased", "get_antialiased");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "move_polygon_with_uv"), "set_move_polygon_with_uv", "get_move_polygon_with_uv");
+
 	ADD_GROUP("Texture", "");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_texture", "get_texture");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "normalmap", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_normalmap", "get_normalmap");
@@ -876,26 +847,15 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "internal_vertex_count", PROPERTY_HINT_RANGE, "0,1000"), "set_internal_vertex_count", "get_internal_vertex_count");
 	
 	ADD_GROUP("Deformation", "");
-	//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "move_uv_with_polygon"), "set_move_uv_with_polygon", "get_move_uv_with_polygon");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "custom_transform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTransform"), "set_custom_transform", "get_custom_transform");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "clipper", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDFrame"), "set_clipper", "get_clipper");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clipper_top"), "set_clipper_top", "get_clipper_top");
-
-	ADD_GROUP("PSD", "");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_offset"), "set_psd_offset", "get_psd_offset");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_applied_offset"), "set_psd_applied_offset", "get_psd_applied_offset");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_uv_offset"), "set_psd_uv_offset", "get_psd_uv_offset");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "psd_uv_scale"), "set_psd_uv_scale", "get_psd_uv_scale");
 }
 
 Polygon2D::Polygon2D() {
 	clipper_top = true;
-	move_uv_with_polygon = false;
-	psd_offset = Vector2(0, 0);
-	psd_applied_offset = Vector2(0, 0);
-	psd_uv_offset = Vector2(0, 0);
-	psd_uv_scale = Vector2(1, 1);
-	
+	move_polygon_with_uv = false;
+
 	invert = 0;
 	invert_border = 100;
 	antialiased = false;

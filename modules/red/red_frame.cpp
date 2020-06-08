@@ -358,7 +358,7 @@ REDFrame::Space REDFrame::get_space() const{
 void REDFrame::unload_target(const NodePath &p_path, StringName function){
 	if (has_node(p_path)){
 		REDTarget *target = Object::cast_to<REDTarget>(get_node(p_path));
-		if (target){
+		if (target && target->is_connected("_target_moved", this, function)){
 			target->disconnect("_target_moved", this, function);
 		}
 	}
@@ -367,7 +367,7 @@ void REDFrame::unload_target(const NodePath &p_path, StringName function){
 Transform2D REDFrame::load_target(const NodePath &p_path, StringName function){
 	if (has_node(p_path)){
 		REDTarget *target = Object::cast_to<REDTarget>(get_node(p_path));
-		if (target){
+		if (target && target->is_connected("_target_moved", this, function)){
 			target->connect("_target_moved", this, function);
 			return target->get_transform();
 		}

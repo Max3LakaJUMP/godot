@@ -73,15 +73,11 @@ class Polygon2D : public Node2D {
 	void _skeleton_bone_setup_changed();
 	
 	Ref<Texture> normalmap;
-	bool move_uv_with_polygon;
-	Vector2 psd_offset;
-	Vector2 psd_applied_offset;
-	Vector2 psd_uv_offset;
-	Vector2 psd_uv_scale;
+	
+	bool move_polygon_with_uv;
 	NodePath custom_transform;
 	NodePath clipper;
 	bool clipper_top;
-
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -167,18 +163,8 @@ public:
 	NodePath get_custom_transform() const;
 	PoolVector<Vector2> _get_absolute_uv() const;
 	void _set_absolute_uv(const PoolVector<Vector2> &p_uv);
-
-	void set_move_uv_with_polygon(bool p_move_uv_with_polygon);
-	bool get_move_uv_with_polygon() const;
-	void set_psd_offset(const Vector2 &p_psd_offset);
-	Vector2 get_psd_offset() const;
-	void set_psd_applied_offset(const Vector2 &p_psd_applied_offset);
-	Vector2 get_psd_applied_offset() const;
-	void set_psd_uv_offset(const Vector2 &p_psd_uv_offset);
-	Vector2 get_psd_uv_offset() const;
-	void set_psd_uv_scale(const Vector2 &p_psd_uv_scale);
-	Vector2 get_psd_uv_scale() const;
-
+	void set_move_polygon_with_uv(bool p_move_polygon_with_uv);
+	bool get_move_polygon_with_uv() const;
 	Polygon2D();
 };
 

@@ -10,8 +10,62 @@
 #include "core/math/vector3.h"
 #include "core/pool_vector.h"
 #include "scene/2d/camera_2d.h"
+#include <string>
 
 namespace red {
+
+
+PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> new_polygon, PoolVector<Vector2> old_uv, Size2 poly_size, Size2 uv_size) {
+	int len = new_polygon.size();
+	PoolVector<Vector2> uvs;
+	uvs.resize(len);
+	PoolVector<Vector2>::Write uvs_w = uvs.write();
+	PoolVector<Vector2>::Read uvs_r = old_uv.read();
+	PoolVector<Vector2>::Read polygon_r = old_polygon.read();
+	PoolVector<Vector2>::Read new_polygon_r = new_polygon.read();
+	for (int i = 0; i < len; i++){
+		Vector2 target_uv = Vector2(0,0);
+		if (old_uv.size() > i){
+			target_uv += uvs_r[i];
+		}	
+		if (old_polygon.size() > i){
+			target_uv += (new_polygon_r[i] - polygon_r[i]) * uv_size / poly_size;
+		}else{
+			target_uv += new_polygon_r[i] * uv_size / poly_size;
+		}
+		uvs_w[i] = target_uv;
+	}
+	print(uvs.size());
+	return uvs;
+}
+
+
+Rect2 get_rect(PoolVector<Vector2> polygon, Vector2 offset) {
+	int l = polygon.size();
+	PoolVector<Vector2>::Read r = polygon.read();
+	Rect2 item_rect = Rect2();
+	for (int i = 0; i < l; i++) {
+		Vector2 pos = r[i] + offset;
+		if (i == 0)
+			item_rect.position = pos;
+		else
+			item_rect.expand_to(pos);
+	}
+	return item_rect;
+}
+
+
+void print(const int number) {
+	print_line(red::str(number));
+}
+
+void print(const String number) {
+	print_line(number);
+}
+
+String str(const int number) {
+	return String(std::to_string(number).c_str());
+}
 
 RED *get_red(const Node *n) {
 	Node *root = n->get_tree()->get_root();

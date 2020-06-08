@@ -24,7 +24,12 @@ enum t {
 	PAGE,
 	FRAME
 };
+PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> new_polygon, PoolVector<Vector2> old_uv, Size2 poly_size, Size2 uv_size);
+Rect2 get_rect(PoolVector<Vector2> polygon, Vector2 offset = Vector2());
 
+void print(const int number);
+void print(const String number);
+String str(const int number);
 Node *get_singleton(const Node *n);
 RED *get_red(const Node *n);
 Camera2D *get_camera(const Node *n);
