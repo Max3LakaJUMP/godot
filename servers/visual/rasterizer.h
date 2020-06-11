@@ -900,6 +900,7 @@ public:
 		float uv_origin;
 		Vector2 scale_center;
 		Vector2 wind_strength;
+		Vector2 elasticity;
 
 		Item *next;
 

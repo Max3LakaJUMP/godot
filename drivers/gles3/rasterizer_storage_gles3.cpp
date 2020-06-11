@@ -5301,7 +5301,7 @@ void RasterizerStorageGLES3::deform_set_wind1_time(RID p_deform, float p_wind1_t
 void RasterizerStorageGLES3::deform_set_wind1_strength(RID p_deform, float p_wind1_strength){
 	Deform *deform = deform_owner.getornull(p_deform);
 	ERR_FAIL_COND(!deform);
-	deform->wind2_strength = p_wind1_strength;
+	deform->wind1_strength = p_wind1_strength;
 }
 
 void RasterizerStorageGLES3::deform_set_wind2_time(RID p_deform, float p_wind2_time){
@@ -5329,27 +5329,19 @@ void RasterizerStorageGLES3::deform_set_scale_strength(RID p_deform, float p_sca
 }
 
 void RasterizerStorageGLES3::deform_set_scale_center(RID p_deform, const Vector2 &p_scale_center){
-	Deform *deform = deform_owner.getornull(p_deform);
-	ERR_FAIL_COND(!deform);
-	deform->scale_center = p_scale_center;
+	//remove
 }
 
 void RasterizerStorageGLES3::deform_set_uv_origin(RID p_deform, float p_uv_origin){
-	Deform *deform = deform_owner.getornull(p_deform);
-	ERR_FAIL_COND(!deform);
-	deform->uv_origin = p_uv_origin;
+	//remove
 }
 
 void RasterizerStorageGLES3::deform_set_waves_count(RID p_deform, float p_waves_count){
-	Deform *deform = deform_owner.getornull(p_deform);
-	ERR_FAIL_COND(!deform);
-	deform->waves_count = p_waves_count;
+	//remove
 }
 
 void RasterizerStorageGLES3::deform_set_elasticity(RID p_deform, float p_elasticity){
-	Deform *deform = deform_owner.getornull(p_deform);
-	ERR_FAIL_COND(!deform);
-	deform->elasticity = p_elasticity;
+	//remove
 }
 
 /* SKELETON API */

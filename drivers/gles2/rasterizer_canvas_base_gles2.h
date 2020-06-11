@@ -98,7 +98,8 @@ public:
 		float uv_origin;
 		Vector2 scale_center;
 		Vector2 wind_strength;
-
+		Vector2 elasticity;
+		
 		float wind_rotation;
 		float wind_offset;
 		float wind1_time;
@@ -107,8 +108,6 @@ public:
 		float wind2_strength;
 		float scale_time;
 		float scale_strength;
-		float waves_count;
-		float elasticity;
 
 		RID current_tex;
 		RID current_normal;

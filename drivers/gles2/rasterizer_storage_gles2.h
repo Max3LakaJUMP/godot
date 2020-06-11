@@ -906,16 +906,10 @@ public:
 		float wind_offset;
 		float wind1_time;
 		float wind1_strength;
-
 		float wind2_time;
 		float wind2_strength;
-
 		float scale_time;
 		float scale_strength;
-		Vector2 scale_center;
-		float uv_origin;
-		float waves_count;
-		float elasticity;
 	};
 	mutable RID_Owner<Deform> deform_owner;
 	virtual RID deform_create();

@@ -18,16 +18,19 @@ uniform highp mat4 projection_matrix;
 #ifdef USE_CUSTOM_TRANSFORM
 uniform highp mat4 custom_matrix;
 #endif
+
+#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
+	varying vec4 world_pos_out;
+#endif
 #ifdef USE_DEFORM
 	uniform highp float object_rotation;
 	uniform highp float uv_origin;
 	uniform highp vec2 scale_center;
 	uniform highp vec2 wind_strength;
+	uniform highp vec2 elasticity;
 	
 	uniform highp float wind_rotation;
 	uniform float wind_offset;
-	uniform highp float waves_count;
-	uniform highp float elasticity;
 	
 	uniform highp float wind1_time;
 	uniform highp float wind1_strength;
@@ -35,12 +38,7 @@ uniform highp mat4 custom_matrix;
 	uniform highp float wind2_strength;
 	uniform highp float scale_time;
 	uniform highp float scale_strength;
-
 #endif
-#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
-	varying vec4 world_pos_out;
-#endif
-
 uniform highp mat4 modelview_matrix;
 uniform highp mat4 world_matrix;
 uniform highp mat4 inv_world_matrix;
@@ -158,15 +156,16 @@ vec2 rotate_uv(vec2 uv, float rotation)
     );
 }
 
-vec2 wind(float t, vec2 direction, float wave, float wind_from_top, float wind_from_bellow)
+vec2 wind(float t, vec2 direction, vec2 wave, float wind_from_top, float wind_from_bellow)
 {
 	vec2 wind_top;
-	wind_top.x = sin(t * 0.5 + wave) * 0.25 * elasticity;
-	wind_top.y = (cos(t)*0.5-0.5*wind_from_bellow)*-direction.y;
+	wind_top.x = sin(t * 0.5 + wave.x+3.14) * 0.5;
+	wind_top.y = (cos(t + 3.14 + wave.y)*0.5-0.5*wind_from_bellow)*(-direction.y);
 	vec2 wind_side;
-	wind_side.x = (sin(t + wave - 3.142) * 0.5 - 0.5) * (-direction.x);
-	wind_side.y = (sin(t) * 0.5 - 0.5)*elasticity;
+	wind_side.x = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.x);
+	wind_side.y = (sin(t + wave.y) * 0.5 - 0.5);
 	vec2 result = lerp(wind_side, wind_top, max(wind_from_bellow, wind_from_top));
+
 	return result;
 }
 #endif
@@ -241,17 +240,26 @@ void main() {
 	}
 
 #endif
+#if defined(DEPTH_USED)
+	float depth = 0.0;
+	float max_depth = 0.001;
+#endif
+#if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
+	float transform_mask = 1.0;
+#endif
 #ifdef USE_DEFORM
 	{
 		float wind_rad = radians(wind_rotation);
 		float object_rad = radians(object_rotation);
-		vec2 direction = rotate(vec2(0.0, 1.0), wind_rad-object_rad);
+		vec2 direction = rotate(vec2(0.0, 1.0), wind_rad - object_rad);
 		vec2 uv_rot = rotate_uv(uv, -object_rad);
-		uv_rot.y = uv_rot.y - uv_origin;
 		outvec.xy = rotate(outvec.xy, -object_rad);
-		float mask = clamp(uv_rot.y / (1.0 - uv_origin), 0.0, 1.0);
+		float mask = 1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0);
+		mask = clamp(mask, 0.0, 1.0);
 		float t = (time + color.g) * 6.28;
-		float wave = ((1.0 - mask) * waves_count) * 6.28;
+		vec2 wave;
+		wave.x = ((1.0 - mask) * elasticity.y) * 6.28;
+		wave.y = (uv_rot.x * elasticity.x) * 6.28;
 		float wind_from_top = max(dot(direction, vec2(0,1)), 0.0);
 		float wind_from_bellow = abs(min(dot(direction, vec2(0,1)), 0.0));
 		vec2 wind_target = direction;
@@ -266,14 +274,6 @@ void main() {
 		outvec.xy = rotate(outvec.xy, object_rad);
 	}
 #endif
-#if defined(DEPTH_USED)
-	float depth = 0.0;
-	float max_depth = 0.001;
-#endif
-#if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
-	float transform_mask = 1.0;
-#endif
-
 	float point_size = 1.0;
 
 	{

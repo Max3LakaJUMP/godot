@@ -2645,6 +2645,7 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 				state.uv_origin = p_ci->uv_origin;
 				state.scale_center = p_ci->scale_center;
 				state.wind_strength = p_ci->wind_strength;
+				state.elasticity = p_ci->elasticity;
 				
 				state.wind_rotation = deform->wind_rotation;
 				state.wind_offset = deform->wind_offset;
@@ -2654,9 +2655,6 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 				state.wind2_strength = deform->wind2_strength;
 				state.scale_time = deform->scale_time;
 				state.scale_strength = deform->scale_strength;
-				
-				state.waves_count = deform->waves_count;
-				state.elasticity = deform->elasticity;
 			}
 
 			bool use_deform = deform != NULL;
@@ -3123,7 +3121,8 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			state.uv_origin = ci->uv_origin;
 			state.scale_center = ci->scale_center;
 			state.wind_strength = ci->wind_strength;
-
+			state.elasticity = ci->elasticity;
+			
 			state.wind_rotation = deform->wind_rotation;
 			state.wind_offset = deform->wind_offset;
 			state.wind1_time = deform->wind1_time;
@@ -3132,9 +3131,6 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			state.wind2_strength = deform->wind2_strength;
 			state.scale_time = deform->scale_time;
 			state.scale_strength = deform->scale_strength;
-			
-			state.waves_count = deform->waves_count;
-			state.elasticity = deform->elasticity;
 		}
 
 		bool use_deform = deform != NULL;

@@ -91,16 +91,16 @@ public:
 		float uv_origin;
 		Vector2 scale_center;
 		Vector2 wind_strength;
-
+		Vector2 elasticity;
+		
 		float wind_rotation;
+		float wind_offset;
 		float wind1_time;
 		float wind1_strength;
 		float wind2_time;
 		float wind2_strength;
 		float scale_time;
 		float scale_strength;
-		float waves_count;
-		float elasticity;
 
 		Transform custom_transform;
 

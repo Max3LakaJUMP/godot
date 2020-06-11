@@ -386,6 +386,7 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::UV_ORIGIN, state.uv_origin);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_CENTER, state.scale_center);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_STRENGTH, state.wind_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::ELASTICITY, state.elasticity);
 		
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_ROTATION, state.wind_rotation);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_OFFSET, state.wind_offset);
@@ -395,9 +396,6 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND2_STRENGTH, state.wind2_strength);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_TIME, state.scale_time);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_STRENGTH, state.scale_strength);
-
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::WAVES_COUNT, state.waves_count);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::ELASTICITY, state.elasticity);
 	}
 }
 

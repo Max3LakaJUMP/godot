@@ -570,6 +570,7 @@ public:
 	FUNC2(canvas_item_deform_set_uv_origin, RID, float)
 	FUNC2(canvas_item_deform_set_scale_center, RID, const Vector2 &)
 	FUNC2(canvas_item_deform_set_wind_strength, RID, const Vector2 &)
+	FUNC2(canvas_item_deform_set_elasticity, RID, const Vector2 &)
 	
 	FUNC1(canvas_item_clear, RID)
 	FUNC2(canvas_item_set_draw_index, RID, int)
