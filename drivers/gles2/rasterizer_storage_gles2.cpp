@@ -3588,6 +3588,102 @@ void RasterizerStorageGLES2::clipper_set_points(RID p_clipper, const Vector3 &p_
 	clipper->calc4 = p_calc4;
 }
 
+/*DEFORM API */
+
+// float RasterizerStorageGLES2::deform_get_wind_rotation(RID p_deform) const{
+// 	Deform *deform = deform_owner.getornull(p_deform);
+// 	ERR_FAIL_COND(!deform);
+// 	return deform->wind_rotation;
+// }
+// float deform_get_wind1_time(RID p_deform) const;
+// float deform_get_wind1_strength(RID p_deform) const;
+// void deform_set_wind1_strength(RID p_deform, float p_wind1_strength);
+// float deform_get_wind2_time(RID p_deform) const;
+// float deform_get_wind2_strength(RID p_deform) const;
+// float deform_get_scale_time(RID p_deform) const;
+// Vector2 deform_get_scale_center(RID p_deform) const;
+// float deform_get_uv_origin(RID p_deform) const;
+// float deform_get_waves_count(RID p_deform) const;
+// float deform_get_elasticity(RID p_deform) const;
+
+RID RasterizerStorageGLES2::deform_create() {
+	Deform *deform = memnew(Deform);
+	return deform_owner.make_rid(deform);
+}
+
+void RasterizerStorageGLES2::deform_set_wind_rotation(RID p_deform, float p_wind_rotation){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->wind_rotation = p_wind_rotation;
+}
+
+void RasterizerStorageGLES2::deform_set_wind_offset(RID p_deform, float p_wind_offset){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->wind_offset = p_wind_offset;
+}
+
+void RasterizerStorageGLES2::deform_set_wind1_time(RID p_deform, float p_wind1_time){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->wind1_time = p_wind1_time;
+}
+
+void RasterizerStorageGLES2::deform_set_wind1_strength(RID p_deform, float p_wind1_strength){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->wind1_strength = p_wind1_strength;
+}
+
+void RasterizerStorageGLES2::deform_set_wind2_time(RID p_deform, float p_wind2_time){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->wind2_time = p_wind2_time;
+}
+
+void RasterizerStorageGLES2::deform_set_wind2_strength(RID p_deform, float p_wind2_strength){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->wind2_strength = p_wind2_strength;
+}
+
+void RasterizerStorageGLES2::deform_set_scale_time(RID p_deform, float p_scale_time){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->scale_time = p_scale_time;
+}
+
+void RasterizerStorageGLES2::deform_set_scale_strength(RID p_deform, float p_scale_strength){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->scale_strength = p_scale_strength;
+}
+
+void RasterizerStorageGLES2::deform_set_scale_center(RID p_deform, const Vector2 &p_scale_center){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->scale_center = p_scale_center;
+}
+
+void RasterizerStorageGLES2::deform_set_uv_origin(RID p_deform, float p_uv_origin){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->uv_origin = p_uv_origin;
+}
+
+void RasterizerStorageGLES2::deform_set_waves_count(RID p_deform, float p_waves_count){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->waves_count = p_waves_count;
+}
+
+void RasterizerStorageGLES2::deform_set_elasticity(RID p_deform, float p_elasticity){
+	Deform *deform = deform_owner.getornull(p_deform);
+	ERR_FAIL_COND(!deform);
+	deform->elasticity = p_elasticity;
+}
+
+
 /* CUSTOM TRANSFORM API */
 
 RID RasterizerStorageGLES2::custom_transform_create() {

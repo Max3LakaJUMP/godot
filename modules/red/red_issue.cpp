@@ -266,6 +266,8 @@ void REDIssue::to_next() {
 }
 
 void REDIssue::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("get_pages_count"), &REDIssue::get_pages_count);
+	
     ClassDB::bind_method(D_METHOD("set_invert_pages", "invert_pages"), &REDIssue::set_invert_pages);
     ClassDB::bind_method(D_METHOD("get_invert_pages"), &REDIssue::get_invert_pages);
     ClassDB::bind_method(D_METHOD("set_autostart", "autostart"), &REDIssue::set_autostart);

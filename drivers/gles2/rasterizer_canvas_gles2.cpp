@@ -86,6 +86,7 @@ void RasterizerCanvasGLES2::RenderItemState::reset() {
 	prev_use_skeleton = false;
 	prev_use_custom_transform = false;
 	prev_use_clipper = false;
+	prev_use_deform = false;
 	last_blend_mode = -1;
 	canvas_last_material = RID();
 	item_group_z = 0;
@@ -2147,6 +2148,7 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_DEFORM, false);
 	
 	state.current_tex = RID();
 	state.current_tex_ptr = NULL;
@@ -2176,6 +2178,7 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_DEFORM, false);
 }
 
 // This function is a dry run of the state changes when drawing the item.
@@ -2262,6 +2265,30 @@ bool RasterizerCanvasGLES2::try_join_item(Item *p_ci, RenderItemState &r_ris, bo
 			state.using_custom_transform = true;
 		} else {
 			state.using_custom_transform = false;
+		}
+	}
+	
+	RasterizerStorageGLES2::Deform *deform = NULL;
+	
+	{
+		//deform
+		if (p_ci->deform.is_valid() && storage->deform_owner.owns(p_ci->deform)) {
+			deform = storage->deform_owner.get(p_ci->deform);
+		}
+
+		bool use_deform = deform != NULL;
+		if (r_ris.prev_use_deform != use_deform) {
+			r_ris.rebind_shader = true;
+			r_ris.prev_use_deform = deform;
+			join = false;
+			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
+		}
+
+		if (deform) {
+			//join = false;
+			state.using_deform = true;
+		} else {
+			state.using_deform = false;
 		}
 	}
 
@@ -2605,6 +2632,44 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 				state.using_custom_transform = true;
 			} else {
 				state.using_custom_transform = false;
+			}
+		}
+		
+		RasterizerStorageGLES2::Deform *deform = NULL;
+		
+		{
+			//deform
+			if (p_ci->deform.is_valid() && storage->deform_owner.owns(p_ci->deform)) {
+				deform = storage->deform_owner.get(p_ci->deform);
+				state.object_rotation = p_ci->object_rotation;
+				state.uv_origin = p_ci->uv_origin;
+				state.scale_center = p_ci->scale_center;
+				state.wind_strength = p_ci->wind_strength;
+				
+				state.wind_rotation = deform->wind_rotation;
+				state.wind_offset = deform->wind_offset;
+				state.wind1_time = deform->wind1_time;
+				state.wind1_strength = deform->wind1_strength;
+				state.wind2_time = deform->wind2_time;
+				state.wind2_strength = deform->wind2_strength;
+				state.scale_time = deform->scale_time;
+				state.scale_strength = deform->scale_strength;
+				
+				state.waves_count = deform->waves_count;
+				state.elasticity = deform->elasticity;
+			}
+
+			bool use_deform = deform != NULL;
+			if (r_ris.prev_use_deform != use_deform) {
+				r_ris.rebind_shader = true;
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_DEFORM, use_deform);
+				r_ris.prev_use_deform = use_deform;
+			}
+
+			if (deform) {
+				state.using_deform = true;
+			} else {
+				state.using_deform = false;
 			}
 		}
 
@@ -3047,6 +3112,46 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			state.using_custom_transform = false;
 		}
 	}
+	
+	RasterizerStorageGLES2::Deform *deform = NULL;
+	
+	{
+		//deform
+		if (ci->deform.is_valid() && storage->deform_owner.owns(ci->deform)) {
+			deform = storage->deform_owner.get(ci->deform);
+			state.object_rotation = ci->object_rotation;
+			state.uv_origin = ci->uv_origin;
+			state.scale_center = ci->scale_center;
+			state.wind_strength = ci->wind_strength;
+
+			state.wind_rotation = deform->wind_rotation;
+			state.wind_offset = deform->wind_offset;
+			state.wind1_time = deform->wind1_time;
+			state.wind1_strength = deform->wind1_strength;
+			state.wind2_time = deform->wind2_time;
+			state.wind2_strength = deform->wind2_strength;
+			state.scale_time = deform->scale_time;
+			state.scale_strength = deform->scale_strength;
+			
+			state.waves_count = deform->waves_count;
+			state.elasticity = deform->elasticity;
+		}
+
+		bool use_deform = deform != NULL;
+		if (r_ris.prev_use_deform != use_deform) {
+			r_ris.rebind_shader = true;
+			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_DEFORM, use_deform);
+			r_ris.prev_use_deform = use_deform;
+		}
+
+		if (deform) {
+			//join = false;
+			state.using_deform = true;
+		} else {
+			state.using_deform = false;
+		}
+	}
+
 
 	RasterizerStorageGLES2::Skeleton *skeleton = NULL;
 

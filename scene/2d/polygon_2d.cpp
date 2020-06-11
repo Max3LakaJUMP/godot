@@ -33,6 +33,7 @@
 #include "core/math/geometry.h"
 #include "skeleton_2d.h"
 #include "modules/red/red_transform.h"
+#include "modules/red/red_deform.h"
 #include "modules/red/red_frame.h"
 #include "modules/red/red_engine.h"
 
@@ -126,6 +127,20 @@ void Polygon2D::_notification(int p_what) {
 				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), red_transform_node->get_ci());
 			} else {
 				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), RID());
+			}
+
+			REDDeform *red_deform_node = NULL;
+			if (has_node(deform)) {
+				red_deform_node = Object::cast_to<REDDeform>(get_node(deform));
+			}
+			if (red_deform_node) {
+				VS::get_singleton()->canvas_item_attach_deform(get_canvas_item(), red_deform_node->get_ci());
+				VS::get_singleton()->canvas_item_deform_set_object_rotation(get_canvas_item(), object_rotation);
+				VS::get_singleton()->canvas_item_deform_set_uv_origin(get_canvas_item(), uv_origin);
+				VS::get_singleton()->canvas_item_deform_set_scale_center(get_canvas_item(), scale_center);
+				VS::get_singleton()->canvas_item_deform_set_wind_strength(get_canvas_item(), wind_strength);
+			} else {
+				VS::get_singleton()->canvas_item_attach_deform(get_canvas_item(), RID());
 			}
 
 			Skeleton2D *skeleton_node = NULL;
@@ -695,6 +710,50 @@ bool Polygon2D::get_clipper_top() const{
 	return clipper_top;
 }
 
+void Polygon2D::set_object_rotation(float p_object_rotation){
+	if (object_rotation == p_object_rotation)
+		return;
+	object_rotation = p_object_rotation;
+	update();
+}
+
+float Polygon2D::get_object_rotation() const{
+	return object_rotation;
+}
+
+void Polygon2D::set_uv_origin(float p_uv_origin){
+	if (uv_origin == p_uv_origin)
+		return;
+	uv_origin = p_uv_origin;
+	update();
+}
+
+float Polygon2D::get_uv_origin() const{
+	return uv_origin;
+}
+
+Vector2 Polygon2D::get_scale_center() const{
+	return scale_center;
+}
+
+void Polygon2D::set_scale_center(Vector2 p_scale_center){
+	if (scale_center == p_scale_center)
+		return;
+	scale_center = p_scale_center;
+	update();
+}
+
+Vector2 Polygon2D::get_wind_strength() const{
+	return wind_strength;
+}
+
+void Polygon2D::set_wind_strength(Vector2 p_wind_strength){
+	if (wind_strength == p_wind_strength)
+		return;
+	wind_strength = p_wind_strength;
+	update();
+}
+
 void Polygon2D::set_custom_transform(const NodePath &p_custom_transform){
 	if (custom_transform == p_custom_transform)
 		return;
@@ -705,6 +764,18 @@ void Polygon2D::set_custom_transform(const NodePath &p_custom_transform){
 NodePath Polygon2D::get_custom_transform() const{
 	return custom_transform;
 }
+
+void Polygon2D::set_deform(const NodePath &p_deform){
+	if (deform == p_deform)
+		return;
+	deform = p_deform;
+	update();
+}
+
+NodePath Polygon2D::get_deform() const{
+	return deform;
+}
+
 
 PoolVector<Vector2> Polygon2D::_get_absolute_uv() const{
 	PoolVector<Vector2> uv_absolute;
@@ -744,15 +815,26 @@ void Polygon2D::_set_absolute_uv(const PoolVector<Vector2> &p_uv){
 void Polygon2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_normalmap", "normalmap"), &Polygon2D::set_normalmap);
 	ClassDB::bind_method(D_METHOD("get_normalmap"), &Polygon2D::get_normalmap);
-	ClassDB::bind_method(D_METHOD("set_clipper_top", "clipper_top"), &Polygon2D::set_clipper_top);
-	ClassDB::bind_method(D_METHOD("get_clipper_top"), &Polygon2D::get_clipper_top);
 	ClassDB::bind_method(D_METHOD("set_clipper", "clipper"), &Polygon2D::set_clipper);
 	ClassDB::bind_method(D_METHOD("get_clipper"), &Polygon2D::get_clipper);
 	ClassDB::bind_method(D_METHOD("set_custom_transform", "custom_transform"), &Polygon2D::set_custom_transform);
 	ClassDB::bind_method(D_METHOD("get_custom_transform"), &Polygon2D::get_custom_transform);
+	ClassDB::bind_method(D_METHOD("set_deform", "deform"), &Polygon2D::set_deform);
+	ClassDB::bind_method(D_METHOD("get_deform"), &Polygon2D::get_deform);
 	ClassDB::bind_method(D_METHOD("_set_absolute_uv", "uv"), &Polygon2D::_set_absolute_uv);
 	ClassDB::bind_method(D_METHOD("_get_absolute_uv"), &Polygon2D::_get_absolute_uv);
 	
+	ClassDB::bind_method(D_METHOD("set_clipper_top", "clipper_top"), &Polygon2D::set_clipper_top);
+	ClassDB::bind_method(D_METHOD("get_clipper_top"), &Polygon2D::get_clipper_top);
+	ClassDB::bind_method(D_METHOD("set_object_rotation", "object_rotation"), &Polygon2D::set_object_rotation);
+	ClassDB::bind_method(D_METHOD("get_object_rotation"), &Polygon2D::get_object_rotation);
+	ClassDB::bind_method(D_METHOD("set_uv_origin", "uv_origin"), &Polygon2D::set_uv_origin);
+	ClassDB::bind_method(D_METHOD("get_uv_origin"), &Polygon2D::get_uv_origin);
+	ClassDB::bind_method(D_METHOD("set_scale_center", "scale_center"), &Polygon2D::set_scale_center);
+	ClassDB::bind_method(D_METHOD("get_scale_center"), &Polygon2D::get_scale_center);
+	ClassDB::bind_method(D_METHOD("set_wind_strength", "wind_strength"), &Polygon2D::set_wind_strength);
+	ClassDB::bind_method(D_METHOD("get_wind_strength"), &Polygon2D::get_wind_strength);
+
 	ClassDB::bind_method(D_METHOD("set_move_polygon_with_uv", "move_polygon_with_uv"), &Polygon2D::set_move_polygon_with_uv);
 	ClassDB::bind_method(D_METHOD("get_move_polygon_with_uv"), &Polygon2D::get_move_polygon_with_uv);
 
@@ -846,16 +928,27 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "bones", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_bones", "_get_bones");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "internal_vertex_count", PROPERTY_HINT_RANGE, "0,1000"), "set_internal_vertex_count", "get_internal_vertex_count");
 	
-	ADD_GROUP("Deformation", "");
-	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "custom_transform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTransform"), "set_custom_transform", "get_custom_transform");
+	ADD_GROUP("Mask", "");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "clipper", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDFrame"), "set_clipper", "get_clipper");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clipper_top"), "set_clipper_top", "get_clipper_top");
+
+	ADD_GROUP("Deformation", "");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "custom_transform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTransform"), "set_custom_transform", "get_custom_transform");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "deform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDDeform"), "set_deform", "get_deform");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "object_rotation", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater"), "set_object_rotation", "get_object_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "uv_origin", PROPERTY_HINT_RANGE, "0,1,0.05,or_lesser,or_greater"), "set_uv_origin", "get_uv_origin");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "scale_center"), "set_scale_center", "get_scale_center");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "wind_strength"), "set_wind_strength", "get_wind_strength");
 }
 
 Polygon2D::Polygon2D() {
 	clipper_top = true;
-	move_polygon_with_uv = false;
+	uv_origin = 0.2;
+	object_rotation = 0.0;
+	scale_center = Vector2(0.5, 0.5);
+	wind_strength = Vector2(1.0, 1.0);
 
+	move_polygon_with_uv = false;
 	invert = 0;
 	invert_border = 100;
 	antialiased = false;

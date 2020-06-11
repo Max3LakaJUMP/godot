@@ -147,6 +147,7 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 	state.using_texture_rect = false;
 	state.using_custom_transform = false;
 	state.using_clipper = false;
+	state.using_deform = false;
 	state.using_skeleton = false;
 	state.using_ninepatch = false;
 	state.using_transparent_rt = false;
@@ -379,6 +380,24 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC2, state.clipper_calc2);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC3, state.clipper_calc3);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC4, state.clipper_calc4);
+	}
+	if (state.using_deform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::OBJECT_ROTATION, state.object_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::UV_ORIGIN, state.uv_origin);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_CENTER, state.scale_center);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_STRENGTH, state.wind_strength);
+		
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_ROTATION, state.wind_rotation);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_OFFSET, state.wind_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND1_TIME, state.wind1_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND1_STRENGTH, state.wind1_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND2_TIME, state.wind2_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND2_STRENGTH, state.wind2_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_TIME, state.scale_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_STRENGTH, state.scale_strength);
+
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::WAVES_COUNT, state.waves_count);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::ELASTICITY, state.elasticity);
 	}
 }
 
@@ -1021,6 +1040,7 @@ void RasterizerCanvasBaseGLES2::initialize() {
 	
 	state.using_custom_transform = false;
 	state.using_clipper = false;
+	state.using_deform = false;
 }
 
 void RasterizerCanvasBaseGLES2::finalize() {

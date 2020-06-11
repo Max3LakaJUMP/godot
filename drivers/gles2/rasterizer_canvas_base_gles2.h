@@ -83,7 +83,8 @@ public:
 		bool using_skeleton;
 		bool using_custom_transform;
 		bool using_clipper;
-
+		bool using_deform;
+		
 		Transform2D skeleton_transform;
 		Transform2D skeleton_transform_inverse;
 		Size2i skeleton_texture_size;
@@ -92,6 +93,22 @@ public:
 		Vector3 clipper_calc2;
 		Vector3 clipper_calc3;
 		Vector3 clipper_calc4;
+		
+		float object_rotation;
+		float uv_origin;
+		Vector2 scale_center;
+		Vector2 wind_strength;
+
+		float wind_rotation;
+		float wind_offset;
+		float wind1_time;
+		float wind1_strength;
+		float wind2_time;
+		float wind2_strength;
+		float scale_time;
+		float scale_strength;
+		float waves_count;
+		float elasticity;
 
 		RID current_tex;
 		RID current_normal;

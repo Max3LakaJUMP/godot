@@ -234,6 +234,22 @@ public:
 
 	FUNCRID(custom_transform)
 	FUNC2(custom_transform_set, RID, const Transform &)
+	
+	/*DEFORM API */
+	
+	FUNCRID(deform)
+	FUNC2(deform_set_wind_rotation, RID, float)
+	FUNC2(deform_set_wind_offset, RID, float)
+	FUNC2(deform_set_wind1_time, RID, float)
+	FUNC2(deform_set_wind1_strength, RID, float)
+	FUNC2(deform_set_wind2_time, RID, float)
+	FUNC2(deform_set_wind2_strength, RID, float)
+	FUNC2(deform_set_scale_time, RID, float)
+	FUNC2(deform_set_scale_strength, RID, float)
+	FUNC2(deform_set_scale_center, RID, const Vector2 &)
+	FUNC2(deform_set_uv_origin, RID, float)
+	FUNC2(deform_set_waves_count, RID, float)
+	FUNC2(deform_set_elasticity, RID, float)
 
 	/* SKELETON API */
 
@@ -549,7 +565,12 @@ public:
 	FUNC2(canvas_item_attach_custom_transform, RID, RID)
 	FUNC2(canvas_item_attach_clipper, RID, RID)
 	FUNC2(canvas_item_clipper_top, RID, bool)
-
+	FUNC2(canvas_item_attach_deform, RID, RID)
+	FUNC2(canvas_item_deform_set_object_rotation, RID, float)
+	FUNC2(canvas_item_deform_set_uv_origin, RID, float)
+	FUNC2(canvas_item_deform_set_scale_center, RID, const Vector2 &)
+	FUNC2(canvas_item_deform_set_wind_strength, RID, const Vector2 &)
+	
 	FUNC1(canvas_item_clear, RID)
 	FUNC2(canvas_item_set_draw_index, RID, int)
 

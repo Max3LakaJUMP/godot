@@ -299,6 +299,22 @@ public:
 	BIND0R(RID, custom_transform_create)
 	BIND2(custom_transform_set, RID, const Transform &)
 
+	/*DEFORM API */
+	
+	BIND0R(RID, deform_create)
+	BIND2(deform_set_wind_rotation, RID, float)
+	BIND2(deform_set_wind_offset, RID, float)
+	BIND2(deform_set_wind1_time, RID, float)
+	BIND2(deform_set_wind1_strength, RID, float)
+	BIND2(deform_set_wind2_time, RID, float)
+	BIND2(deform_set_wind2_strength, RID, float)
+	BIND2(deform_set_scale_time, RID, float)
+	BIND2(deform_set_scale_strength, RID, float)
+	BIND2(deform_set_scale_center, RID, const Vector2 &)
+	BIND2(deform_set_uv_origin, RID, float)
+	BIND2(deform_set_waves_count, RID, float)
+	BIND2(deform_set_elasticity, RID, float)
+
 	/* SKELETON API */
 
 	BIND0R(RID, skeleton_create)
@@ -630,8 +646,13 @@ public:
 	
 	BIND2(canvas_item_attach_custom_transform, RID, RID)
 	BIND2(canvas_item_attach_clipper, RID, RID)
+	BIND2(canvas_item_attach_deform, RID, RID)
 	BIND2(canvas_item_clipper_top, RID, bool)
-	
+	BIND2(canvas_item_deform_set_object_rotation, RID, float)
+	BIND2(canvas_item_deform_set_uv_origin, RID, float)
+	BIND2(canvas_item_deform_set_scale_center, RID, const Vector2 &)
+	BIND2(canvas_item_deform_set_wind_strength, RID, const Vector2 &)
+
 	BIND1(canvas_item_clear, RID)
 	BIND2(canvas_item_set_draw_index, RID, int)
 

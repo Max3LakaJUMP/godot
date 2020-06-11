@@ -362,6 +362,22 @@ public:
 	virtual RID custom_transform_create() = 0;
 	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform) = 0;
 
+	/*DEFORM API */
+
+	virtual RID deform_create() = 0;
+	virtual void deform_set_wind_rotation(RID p_deform, float p_wind_rotation) = 0;
+	virtual void deform_set_wind_offset(RID p_deform, float p_wind_offset) = 0;
+	virtual void deform_set_wind1_time(RID p_deform, float p_wind1_time) = 0;
+	virtual void deform_set_wind1_strength(RID p_deform, float p_wind1_strength) = 0;
+	virtual void deform_set_wind2_time(RID p_deform, float p_wind2_time) = 0;
+	virtual void deform_set_wind2_strength(RID p_deform, float p_wind2_strength) = 0;
+	virtual void deform_set_scale_time(RID p_deform, float p_scale_time) = 0;
+	virtual void deform_set_scale_strength(RID p_deform, float p_scale_strength) = 0;
+	virtual void deform_set_scale_center(RID p_deform, const Vector2 &p_scale_center) = 0;
+	virtual void deform_set_uv_origin(RID p_deform, float p_uv_origin) = 0;
+	virtual void deform_set_waves_count(RID p_deform, float p_waves_count) = 0;
+	virtual void deform_set_elasticity(RID p_deform, float p_elasticity) = 0;
+
 	/* SKELETON API */
 
 	virtual RID skeleton_create() = 0;
@@ -879,7 +895,12 @@ public:
 		RID custom_transform;
 		RID clipper;
 		bool clipper_top;
-		
+		RID deform;
+		float object_rotation;
+		float uv_origin;
+		Vector2 scale_center;
+		Vector2 wind_strength;
+
 		Item *next;
 
 		struct CopyBackBuffer {

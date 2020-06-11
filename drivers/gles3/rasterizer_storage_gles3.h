@@ -904,9 +904,9 @@ public:
 		Vector3 calc4;
 	};
 	mutable RID_Owner<Clipper> clipper_owner;
-	RID clipper_create();
-	void frame_form(RID p_frame, bool triangle);
-	void clipper_set_points(RID p_clipper, const Vector3 &p_calc1, const Vector3 &p_calc2, const Vector3 &p_calc3, const Vector3 &p_calc4);
+	virtual RID clipper_create();
+	virtual void frame_form(RID p_frame, bool triangle);
+	virtual void clipper_set_points(RID p_clipper, const Vector3 &p_calc1, const Vector3 &p_calc2, const Vector3 &p_calc3, const Vector3 &p_calc4);
 
 	/* CUSTOM TRANSFORM API */
 
@@ -918,6 +918,39 @@ public:
 	mutable RID_Owner<CustomTransform> custom_transform_owner;
 	virtual RID custom_transform_create();
 	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform);
+
+
+	/*DEFORM API */
+	struct Deform : RID_Data {
+		float wind_rotation;
+		float wind_offset;
+		float wind1_time;
+		float wind1_strength;
+
+		float wind2_time;
+		float wind2_strength;
+
+		float scale_time;
+		float scale_strength;
+		Vector2 scale_center;
+		float uv_origin;
+		float waves_count;
+		float elasticity;
+	};
+	mutable RID_Owner<Deform> deform_owner;
+	virtual RID deform_create();
+	virtual void deform_set_wind_rotation(RID p_deform, float p_rotation);
+	virtual void deform_set_wind_offset(RID p_deform, float p_rotation);
+	virtual void deform_set_wind1_time(RID p_deform, float p_wind1_time);
+	virtual void deform_set_wind1_strength(RID p_deform, float p_wind1_strength);
+	virtual void deform_set_wind2_time(RID p_deform, float p_wind2_time);
+	virtual void deform_set_wind2_strength(RID p_deform, float p_wind2_strength);
+	virtual void deform_set_scale_time(RID p_deform, float p_scale_time);
+	virtual void deform_set_scale_strength(RID p_deform, float p_scale_strength);
+	virtual void deform_set_scale_center(RID p_deform, const Vector2 &p_scale_center);
+	virtual void deform_set_uv_origin(RID p_deform, float p_uv_origin);
+	virtual void deform_set_waves_count(RID p_deform, float p_waves_count);
+	virtual void deform_set_elasticity(RID p_deform, float p_elasticity);
 
 	/* SKELETON API */
 

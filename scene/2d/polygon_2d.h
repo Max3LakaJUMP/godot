@@ -77,7 +77,13 @@ class Polygon2D : public Node2D {
 	bool move_polygon_with_uv;
 	NodePath custom_transform;
 	NodePath clipper;
+	NodePath deform;
 	bool clipper_top;
+	float object_rotation;
+	float uv_origin;
+	Vector2 scale_center;
+	Vector2 wind_strength;
+
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -157,8 +163,18 @@ public:
 	Ref<Texture> get_normalmap() const;
 	void set_clipper_top(bool p_top);
 	bool get_clipper_top() const;
+	void set_object_rotation(float p_object_rotation);
+	float get_object_rotation() const;
+	void set_uv_origin(float p_uv_origin);
+	float get_uv_origin() const;
+	Vector2 get_scale_center() const;
+	void set_scale_center(Vector2 p_scale_center);
+	Vector2 get_wind_strength() const;
+	void set_wind_strength(Vector2 p_wind_strength);
 	void set_clipper(const NodePath &p_clipper);
 	NodePath get_clipper() const;
+	void set_deform(const NodePath &p_deform);
+	NodePath get_deform() const;
 	void set_custom_transform(const NodePath &p_custom_transform);
 	NodePath get_custom_transform() const;
 	PoolVector<Vector2> _get_absolute_uv() const;

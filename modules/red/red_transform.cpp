@@ -35,6 +35,12 @@
 #include "scene/main/viewport.h"
 #include "servers/visual_server.h"
 
+void REDTransform::_notification(int p_what) {
+	if (p_what == NOTIFICATION_ENTER_TREE) {
+		VisualServer::get_singleton()->custom_transform_set(ci, _mat);
+	}
+}
+
 Transform REDTransform::get_custom_global_transform() const{
 	ERR_FAIL_COND_V(!is_inside_tree(), get_custom_transform());
 	if (global_dirty) {
@@ -139,8 +145,8 @@ void REDTransform::set_custom_transform(const Transform &p_transform) {
 
 	VisualServer::get_singleton()->custom_transform_set(ci, _mat);
 
-	if (!is_inside_tree())
-		return;
+	// if (!is_inside_tree())
+	// 	return;
 
 	//_notify_transform();
 }

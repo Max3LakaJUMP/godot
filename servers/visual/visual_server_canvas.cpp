@@ -955,12 +955,52 @@ void VisualServerCanvas::canvas_item_attach_clipper(RID p_item, RID p_clipper) {
 	canvas_item->clipper = p_clipper;
 }
 
+void VisualServerCanvas::canvas_item_attach_deform(RID p_item, RID p_deform) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->deform = p_deform;
+}
+
 void VisualServerCanvas::canvas_item_clipper_top(RID p_item, bool b_top) {
 
 	Item *canvas_item = canvas_item_owner.getornull(p_item);
 	ERR_FAIL_COND(!canvas_item);
 
 	canvas_item->clipper_top = b_top;
+}
+
+void VisualServerCanvas::canvas_item_deform_set_object_rotation(RID p_item, float p_object_rotation) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->object_rotation = p_object_rotation;
+}
+
+void VisualServerCanvas::canvas_item_deform_set_uv_origin(RID p_item, float p_uv_origin) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->uv_origin = p_uv_origin;
+}
+
+void VisualServerCanvas::canvas_item_deform_set_scale_center(RID p_item, const Vector2 &p_scale_center) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->scale_center = p_scale_center;
+}
+
+void VisualServerCanvas::canvas_item_deform_set_wind_strength(RID p_item, const Vector2 &p_wind_strength) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->wind_strength = p_wind_strength;
 }
 
 void VisualServerCanvas::canvas_item_set_copy_to_backbuffer(RID p_item, bool p_enable, const Rect2 &p_rect) {

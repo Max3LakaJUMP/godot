@@ -257,6 +257,7 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 		bool prev_use_skeleton;
 		bool prev_use_custom_transform;
 		bool prev_use_clipper;
+		bool prev_use_deform;
 		int last_blend_mode;
 		RID canvas_last_material;
 		Color final_modulate;

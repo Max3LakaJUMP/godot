@@ -28,50 +28,60 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef REDTRANSFORM_H
-#define REDTRANSFORM_H
+#ifndef REDDEFORM_H
+#define REDDEFORM_H
 
 #include "scene/main/node.h"
 #include "core/rid.h"
 
-class REDTransform : public Node {
+class REDDeform : public Node {
+	GDCLASS(REDDeform, Node);
 
-	GDCLASS(REDTransform, Node);
+	float wind_rotation;
+	float wind_offset;
 
-	Vector3 _pos;
-	Vector3 _rotation;
-	Vector3 _scale;
-	Transform _mat;
-	mutable Transform mat_global;
-	bool _xform_dirty;
-	mutable bool global_dirty;
+	float wind1_time;
+	float wind1_strength;
+	float wind2_time;
+	float wind2_strength;
+
+	float scale_time;
+	float scale_strength;
+	float waves_count;
+	float elasticity;
+
 	RID ci;
-	
-	void _update_custom_transform();
-	void _update_xform_values();
-
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 
 public:
-	void set_custom_position(const Vector3 &p_pos);
-	void set_custom_rotation(const Vector3 &p_radians);
-	void set_custom_rotation_degrees(const Vector3 &p_degrees);
-	void set_custom_scale(const Vector3 &p_scale);
+	float get_wind_rotation() const;
+	void set_wind_rotation(float p_wind_rotation);
+	float get_wind_offset() const;
+	void set_wind_offset(float p_wind_offset);
+	float get_waves_count() const;
+	void set_waves_count(float p_waves_count);
+	float get_elasticity() const;
+	void set_elasticity(float p_elasticity);
+	
+	float get_wind1_time() const;
+	void set_wind1_time(float p_wind1_time);
+	float get_wind1_strength() const;
+	void set_wind1_strength(float p_wind1_strength);
 
-	Vector3 get_custom_position() const;
-	Vector3 get_custom_rotation() const;
-	Vector3 get_custom_rotation_degrees() const;
-	Vector3 get_custom_scale() const;
+	float get_wind2_time() const;
+	void set_wind2_time(float p_wind2_time);
+	float get_wind2_strength() const;
+	void set_wind2_strength(float p_wind2_strength);
 
-	void set_custom_transform(const Transform &p_transform);
-	Transform get_custom_transform() const;
-	Transform get_custom_global_transform() const;
-
+	float get_scale_time() const;
+	void set_scale_time(float p_scale_time);
+	float get_scale_strength() const;
+	void set_scale_strength(float p_scale_strengt);
 	RID get_ci();
-	REDTransform();
-	~REDTransform();
+	REDDeform();
+	~REDDeform();
 };
 
-#endif // REDTRANSFORM_H
+#endif // REDDEFORM_H
