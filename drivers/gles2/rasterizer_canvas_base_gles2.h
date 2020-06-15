@@ -88,7 +88,11 @@ public:
 		Transform2D skeleton_transform;
 		Transform2D skeleton_transform_inverse;
 		Size2i skeleton_texture_size;
+		
 		Transform custom_transform;
+		float depth_size;
+		float depth_offset;
+		
 		Vector3 clipper_calc1;
 		Vector3 clipper_calc2;
 		Vector3 clipper_calc3;
@@ -97,13 +101,13 @@ public:
 		float object_rotation;
 		float uv_origin;
 		Vector2 scale_center;
-		Vector2 wind_strength;
+		Vector2 wind_strength_object;
 		Vector2 elasticity;
 		
 		float wind_rotation;
 		float wind_offset;
-		float wind1_time;
-		float wind1_strength;
+		float wind_time;
+		float wind_strength;
 		float wind2_time;
 		float wind2_strength;
 		float scale_time;

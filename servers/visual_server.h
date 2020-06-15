@@ -398,14 +398,15 @@ public:
 
 	virtual RID custom_transform_create() = 0;
 	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform) = 0;
-	
+	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_global, const Transform &p_offset, const Transform &p_global_offset) = 0;
+
 	/*DEFORM API */
 
 	virtual RID deform_create() = 0;
 	virtual void deform_set_wind_rotation(RID p_deform, float p_wind_rotation) = 0;
 	virtual void deform_set_wind_offset(RID p_deform, float p_wind_offset) = 0;
-	virtual void deform_set_wind1_time(RID p_deform, float p_wind1_time) = 0;
-	virtual void deform_set_wind1_strength(RID p_deform, float p_wind1_strength) = 0;
+	virtual void deform_set_wind_time(RID p_deform, float p_wind_time) = 0;
+	virtual void deform_set_wind_strength(RID p_deform, float p_wind_strength) = 0;
 	virtual void deform_set_wind2_time(RID p_deform, float p_wind2_time) = 0;
 	virtual void deform_set_wind2_strength(RID p_deform, float p_wind2_strength) = 0;
 	virtual void deform_set_scale_time(RID p_deform, float p_scale_time) = 0;
@@ -952,6 +953,9 @@ public:
 	virtual void canvas_item_attach_skeleton(RID p_item, RID p_skeleton) = 0;
 
 	virtual void canvas_item_attach_custom_transform(RID p_item, RID p_transform) = 0;
+	virtual void canvas_item_custom_transform_set_depth_position(RID p_item, float p_depth) = 0;
+	virtual void canvas_item_custom_transform_set_depth_size(RID p_item, float p_depth) = 0;
+	virtual void canvas_item_custom_transform_set_depth_offset(RID p_item, float p_depth) = 0;
 	virtual void canvas_item_attach_clipper(RID p_item, RID p_clipper) = 0;
 	virtual void canvas_item_clipper_top(RID p_item, bool b_top) = 0;
 	virtual void canvas_item_attach_deform(RID p_item, RID p_deform) = 0;

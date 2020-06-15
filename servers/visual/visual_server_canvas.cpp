@@ -963,6 +963,30 @@ void VisualServerCanvas::canvas_item_attach_deform(RID p_item, RID p_deform) {
 	canvas_item->deform = p_deform;
 }
 
+void VisualServerCanvas::canvas_item_custom_transform_set_depth_position(RID p_item, float p_depth) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->depth_position = p_depth;
+}
+
+void VisualServerCanvas::canvas_item_custom_transform_set_depth_size(RID p_item, float p_depth) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->depth_size = p_depth;
+}
+
+void VisualServerCanvas::canvas_item_custom_transform_set_depth_offset(RID p_item, float p_depth) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->depth_offset = p_depth;
+}
+
 void VisualServerCanvas::canvas_item_clipper_top(RID p_item, bool b_top) {
 
 	Item *canvas_item = canvas_item_owner.getornull(p_item);

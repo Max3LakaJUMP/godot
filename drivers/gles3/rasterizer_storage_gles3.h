@@ -914,18 +914,21 @@ public:
 
 		bool enable;
 		Transform transform;
+		Transform global;
+		Transform offset;
+		Transform global_offset;
 	};
 	mutable RID_Owner<CustomTransform> custom_transform_owner;
 	virtual RID custom_transform_create();
 	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform);
-
+	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_global, const Transform &p_offset, const Transform &p_global_offset);
 
 	/*DEFORM API */
 	struct Deform : RID_Data {
 		float wind_rotation;
 		float wind_offset;
-		float wind1_time;
-		float wind1_strength;
+		float wind_time;
+		float wind_strength;
 		float wind2_time;
 		float wind2_strength;
 		float scale_time;
@@ -935,8 +938,8 @@ public:
 	virtual RID deform_create();
 	virtual void deform_set_wind_rotation(RID p_deform, float p_rotation);
 	virtual void deform_set_wind_offset(RID p_deform, float p_rotation);
-	virtual void deform_set_wind1_time(RID p_deform, float p_wind1_time);
-	virtual void deform_set_wind1_strength(RID p_deform, float p_wind1_strength);
+	virtual void deform_set_wind_time(RID p_deform, float p_wind_time);
+	virtual void deform_set_wind_strength(RID p_deform, float p_wind_strength);
 	virtual void deform_set_wind2_time(RID p_deform, float p_wind2_time);
 	virtual void deform_set_wind2_strength(RID p_deform, float p_wind2_strength);
 	virtual void deform_set_scale_time(RID p_deform, float p_scale_time);

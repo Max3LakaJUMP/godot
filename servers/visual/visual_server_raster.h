@@ -298,14 +298,15 @@ public:
 
 	BIND0R(RID, custom_transform_create)
 	BIND2(custom_transform_set, RID, const Transform &)
+	BIND4(custom_transform_set_global, RID, const Transform &, const Transform &, const Transform &)
 
 	/*DEFORM API */
 	
 	BIND0R(RID, deform_create)
 	BIND2(deform_set_wind_rotation, RID, float)
 	BIND2(deform_set_wind_offset, RID, float)
-	BIND2(deform_set_wind1_time, RID, float)
-	BIND2(deform_set_wind1_strength, RID, float)
+	BIND2(deform_set_wind_time, RID, float)
+	BIND2(deform_set_wind_strength, RID, float)
 	BIND2(deform_set_wind2_time, RID, float)
 	BIND2(deform_set_wind2_strength, RID, float)
 	BIND2(deform_set_scale_time, RID, float)
@@ -645,6 +646,9 @@ public:
 	BIND2(canvas_item_attach_skeleton, RID, RID)
 	
 	BIND2(canvas_item_attach_custom_transform, RID, RID)
+	BIND2(canvas_item_custom_transform_set_depth_position, RID, float)
+	BIND2(canvas_item_custom_transform_set_depth_size, RID, float)
+	BIND2(canvas_item_custom_transform_set_depth_offset, RID, float)
 	BIND2(canvas_item_attach_clipper, RID, RID)
 	BIND2(canvas_item_attach_deform, RID, RID)
 	BIND2(canvas_item_clipper_top, RID, bool)

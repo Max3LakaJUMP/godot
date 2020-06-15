@@ -17,6 +17,8 @@ uniform highp mat4 projection_matrix;
 
 #ifdef USE_CUSTOM_TRANSFORM
 uniform highp mat4 custom_matrix;
+uniform highp float depth_size;
+uniform highp float depth_offset;
 #endif
 
 #if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
@@ -26,14 +28,14 @@ uniform highp mat4 custom_matrix;
 	uniform highp float object_rotation;
 	uniform highp float uv_origin;
 	uniform highp vec2 scale_center;
-	uniform highp vec2 wind_strength;
+	uniform highp vec2 wind_strength_object;
 	uniform highp vec2 elasticity;
 	
 	uniform highp float wind_rotation;
 	uniform float wind_offset;
 	
-	uniform highp float wind1_time;
-	uniform highp float wind1_strength;
+	uniform highp float wind_time;
+	uniform highp float wind_strength;
 	uniform highp float wind2_time;
 	uniform highp float wind2_strength;
 	uniform highp float scale_time;
@@ -242,7 +244,7 @@ void main() {
 #endif
 #if defined(DEPTH_USED)
 	float depth = 0.0;
-	float max_depth = 0.001;
+	float max_depth = 0.0001;
 #endif
 #if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
 	float transform_mask = 1.0;
@@ -256,7 +258,7 @@ void main() {
 		outvec.xy = rotate(outvec.xy, -object_rad);
 		float mask = 1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0);
 		mask = clamp(mask, 0.0, 1.0);
-		float t = (time + color.g) * 6.28;
+		float t = (time) * 6.28;
 		vec2 wave;
 		wave.x = ((1.0 - mask) * elasticity.y) * 6.28;
 		wave.y = (uv_rot.x * elasticity.x) * 6.28;
@@ -266,11 +268,11 @@ void main() {
 		wind_target.y = wind_target.y * 0.5 - 0.5;
 		wind_target = wind_target * wind_offset;
 		
-		vec2 cycle_wind = wind(t / wind1_time, direction, wave, wind_from_top, wind_from_bellow) + wind_target;
+		vec2 cycle_wind = wind(t / wind_time, direction, wave, wind_from_top, wind_from_bellow) + wind_target;
 		vec2 cycle_wind2 = wind((t + 0.79) / wind2_time, direction, wave, wind_from_top, wind_from_bellow);
 		vec2 cycle_scale = sin(t / scale_time) * (uv_rot - scale_center);
 		
-		outvec.xy = outvec.xy + (cycle_wind * wind1_strength + cycle_wind2 * wind2_strength + cycle_scale * scale_strength) * mask * wind_strength;
+		outvec.xy = outvec.xy + (cycle_wind * wind_strength + cycle_wind2 * wind2_strength + cycle_scale * scale_strength) * mask * wind_strength_object * color.g;
 		outvec.xy = rotate(outvec.xy, object_rad);
 	}
 #endif
@@ -292,7 +294,7 @@ VERTEX_SHADER_CODE
 	
 	#ifdef USE_CUSTOM_TRANSFORM
 		#if defined(DEPTH_USED)
-			outvec.z = depth;
+			outvec.z = (depth - depth_offset) * depth_size;
 		#endif
 		outvec = outvec + transform_mask * (custom_matrix * outvec - outvec);
 		#if defined(DEPTH_USED)
@@ -317,7 +319,16 @@ VERTEX_SHADER_CODE
 // USE_SKELETON moved before vertex shader
 
 	uv_interp = uv;
-	gl_Position = projection_matrix * outvec;
+	//gl_Position = projection_matrix * outvec;
+	//todo move to cpu
+	highp mat4 projection_matrix2 = projection_matrix;
+	#if defined(DEPTH_USED)
+		float far = outvec.z + 1.0;
+		float near = -outvec.z - 1.0;
+		projection_matrix2[2][2] = -2.0 / (far - near);
+		projection_matrix2[2][3] = -((far + near) / (far - near));
+	#endif
+	gl_Position = projection_matrix2 * outvec;
 
 #ifdef USE_LIGHTING
 

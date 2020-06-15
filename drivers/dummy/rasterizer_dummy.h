@@ -472,13 +472,14 @@ public:
 
 	RID custom_transform_create() { return RID(); }
 	void custom_transform_set(RID p_custom_transform, const Transform &p_transform) {}
-
+	void custom_transform_set_global(RID p_custom_transform, const Transform &p_global, const Transform &p_offset, const Transform &p_global_offset) {}
+	
 	/*DEFORM API */
 
 	RID deform_create() { return RID(); }
 	// float deform_get_wind_rotation(RID p_deform) const {return 0.0;}
-	// float deform_get_wind1_time(RID p_deform) const {return 0.0;}
-	// float deform_get_wind1_strength(RID p_deform) const {return 0.0;}
+	// float deform_get_wind_time(RID p_deform) const {return 0.0;}
+	// float deform_get_wind_strength(RID p_deform) const {return 0.0;}
 	// float deform_get_wind2_time(RID p_deform) const {return 0.0;}
 	// float deform_get_wind2_strength(RID p_deform) const {return 0.0;}
 	// float deform_get_scale_time(RID p_deform) const {return 0.0;}
@@ -488,8 +489,8 @@ public:
 	// float deform_get_elasticity(RID p_deform) const {return 0.0;}
 	void deform_set_wind_rotation(RID p_deform, float p_rotation) {}
 	void deform_set_wind_offset(RID p_deform, float p_wind_offset) {}
-	void deform_set_wind1_time(RID p_deform, float p_wind1_time) {}
-	void deform_set_wind1_strength(RID p_deform, float p_wind1_strength) {}
+	void deform_set_wind_time(RID p_deform, float p_wind_time) {}
+	void deform_set_wind_strength(RID p_deform, float p_wind_strength) {}
 	void deform_set_wind2_time(RID p_deform, float p_wind2_time) {}
 	void deform_set_wind2_strength(RID p_deform, float p_wind2_strength) {}
 	void deform_set_scale_time(RID p_deform, float p_scale_time) {}

@@ -125,6 +125,9 @@ void Polygon2D::_notification(int p_what) {
 			}
 			if (red_transform_node) {
 				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), red_transform_node->get_ci());
+				VS::get_singleton()->canvas_item_custom_transform_set_depth_position(get_canvas_item(), depth_position);
+				VS::get_singleton()->canvas_item_custom_transform_set_depth_size(get_canvas_item(), depth_size);
+				VS::get_singleton()->canvas_item_custom_transform_set_depth_offset(get_canvas_item(), depth_offset);
 			} else {
 				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), RID());
 			}
@@ -711,6 +714,40 @@ bool Polygon2D::get_clipper_top() const{
 	return clipper_top;
 }
 
+float Polygon2D::get_depth_position() const{
+	return depth_position;
+}
+
+void Polygon2D::set_depth_position(float p_depth){
+	if (depth_position == p_depth)
+		return;
+	depth_position = p_depth;
+	VS::get_singleton()->canvas_item_custom_transform_set_depth_position(get_canvas_item(), depth_position);
+}
+
+float Polygon2D::get_depth_size() const{
+	return depth_size;
+}
+
+void Polygon2D::set_depth_size(float p_depth){
+	if (depth_size == p_depth)
+		return;
+	depth_size = p_depth;
+	VS::get_singleton()->canvas_item_custom_transform_set_depth_size(get_canvas_item(), depth_size);
+}
+
+float Polygon2D::get_depth_offset() const{
+	return depth_offset;
+}
+
+void Polygon2D::set_depth_offset(float p_depth){
+	if (depth_offset == p_depth)
+		return;
+	depth_offset = p_depth;
+	VS::get_singleton()->canvas_item_custom_transform_set_depth_offset(get_canvas_item(), depth_offset);
+}
+
+
 float Polygon2D::get_object_rotation() const{
 	return object_rotation;
 }
@@ -839,6 +876,12 @@ void Polygon2D::_bind_methods() {
 	
 	ClassDB::bind_method(D_METHOD("set_clipper_top", "clipper_top"), &Polygon2D::set_clipper_top);
 	ClassDB::bind_method(D_METHOD("get_clipper_top"), &Polygon2D::get_clipper_top);
+	ClassDB::bind_method(D_METHOD("set_depth_position", "depth_position"), &Polygon2D::set_depth_position);
+	ClassDB::bind_method(D_METHOD("get_depth_position"), &Polygon2D::get_depth_position);
+	ClassDB::bind_method(D_METHOD("set_depth_size", "depth_size"), &Polygon2D::set_depth_size);
+	ClassDB::bind_method(D_METHOD("get_depth_size"), &Polygon2D::get_depth_size);
+	ClassDB::bind_method(D_METHOD("set_depth_offset", "depth_offset"), &Polygon2D::set_depth_offset);
+	ClassDB::bind_method(D_METHOD("get_depth_offset"), &Polygon2D::get_depth_offset);
 	ClassDB::bind_method(D_METHOD("set_object_rotation", "object_rotation"), &Polygon2D::set_object_rotation);
 	ClassDB::bind_method(D_METHOD("get_object_rotation"), &Polygon2D::get_object_rotation);
 	ClassDB::bind_method(D_METHOD("set_uv_origin", "uv_origin"), &Polygon2D::set_uv_origin);
@@ -947,8 +990,13 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "clipper", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDFrame"), "set_clipper", "get_clipper");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clipper_top"), "set_clipper_top", "get_clipper_top");
 
-	ADD_GROUP("Deformation", "");
+	ADD_GROUP("3D", "");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "custom_transform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDTransform"), "set_custom_transform", "get_custom_transform");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_position"), "set_depth_position", "get_depth_position");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_size"), "set_depth_size", "get_depth_size");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_offset"), "set_depth_offset", "get_depth_offset");
+
+	ADD_GROUP("Deformation", "");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "deform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDDeform"), "set_deform", "get_deform");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "object_rotation", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater"), "set_object_rotation", "get_object_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "uv_origin", PROPERTY_HINT_RANGE, "0,1,0.05,or_lesser,or_greater"), "set_uv_origin", "get_uv_origin");
@@ -959,6 +1007,9 @@ void Polygon2D::_bind_methods() {
 
 Polygon2D::Polygon2D() {
 	clipper_top = true;
+	depth_position = 0.0f;
+	depth_size = 100.0;
+	depth_offset = 0.5;
 	uv_origin = 0.55;
 	object_rotation = 0.0;
 	scale_center = Vector2(0.5, 0.5);

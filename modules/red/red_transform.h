@@ -31,30 +31,34 @@
 #ifndef REDTRANSFORM_H
 #define REDTRANSFORM_H
 
-#include "scene/main/node.h"
+#include "scene/2d/node_2d.h"
 #include "core/rid.h"
 
-class REDTransform : public Node {
+class REDTransform : public Node2D {
 
-	GDCLASS(REDTransform, Node);
+	GDCLASS(REDTransform, Node2D);
 
-	Vector3 _pos;
-	Vector3 _rotation;
-	Vector3 _scale;
+	Vector3 _custom_pos;
+	Vector3 _custom_rotation;
+	Vector3 _custom_scale;
 	Transform _mat;
 	mutable Transform mat_global;
-	bool _xform_dirty;
+	bool _custom_xform_dirty;
 	mutable bool global_dirty;
 	RID ci;
-	
-	void _update_custom_transform();
-	void _update_xform_values();
+	float  depth_position;
+	void _update_custom_transform(bool update_child = false, bool update_matrix = false);
+	void _update_custom_xform_values();
 
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 
 public:
+	float get_global_depth_position() const;
+	float get_depth_position() const;
+	void set_depth_position(float p_depth);
+
 	void set_custom_position(const Vector3 &p_pos);
 	void set_custom_rotation(const Vector3 &p_radians);
 	void set_custom_rotation_degrees(const Vector3 &p_degrees);
@@ -64,7 +68,7 @@ public:
 	Vector3 get_custom_rotation() const;
 	Vector3 get_custom_rotation_degrees() const;
 	Vector3 get_custom_scale() const;
-
+	
 	void set_custom_transform(const Transform &p_transform);
 	Transform get_custom_transform() const;
 	Transform get_custom_global_transform() const;

@@ -82,6 +82,10 @@ public:
 		bool using_custom_transform;
 		bool using_deform;
 
+		Transform custom_transform;
+		float depth_size;
+		float depth_offset;
+		
 		Vector3 clipper_calc1;
 		Vector3 clipper_calc2;
 		Vector3 clipper_calc3;
@@ -90,19 +94,17 @@ public:
 		float object_rotation;
 		float uv_origin;
 		Vector2 scale_center;
-		Vector2 wind_strength;
+		Vector2 wind_strength_object;
 		Vector2 elasticity;
 		
 		float wind_rotation;
 		float wind_offset;
-		float wind1_time;
-		float wind1_strength;
+		float wind_time;
+		float wind_strength;
 		float wind2_time;
 		float wind2_strength;
 		float scale_time;
 		float scale_strength;
-
-		Transform custom_transform;
 
 		RID current_tex;
 		RID current_normal;

@@ -3595,9 +3595,9 @@ void RasterizerStorageGLES2::clipper_set_points(RID p_clipper, const Vector3 &p_
 // 	ERR_FAIL_COND(!deform);
 // 	return deform->wind_rotation;
 // }
-// float deform_get_wind1_time(RID p_deform) const;
-// float deform_get_wind1_strength(RID p_deform) const;
-// void deform_set_wind1_strength(RID p_deform, float p_wind1_strength);
+// float deform_get_wind_time(RID p_deform) const;
+// float deform_get_wind_strength(RID p_deform) const;
+// void deform_set_wind_strength(RID p_deform, float p_wind_strength);
 // float deform_get_wind2_time(RID p_deform) const;
 // float deform_get_wind2_strength(RID p_deform) const;
 // float deform_get_scale_time(RID p_deform) const;
@@ -3623,16 +3623,16 @@ void RasterizerStorageGLES2::deform_set_wind_offset(RID p_deform, float p_wind_o
 	deform->wind_offset = p_wind_offset;
 }
 
-void RasterizerStorageGLES2::deform_set_wind1_time(RID p_deform, float p_wind1_time){
+void RasterizerStorageGLES2::deform_set_wind_time(RID p_deform, float p_wind_time){
 	Deform *deform = deform_owner.getornull(p_deform);
 	ERR_FAIL_COND(!deform);
-	deform->wind1_time = p_wind1_time;
+	deform->wind_time = p_wind_time;
 }
 
-void RasterizerStorageGLES2::deform_set_wind1_strength(RID p_deform, float p_wind1_strength){
+void RasterizerStorageGLES2::deform_set_wind_strength(RID p_deform, float p_wind_strength){
 	Deform *deform = deform_owner.getornull(p_deform);
 	ERR_FAIL_COND(!deform);
-	deform->wind1_strength = p_wind1_strength;
+	deform->wind_strength = p_wind_strength;
 }
 
 void RasterizerStorageGLES2::deform_set_wind2_time(RID p_deform, float p_wind2_time){
@@ -3687,6 +3687,14 @@ void RasterizerStorageGLES2::custom_transform_set(RID p_custom_transform, const 
 	CustomTransform *custom_transform = custom_transform_owner.getornull(p_custom_transform);
 	ERR_FAIL_COND(!custom_transform);
 	custom_transform->transform = p_transform;
+}
+
+void RasterizerStorageGLES2::custom_transform_set_global(RID p_custom_transform, const Transform &p_global, const Transform &p_offset, const Transform &p_global_offset) {
+	CustomTransform *custom_transform = custom_transform_owner.getornull(p_custom_transform);
+	ERR_FAIL_COND(!custom_transform);
+	custom_transform->global = p_global;
+	custom_transform->offset = p_offset;
+	custom_transform->global_offset = p_global_offset;
 }
 
 /* SKELETON API */

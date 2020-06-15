@@ -234,14 +234,15 @@ public:
 
 	FUNCRID(custom_transform)
 	FUNC2(custom_transform_set, RID, const Transform &)
-	
+	FUNC4(custom_transform_set_global, RID, const Transform &, const Transform &, const Transform &)
+
 	/*DEFORM API */
 	
 	FUNCRID(deform)
 	FUNC2(deform_set_wind_rotation, RID, float)
 	FUNC2(deform_set_wind_offset, RID, float)
-	FUNC2(deform_set_wind1_time, RID, float)
-	FUNC2(deform_set_wind1_strength, RID, float)
+	FUNC2(deform_set_wind_time, RID, float)
+	FUNC2(deform_set_wind_strength, RID, float)
 	FUNC2(deform_set_wind2_time, RID, float)
 	FUNC2(deform_set_wind2_strength, RID, float)
 	FUNC2(deform_set_scale_time, RID, float)
@@ -563,6 +564,9 @@ public:
 	FUNC2(canvas_item_attach_skeleton, RID, RID)
 	
 	FUNC2(canvas_item_attach_custom_transform, RID, RID)
+	FUNC2(canvas_item_custom_transform_set_depth_position, RID, float)
+	FUNC2(canvas_item_custom_transform_set_depth_size, RID, float)
+	FUNC2(canvas_item_custom_transform_set_depth_offset, RID, float)
 	FUNC2(canvas_item_attach_clipper, RID, RID)
 	FUNC2(canvas_item_clipper_top, RID, bool)
 	FUNC2(canvas_item_attach_deform, RID, RID)

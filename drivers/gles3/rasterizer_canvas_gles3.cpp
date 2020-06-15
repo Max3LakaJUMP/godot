@@ -320,6 +320,8 @@ void RasterizerCanvasGLES3::_set_texture_rect_mode(bool p_enable, bool p_ninepat
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_transform);
 	if (state.using_custom_transform) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
 	}
 	if (state.using_clipper) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC1, state.clipper_calc1);
@@ -331,13 +333,13 @@ void RasterizerCanvasGLES3::_set_texture_rect_mode(bool p_enable, bool p_ninepat
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::OBJECT_ROTATION, state.object_rotation);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::UV_ORIGIN, state.uv_origin);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
-		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
 		
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
-		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND1_TIME, state.wind1_time);
-		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND1_STRENGTH, state.wind1_strength);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_TIME, state.wind2_time);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_STRENGTH, state.wind2_strength);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_TIME, state.scale_time);
@@ -357,6 +359,7 @@ void RasterizerCanvasGLES3::_set_texture_rect_mode(bool p_enable, bool p_ninepat
 }
 
 void RasterizerCanvasGLES3::_draw_polygon(const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor, const int *p_bones, const float *p_weights) {
+	glClear(GL_DEPTH_BUFFER_BIT);
 
 	glBindVertexArray(data.polygon_buffer_pointer_array);
 	glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
@@ -1476,12 +1479,14 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 	bool prev_use_custom_transform = false;
 	bool prev_use_clipper = false;
 	bool prev_use_deform = false;
+	
 
 	while (p_item_list) {
 
 		Item *ci = p_item_list;
 		storage->info.render._2d_item_count++;
-
+		Transform2D world_pos = p_transform.affine_inverse() * ci->final_transform;
+		
 		if (prev_distance_field != ci->distance_field) {
 
 			state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_DISTANCE_FIELD, ci->distance_field);
@@ -1551,7 +1556,11 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 			//custom_transform
 			if (ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(ci->custom_transform)) {
 				custom_transform = storage->custom_transform_owner.get(ci->custom_transform);
-				state.custom_transform = custom_transform->transform;
+				Transform pos;
+				pos.set_origin(Vector3(world_pos.get_origin().x, world_pos.get_origin().y, ci->depth_position));
+				state.custom_transform = pos.affine_inverse() * custom_transform->transform * pos;
+				state.depth_size = ci->depth_size;
+				state.depth_offset = ci->depth_offset;
 			}
 
 			bool use_custom_transform = custom_transform != NULL;
@@ -1575,13 +1584,13 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 				state.object_rotation = ci->object_rotation;
 				state.uv_origin = ci->uv_origin;
 				state.scale_center = ci->scale_center;
-				state.wind_strength = ci->wind_strength;
+				state.wind_strength_object = ci->wind_strength;
 				state.elasticity = ci->elasticity;
 				
 				state.wind_rotation = deform->wind_rotation;
 				state.wind_offset = deform->wind_offset;
-				state.wind1_time = deform->wind1_time;
-				state.wind1_strength = deform->wind1_strength;
+				state.wind_time = deform->wind_time;
+				state.wind_strength = deform->wind_strength;
 				state.wind2_time = deform->wind2_time;
 				state.wind2_strength = deform->wind2_strength;
 				state.scale_time = deform->scale_time;
@@ -1818,6 +1827,8 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 		state.inv_world_transform = state.world_transform.affine_inverse();
 		if (state.using_custom_transform) {
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
+			state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
+			state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
 		}
 		if (state.using_clipper) {
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC1, state.clipper_calc1);
@@ -1829,13 +1840,13 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::OBJECT_ROTATION, state.object_rotation);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::UV_ORIGIN, state.uv_origin);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
-			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
+			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
 			
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
-			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND1_TIME, state.wind1_time);
-			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND1_STRENGTH, state.wind1_strength);
+			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
+			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_TIME, state.wind2_time);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_STRENGTH, state.wind2_strength);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_TIME, state.scale_time);
@@ -1930,6 +1941,8 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 						}
 						if (state.using_custom_transform) {
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
+							state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
+							state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
 						}
 						if (state.using_clipper) {
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIPPER_CALC1, state.clipper_calc1);
@@ -1941,13 +1954,13 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::OBJECT_ROTATION, state.object_rotation);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::UV_ORIGIN, state.uv_origin);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
-							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
+							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
 							
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
-							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND1_TIME, state.wind1_time);
-							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND1_STRENGTH, state.wind1_strength);
+							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
+							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH, state.wind_strength);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_TIME, state.wind2_time);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND2_STRENGTH, state.wind2_strength);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_TIME, state.scale_time);

@@ -36,58 +36,147 @@
 #include "servers/visual_server.h"
 
 void REDTransform::_notification(int p_what) {
-	if (p_what == NOTIFICATION_ENTER_TREE) {
-		VisualServer::get_singleton()->custom_transform_set(ci, _mat);
+	switch (p_what) {
+		case NOTIFICATION_READY: {
+			set_notify_transform(true);
+			VisualServer::get_singleton()->custom_transform_set(ci, get_custom_global_transform());
+		} break;
+		case NOTIFICATION_TRANSFORM_CHANGED: {
+			global_dirty = true;
+			VisualServer::get_singleton()->custom_transform_set(ci, get_custom_global_transform());
+		} break;
 	}
+}
+// void REDTransform::_update_custom_global_transform() const{
+// 	ERR_FAIL_COND_V(!is_inside_tree(), get_custom_transform());
+// 	REDTransform *pi = Object::cast_to<REDTransform>(get_parent());
+// 	Transform translator = Transform();
+// 	translator.set_origin(Vector3(get_position().x, get_position().y, 0.0f));
+// 	Transform translator_global = Transform();
+// 	translator_global.set_origin(Vector3(get_global_position().x - get_position().x, get_global_position().y - get_position().y, 0.0f));
+// 	if (pi){
+// 		Transform pi_translator = Transform();
+// 		pi_translator.set_origin(Vector3(-pi->get_global_position().x + get_position().x, -pi->get_global_position().y + get_position().y, 0.0f));
+// 		mat_global = pi_translator.affine_inverse() * pi->get_custom_global_transform() * pi->get_custom_transform() * pi_translator;
+// 	}
+// 	else
+// 	{
+// 		mat_global = Transform();
+// 	}
+// 	VisualServer::get_singleton()->custom_transform_set_global(ci, mat_global, translator, translator_global);
+// 	for (int i = 0; i < get_child_count(); i++)
+// 	{
+// 		Node *child = get_child(i);
+// 		REDTransform *pi = Object::cast_to<REDTransform>(child);
+// 		if (pi)
+// 			pi->_update_custom_global_transform();
+// 	}
+// 	global_dirty = false;
+
+// }
+// void REDTransform::_update_custom_global_transform() {
+// 	//ERR_FAIL_COND_V(!is_inside_tree(), get_custom_transform());
+// 	REDTransform *pi = Object::cast_to<REDTransform>(get_parent());
+// 	//Transform translator = Transform();
+// 	//translator.set_origin(Vector3(get_position().x, get_position().y, 0.0f));
+// 	//Transform translator_global = Transform();
+// 	//translator_global.set_origin(Vector3(get_global_position().x, get_global_position().y, get_global_depth_position()));
+// 	if (pi){
+// 		//Transform pi_translator = Transform();
+// 		//pi_translator.set_origin(Vector3(-pi->get_global_position().x, -pi->get_global_position().y, -pi->get_global_depth_position()));
+// 		mat_global = pi->get_custom_global_transform() * get_custom_transform();
+// 		//mat_global = pi_translator.affine_inverse() * pi->get_custom_global_transform() * pi->get_custom_transform() * pi_translator;
+// 	}
+// 	else
+// 	{
+// 		mat_global = get_custom_transform();
+// 	}
+// 	VisualServer::get_singleton()->custom_transform_set(ci, mat_global);
+// 	for (int i = 0; i < get_child_count(); i++)
+// 	{
+// 		Node *child = get_child(i);
+// 		REDTransform *pi = Object::cast_to<REDTransform>(child);
+// 		if (pi)
+// 			pi->_update_custom_transform();
+// 	}
+// 	global_dirty = false;
+// }
+
+float REDTransform::get_global_depth_position() const{
+	REDTransform *pi = Object::cast_to<REDTransform>(get_parent());
+	if (pi){
+		return pi->get_global_depth_position() + depth_position;
+	}
+	return depth_position;
+}
+
+
+float REDTransform::get_depth_position() const{
+	return depth_position;
+}
+
+void REDTransform::set_depth_position(float p_depth){
+	if (depth_position == p_depth){
+		return;
+	}
+	depth_position = p_depth;
+	_update_custom_transform(true, false);
 }
 
 Transform REDTransform::get_custom_global_transform() const{
 	ERR_FAIL_COND_V(!is_inside_tree(), get_custom_transform());
 	if (global_dirty) {
-		
-		const REDTransform *pi = Object::cast_to<REDTransform>(get_parent());
+		Transform translator_global = Transform();
+		translator_global.set_origin(Vector3(get_global_position().x, get_global_position().y, get_global_depth_position()));
+		REDTransform *pi = Object::cast_to<REDTransform>(get_parent());
 		if (pi)
-			mat_global = pi->get_custom_global_transform() * get_custom_transform();
+			mat_global = pi->get_custom_global_transform() * translator_global * _mat * translator_global.affine_inverse();
 		else
-			mat_global = get_custom_transform();
-
-		global_dirty = false;
+			mat_global = translator_global * _mat * translator_global.affine_inverse();
 	}
-
 	return mat_global;
 }
 
-void REDTransform::_update_xform_values() {
-	_pos = _mat.basis.elements[2];
-	_rotation = _mat.get_basis().get_rotation();
-	_scale = _mat.get_basis().get_scale();
-	_xform_dirty = false;
+void REDTransform::_update_custom_xform_values() {
+	_custom_pos = _mat.basis.elements[2];
+	_custom_rotation = _mat.get_basis().get_rotation();
+	_custom_scale = _mat.get_basis().get_scale();
+	_custom_xform_dirty = false;
 }
 
-void REDTransform::_update_custom_transform() {
-	_mat.basis.set_euler_scale(_rotation, _scale);
-	_mat.set_origin(_pos);
-	global_dirty = true;
-	VS::get_singleton()->custom_transform_set(ci, _mat);
-
+void REDTransform::_update_custom_transform(bool update_child, bool update_matrix) {
+	if (update_matrix){
+		_mat.basis.set_euler_scale(_custom_rotation, _custom_scale);
+		_mat.set_origin(_custom_pos);
+	}
 	if (!is_inside_tree())
 		return;
-
-	////_notify_transform();
+	global_dirty = true;
+	VisualServer::get_singleton()->custom_transform_set(ci, get_custom_global_transform());
+	if (update_child){
+		for (int i = 0; i < get_child_count(); i++)
+		{
+			Node *child = get_child(i);
+			REDTransform *pi = Object::cast_to<REDTransform>(child);
+			if (pi)
+				pi->_update_custom_transform(true, false);
+		}
+		global_dirty = false;
+	}
 }
 
 void REDTransform::set_custom_position(const Vector3 &p_pos) {
-	if (_xform_dirty)
-		((REDTransform *)this)->_update_xform_values();
-	_pos = p_pos;
-	_update_custom_transform();
+	if (_custom_xform_dirty)
+		((REDTransform *)this)->_update_custom_xform_values();
+	_custom_pos = p_pos;
+	_update_custom_transform(true, true);
 }
 
 void REDTransform::set_custom_rotation(const Vector3 &p_radians) {
-	if (_xform_dirty)
-		((REDTransform *)this)->_update_xform_values();
-	_rotation = p_radians;
-	_update_custom_transform();
+	if (_custom_xform_dirty)
+		((REDTransform *)this)->_update_custom_xform_values();
+	_custom_rotation = p_radians;
+	_update_custom_transform(true, true);
 }
 
 void REDTransform::set_custom_rotation_degrees(const Vector3 &p_degrees) {
@@ -97,28 +186,28 @@ void REDTransform::set_custom_rotation_degrees(const Vector3 &p_degrees) {
 
 void REDTransform::set_custom_scale(const Vector3 &p_scale) {
 
-	if (_xform_dirty)
-		((REDTransform *)this)->_update_xform_values();
-	_scale = p_scale;
-	if (_scale.x == 0)
-		_scale.x = CMP_EPSILON;
-	if (_scale.y == 0)
-		_scale.y = CMP_EPSILON;
-	_update_custom_transform();
+	if (_custom_xform_dirty)
+		((REDTransform *)this)->_update_custom_xform_values();
+	_custom_scale = p_scale;
+	if (_custom_scale.x == 0)
+		_custom_scale.x = CMP_EPSILON;
+	if (_custom_scale.y == 0)
+		_custom_scale.y = CMP_EPSILON;
+	_update_custom_transform(true, true);
 }
 
 Vector3 REDTransform::get_custom_position() const {
 
-	if (_xform_dirty)
-		((REDTransform *)this)->_update_xform_values();
-	return _pos;
+	if (_custom_xform_dirty)
+		((REDTransform *)this)->_update_custom_xform_values();
+	return _custom_pos;
 }
 
 Vector3 REDTransform::get_custom_rotation() const {
-	if (_xform_dirty)
-		((REDTransform *)this)->_update_xform_values();
+	if (_custom_xform_dirty)
+		((REDTransform *)this)->_update_custom_xform_values();
 
-	return _rotation;
+	return _custom_rotation;
 }
 
 Vector3 REDTransform::get_custom_rotation_degrees() const {
@@ -127,10 +216,10 @@ Vector3 REDTransform::get_custom_rotation_degrees() const {
 }
 
 Vector3 REDTransform::get_custom_scale() const {
-	if (_xform_dirty)
-		((REDTransform *)this)->_update_xform_values();
+	if (_custom_xform_dirty)
+		((REDTransform *)this)->_update_custom_xform_values();
 
-	return _scale;
+	return _custom_scale;
 }
 
 Transform REDTransform::get_custom_transform() const {
@@ -141,10 +230,8 @@ Transform REDTransform::get_custom_transform() const {
 void REDTransform::set_custom_transform(const Transform &p_transform) {
 
 	_mat = p_transform;
-	_xform_dirty = true;
-
-	VisualServer::get_singleton()->custom_transform_set(ci, _mat);
-
+	_update_custom_xform_values();
+	_update_custom_transform(true, false);
 	// if (!is_inside_tree())
 	// 	return;
 
@@ -166,21 +253,28 @@ void REDTransform::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_custom_rotation_degrees"), &REDTransform::get_custom_rotation_degrees);
 	ClassDB::bind_method(D_METHOD("get_custom_scale"), &REDTransform::get_custom_scale);
 	
+	ClassDB::bind_method(D_METHOD("get_depth_position"), &REDTransform::get_depth_position);
+	ClassDB::bind_method(D_METHOD("set_depth_position", "xform"), &REDTransform::set_depth_position);
 	ClassDB::bind_method(D_METHOD("get_custom_transform"), &REDTransform::get_custom_transform);
 	ClassDB::bind_method(D_METHOD("set_custom_transform", "xform"), &REDTransform::set_custom_transform);
+	
+	ClassDB::bind_method(D_METHOD("get_custom_global_transform"), &REDTransform::get_custom_global_transform);
+
 
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "custom_position"), "set_custom_position", "get_custom_position");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_custom_rotation", "get_custom_rotation");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rotation_degrees", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater", PROPERTY_USAGE_EDITOR), "set_custom_rotation_degrees", "get_custom_rotation_degrees");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "scale"), "set_custom_scale", "get_custom_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "custom_rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_custom_rotation", "get_custom_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "custom_rotation_degrees", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater", PROPERTY_USAGE_EDITOR), "set_custom_rotation_degrees", "get_custom_rotation_degrees");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "custom_scale"), "set_custom_scale", "get_custom_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_position"), "set_depth_position", "get_depth_position");
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM, "transform", PROPERTY_HINT_NONE, "", 0), "set_custom_transform", "get_custom_transform");
 }
 
 REDTransform::REDTransform() {
-	_pos = Vector3(0, 0, 0);
-	_rotation = Vector3(0, 0, 0);
-	_scale = Vector3(1, 1, 1);
-	_xform_dirty = false;
+	depth_position = 0.0f;
+	_custom_pos = Vector3(0, 0, 0);
+	_custom_rotation = Vector3(0, 0, 0);
+	_custom_scale = Vector3(1, 1, 1);
+	_custom_xform_dirty = false;
 	global_dirty = true;
 	ci = VS::get_singleton()->custom_transform_create();
 }

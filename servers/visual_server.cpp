@@ -1763,7 +1763,7 @@ void VisualServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("clipper_set_points", "calc1", "calc2", "calc3", "calc4"), &VisualServer::clipper_set_points);
 	ClassDB::bind_method(D_METHOD("deform_create"), &VisualServer::deform_create);
 	ClassDB::bind_method(D_METHOD("deform_set_wind_rotation", "wind_rotation"), &VisualServer::deform_set_wind_rotation);
-	ClassDB::bind_method(D_METHOD("deform_set_wind1_time", "wind1_time"), &VisualServer::deform_set_wind1_time);
+	ClassDB::bind_method(D_METHOD("deform_set_wind_time", "wind_time"), &VisualServer::deform_set_wind_time);
 	ClassDB::bind_method(D_METHOD("deform_set_wind2_time", "wind2_time"), &VisualServer::deform_set_wind2_time);
 	ClassDB::bind_method(D_METHOD("deform_set_wind2_strength", "wind2_strength"), &VisualServer::deform_set_wind2_strength);
 	ClassDB::bind_method(D_METHOD("deform_set_scale_time", "scale_time"), &VisualServer::deform_set_scale_time);

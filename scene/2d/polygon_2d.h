@@ -79,6 +79,9 @@ class Polygon2D : public Node2D {
 	NodePath clipper;
 	NodePath deform;
 	bool clipper_top;
+	float depth_position;
+	float depth_size;
+	float depth_offset;
 	float object_rotation;
 	float uv_origin;
 	Vector2 scale_center;
@@ -170,6 +173,12 @@ public:
 	NodePath get_deform() const;
 	void set_clipper_top(bool p_top);
 	bool get_clipper_top() const;
+	void set_depth_position(float p_depth);
+	float get_depth_position() const;
+	void set_depth_size(float p_depth);
+	float get_depth_size() const;
+	void set_depth_offset(float p_depth);
+	float get_depth_offset() const;
 	void set_object_rotation(float p_object_rotation);
 	float get_object_rotation() const;
 	void set_uv_origin(float p_uv_origin);

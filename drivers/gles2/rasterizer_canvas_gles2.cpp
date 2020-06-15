@@ -2556,6 +2556,7 @@ bool RasterizerCanvasGLES2::_detect_batch_break(Item *p_ci) {
 // Legacy non-batched implementation for regression testing.
 // Should be removed after testing phase to avoid duplicate codepaths.
 void RasterizerCanvasGLES2::_canvas_render_item(Item *p_ci, RenderItemState &r_ris) {
+	Transform2D world_pos = r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform;
 	storage->info.render._2d_item_count++;
 
 	if (r_ris.current_clip != p_ci->final_clip_owner) {
@@ -2618,7 +2619,11 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 			//custom_transform
 			if (p_ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(p_ci->custom_transform)) {
 				custom_transform = storage->custom_transform_owner.get(p_ci->custom_transform);
-				state.custom_transform = custom_transform->transform;
+				Transform pos;
+				pos.set_origin(Vector3(world_pos.get_origin().x, world_pos.get_origin().y, p_ci->depth_position));
+				state.custom_transform = pos.affine_inverse() * custom_transform->transform * pos;
+				state.depth_size = p_ci->depth_size;
+				state.depth_offset = p_ci->depth_offset;
 			}
 
 			bool use_custom_transform = custom_transform != NULL;
@@ -2644,13 +2649,13 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 				state.object_rotation = p_ci->object_rotation;
 				state.uv_origin = p_ci->uv_origin;
 				state.scale_center = p_ci->scale_center;
-				state.wind_strength = p_ci->wind_strength;
+				state.wind_strength_object = p_ci->wind_strength;
 				state.elasticity = p_ci->elasticity;
 				
 				state.wind_rotation = deform->wind_rotation;
 				state.wind_offset = deform->wind_offset;
-				state.wind1_time = deform->wind1_time;
-				state.wind1_strength = deform->wind1_strength;
+				state.wind_time = deform->wind_time;
+				state.wind_strength = deform->wind_strength;
 				state.wind2_time = deform->wind2_time;
 				state.wind2_strength = deform->wind2_strength;
 				state.scale_time = deform->scale_time;
@@ -2682,7 +2687,7 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 				skeleton = NULL;
 			} else {
 				//state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
-				state.skeleton_transform = (r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform).affine_inverse()*skeleton->base_transform_2d;
+				state.skeleton_transform = world_pos.affine_inverse() * skeleton->base_transform_2d;
 				state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 				state.skeleton_texture_size = Vector2(skeleton->size * 2, 0);
 			}
@@ -3030,7 +3035,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 
 	// all the joined items will share the same state with the first item
 	Item *ci = bdata.item_refs[p_bij.first_item_ref].item;
-
+	Transform2D world_pos = r_ris.item_group_base_transform.affine_inverse() * ci->final_transform;
 	if (r_ris.current_clip != ci->final_clip_owner) {
 
 		r_ris.current_clip = ci->final_clip_owner;
@@ -3093,7 +3098,11 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 		//custom_transform
 		if (ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(ci->custom_transform)) {
 			custom_transform = storage->custom_transform_owner.get(ci->custom_transform);
-			state.custom_transform = custom_transform->transform;
+			Transform pos;
+			pos.set_origin(Vector3(world_pos.get_origin().x, world_pos.get_origin().y, ci->depth_position));
+			state.custom_transform = pos.affine_inverse() * custom_transform->transform * pos;
+			state.depth_size = ci->depth_size;
+			state.depth_offset = ci->depth_offset;
 		}
 
 		bool use_custom_transform = custom_transform != NULL;
@@ -3120,13 +3129,13 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			state.object_rotation = ci->object_rotation;
 			state.uv_origin = ci->uv_origin;
 			state.scale_center = ci->scale_center;
-			state.wind_strength = ci->wind_strength;
+			state.wind_strength_object = ci->wind_strength;
 			state.elasticity = ci->elasticity;
 			
 			state.wind_rotation = deform->wind_rotation;
 			state.wind_offset = deform->wind_offset;
-			state.wind1_time = deform->wind1_time;
-			state.wind1_strength = deform->wind1_strength;
+			state.wind_time = deform->wind_time;
+			state.wind_strength = deform->wind_strength;
 			state.wind2_time = deform->wind2_time;
 			state.wind2_strength = deform->wind2_strength;
 			state.scale_time = deform->scale_time;
@@ -3159,7 +3168,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 				skeleton = NULL;
 			} else {
 				//state.skeleton_transform = r_ris.item_group_base_transform * skeleton->base_transform_2d;
-				state.skeleton_transform = (r_ris.item_group_base_transform.affine_inverse() * ci->final_transform).affine_inverse()*skeleton->base_transform_2d;
+				state.skeleton_transform = world_pos.affine_inverse() * skeleton->base_transform_2d;
 				state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
 				state.skeleton_texture_size = Vector2(skeleton->size * 2, 0);
 			}

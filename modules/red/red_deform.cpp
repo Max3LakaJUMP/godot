@@ -39,8 +39,8 @@ void REDDeform::_notification(int p_what) {
 	if (p_what == NOTIFICATION_ENTER_TREE) {
 		VisualServer::get_singleton()->deform_set_wind_rotation(ci, wind_rotation);
 		VisualServer::get_singleton()->deform_set_wind_offset(ci, wind_offset);
-		VisualServer::get_singleton()->deform_set_wind1_time(ci, wind1_time);
-		VisualServer::get_singleton()->deform_set_wind1_strength(ci, wind1_strength);
+		VisualServer::get_singleton()->deform_set_wind_time(ci, wind_time);
+		VisualServer::get_singleton()->deform_set_wind_strength(ci, wind_strength);
 		VisualServer::get_singleton()->deform_set_wind2_time(ci, wind2_time);
 		VisualServer::get_singleton()->deform_set_wind2_strength(ci, wind2_strength);
 		VisualServer::get_singleton()->deform_set_scale_time(ci, scale_time);
@@ -66,21 +66,21 @@ void REDDeform::set_wind_offset(float p_wind_offset){
 	VisualServer::get_singleton()->deform_set_wind_offset(ci, p_wind_offset);
 }
 
-float REDDeform::get_wind1_time() const{
-	return wind1_time;
+float REDDeform::get_wind_time() const{
+	return wind_time;
 }
 
-void REDDeform::set_wind1_time(float p_wind1_time) {
-	wind1_time = p_wind1_time;
-	VisualServer::get_singleton()->deform_set_wind1_time(ci, p_wind1_time);
+void REDDeform::set_wind_time(float p_wind_time) {
+	wind_time = p_wind_time;
+	VisualServer::get_singleton()->deform_set_wind_time(ci, p_wind_time);
 }
 
-float REDDeform::get_wind1_strength() const{
-	return wind1_strength;
+float REDDeform::get_wind_strength() const{
+	return wind_strength;
 }
-void REDDeform::set_wind1_strength(float p_wind1_strength) {
-	wind1_strength = p_wind1_strength;
-	VisualServer::get_singleton()->deform_set_wind1_strength(ci, p_wind1_strength);
+void REDDeform::set_wind_strength(float p_wind_strength) {
+	wind_strength = p_wind_strength;
+	VisualServer::get_singleton()->deform_set_wind_strength(ci, p_wind_strength);
 }
 
 float REDDeform::get_wind2_time() const{
@@ -143,10 +143,10 @@ void REDDeform::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_wind_offset", "wind_offset"), &REDDeform::set_wind_offset);
 	ClassDB::bind_method(D_METHOD("get_wind_offset"), &REDDeform::get_wind_offset);
 
-	ClassDB::bind_method(D_METHOD("set_wind1_time", "wind1_time"), &REDDeform::set_wind1_time);
-	ClassDB::bind_method(D_METHOD("get_wind1_time"), &REDDeform::get_wind1_time);
-	ClassDB::bind_method(D_METHOD("set_wind1_strength", "wind1_strength"), &REDDeform::set_wind1_strength);
-	ClassDB::bind_method(D_METHOD("get_wind1_strength"), &REDDeform::get_wind1_strength);
+	ClassDB::bind_method(D_METHOD("set_wind_time", "wind_time"), &REDDeform::set_wind_time);
+	ClassDB::bind_method(D_METHOD("get_wind_time"), &REDDeform::get_wind_time);
+	ClassDB::bind_method(D_METHOD("set_wind_strength", "wind_strength"), &REDDeform::set_wind_strength);
+	ClassDB::bind_method(D_METHOD("get_wind_strength"), &REDDeform::get_wind_strength);
 
 	ClassDB::bind_method(D_METHOD("set_wind2_time", "wind2_time"), &REDDeform::set_wind2_time);
 	ClassDB::bind_method(D_METHOD("get_wind2_time"), &REDDeform::get_wind2_time);
@@ -167,11 +167,11 @@ void REDDeform::_bind_methods() {
 	//ADD_PROPERTY(PropertyInfo(Variant::REAL, "waves_count", PROPERTY_HINT_RANGE, "0,10,0.1,or_lesser,or_greater"), "set_waves_count", "get_waves_count");
 	//ADD_PROPERTY(PropertyInfo(Variant::REAL, "elasticity", PROPERTY_HINT_RANGE, "0,1,0.1,or_lesser,or_greater"), "set_elasticity", "get_elasticity");
 
-	ADD_GROUP("Wind1", "wind1_");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind1_rotation", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater"), "set_wind_rotation", "get_wind_rotation");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind1_offset", PROPERTY_HINT_RANGE, "0,1,0.1,or_lesser,or_greater"), "set_wind_offset", "get_wind_offset");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind1_time", PROPERTY_HINT_RANGE, "0,10,0.1, or_lesser,or_greater"), "set_wind1_time", "get_wind1_time");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind1_strength"), "set_wind1_strength", "get_wind1_strength");
+	ADD_GROUP("wind", "wind_");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_rotation", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater"), "set_wind_rotation", "get_wind_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_offset", PROPERTY_HINT_RANGE, "0,1,0.1,or_lesser,or_greater"), "set_wind_offset", "get_wind_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_time", PROPERTY_HINT_RANGE, "0,10,0.1, or_lesser,or_greater"), "set_wind_time", "get_wind_time");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_strength"), "set_wind_strength", "get_wind_strength");
 	ADD_GROUP("Wind2", "wind2_");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind2_time", PROPERTY_HINT_RANGE, "0,10,0.1, or_lesser,or_greater"), "set_wind2_time", "get_wind2_time");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind2_strength"), "set_wind2_strength", "get_wind2_strength");
@@ -186,8 +186,8 @@ REDDeform::REDDeform() {
 	wind_offset = 1.0f;
 	//waves_count = 0.5;
 	//elasticity = 0.5;
-	wind1_time = 1.0f;
-	wind1_strength = 100.0f;
+	wind_time = 1.0f;
+	wind_strength = 100.0f;
 	wind2_time = 1.0f;
 	wind2_strength = 0.0;
 	scale_time = 1.0f;

@@ -40,8 +40,8 @@ class REDDeform : public Node {
 	float wind_rotation;
 	float wind_offset;
 
-	float wind1_time;
-	float wind1_strength;
+	float wind_time;
+	float wind_strength;
 	float wind2_time;
 	float wind2_strength;
 
@@ -65,10 +65,10 @@ public:
 	float get_elasticity() const;
 	void set_elasticity(float p_elasticity);
 	
-	float get_wind1_time() const;
-	void set_wind1_time(float p_wind1_time);
-	float get_wind1_strength() const;
-	void set_wind1_strength(float p_wind1_strength);
+	float get_wind_time() const;
+	void set_wind_time(float p_wind_time);
+	float get_wind_strength() const;
+	void set_wind_strength(float p_wind_strength);
 
 	float get_wind2_time() const;
 	void set_wind2_time(float p_wind2_time);

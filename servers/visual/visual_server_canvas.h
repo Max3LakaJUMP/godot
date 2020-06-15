@@ -213,6 +213,9 @@ public:
 	void canvas_item_attach_skeleton(RID p_item, RID p_skeleton);
 
 	void canvas_item_attach_custom_transform(RID p_item, RID p_transform);
+	void canvas_item_custom_transform_set_depth_position(RID p_item, float p_depth);
+	void canvas_item_custom_transform_set_depth_size(RID p_item, float p_depth);
+	void canvas_item_custom_transform_set_depth_offset(RID p_item, float p_depth);
 	void canvas_item_attach_clipper(RID p_item, RID p_clipper);
 	void canvas_item_clipper_top(RID p_item, bool b_top);
 	void canvas_item_attach_deform(RID p_item, RID p_deform);
