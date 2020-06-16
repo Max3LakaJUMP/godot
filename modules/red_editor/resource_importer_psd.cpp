@@ -288,7 +288,7 @@ Ref<BitMap> ResourceImporterPSD::read_bitmap(Ref<Image> p_img, float p_threshold
 	img->resize(resized_size.x, resized_size.y);
 	Ref<BitMap> bitmap;
 	bitmap.instance();
-	bitmap->create_from_image_alpha(img);
+	bitmap->create_from_image_alpha(img, p_threshold);
 	return bitmap;
 }
 
@@ -299,7 +299,7 @@ Ref<BitMap> ResourceImporterPSD::read_bitmap(_psd_layer_record *layer, float p_t
 	img->resize(resized_size.x, resized_size.y);
 	Ref<BitMap> bitmap;
 	bitmap.instance();
-	bitmap->create_from_image_alpha(img);
+	bitmap->create_from_image_alpha(img, p_threshold);
 	return bitmap;
 }
 
@@ -648,7 +648,9 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 		final_iter = iter + offset; count++;
 		_psd_layer_record *layer = &layers[final_iter];
 		String name = reinterpret_cast<char const*>(layers[final_iter].layer_name);
-
+		if (!layer->visible && psd_layer_type::psd_layer_type_normal){
+			continue;
+		}
 		switch (layers[final_iter].layer_type){
 			case psd_layer_type::psd_layer_type_folder:{
 				if (counter > 0){
@@ -656,7 +658,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				}
 			} break;
 			case psd_layer_type::psd_layer_type_normal:{
-				int len = layer->width*layer->height;
+				int len = layer->width * layer->height;
 				if (len == 0) 
 					continue;
 				red::create_dir( target_dir + "/textures");
@@ -701,7 +703,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				poly->set_move_polygon_with_uv(false);
 				Size2 bitmap_size = Size2(p_options["texture/bitmap_size"], p_options["texture/bitmap_size"]);
 				Ref<Image> img = read_image(layer);
-				Ref<BitMap> bitmap = read_bitmap(img, 0.1f, bitmap_size);
+				Ref<BitMap> bitmap = read_bitmap(img, 0.25f, bitmap_size);
 				bitmap_size = bitmap->get_size();
 				Rect2 crop = crop_alpha(bitmap, bitmap_size.width / 16);
 				crop.position = crop.position * img->get_size() / bitmap_size;
@@ -714,8 +716,10 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				}
 				Vector2 polygon_size(crop.size.width * resolution_width / context->width, 
 									 crop.size.height * resolution_width / context->width);
-				Point2 global_pos = Point2((layer->left+crop.position.x) * resolution_width / context->width, 
-										   (layer->top+crop.position.y) * resolution_width / context->width);
+				Point2 global_pos = Point2((layer->left + crop.position.x) * resolution_width / context->width, 
+										   (layer->top + crop.position.y) * resolution_width / context->width);
+				Point2 local_pos = global_pos - parent_pos - parent_offset - poly->get_offset();
+				
 				if (save_texture){
 					apply_scale(img_save, p_options["texture/scale"], p_options["texture/max_size"]);
 					apply_border(img_save, 0.75f);
@@ -761,18 +765,18 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 					Rect2 k = red::get_rect(poly->get_uv());
 					Rect2 real = red::get_rect(poly->get_polygon());
 					PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
-					Rect2 target = Rect2(polygon_size*k.position, polygon_size * k.size);
+					Rect2 target = Rect2(polygon_size * k.position, polygon_size * k.size);
 					PoolVector<Vector2> new_poly;
 					for (int i = 0; i < poly->get_polygon().size(); i++)
 						new_poly.append(((polyr[i] - real.position) / real.size) * target.size + target.position);
 					poly->set_polygon(new_poly);
-					poly->set_position(global_pos - parent_pos - parent_offset - poly->get_offset());
+					poly->set_position(local_pos);
 				}
 				else if (update_polygon_pos){
-					poly->set_position(global_pos - parent_pos - parent_offset - poly->get_offset());
+					poly->set_position(local_pos);
 				}
 				if (update_uv){
-					Vector2 psd_offset = global_pos - parent_pos - parent_offset - poly->get_offset() - poly->get_position();
+					Vector2 psd_offset = local_pos - poly->get_position();
 					Rect2 poly_rect = red::get_rect(poly->get_polygon());
 					Vector<Vector2> uv_temp;
 					if (poly->get_uv().size() != poly->get_polygon().size() || reset_uv){
@@ -811,7 +815,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 							extra_nodes++;
 						}
 					}
-					p->move_child(poly, iter-start+extra_nodes);
+					p->move_child(poly, iter - start + extra_nodes);
 				}
 				poly->set_move_polygon_with_uv(old_move_polygon_with_uv);
 			} break;

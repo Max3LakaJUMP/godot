@@ -158,23 +158,14 @@ void REDDeform::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_scale_strength", "scale_strength"), &REDDeform::set_scale_strength);
 	ClassDB::bind_method(D_METHOD("get_scale_strength"), &REDDeform::get_scale_strength);
 	
-	// ClassDB::bind_method(D_METHOD("set_waves_count", "waves_count"), &REDDeform::set_waves_count);
-	// ClassDB::bind_method(D_METHOD("get_waves_count"), &REDDeform::get_waves_count);
-	// ClassDB::bind_method(D_METHOD("set_elasticity", "elasticity"), &REDDeform::set_elasticity);
-	// ClassDB::bind_method(D_METHOD("get_elasticity"), &REDDeform::get_elasticity);
-
-	//ADD_GROUP("Wind base", "");
-	//ADD_PROPERTY(PropertyInfo(Variant::REAL, "waves_count", PROPERTY_HINT_RANGE, "0,10,0.1,or_lesser,or_greater"), "set_waves_count", "get_waves_count");
-	//ADD_PROPERTY(PropertyInfo(Variant::REAL, "elasticity", PROPERTY_HINT_RANGE, "0,1,0.1,or_lesser,or_greater"), "set_elasticity", "get_elasticity");
-
 	ADD_GROUP("wind", "wind_");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_rotation", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater"), "set_wind_rotation", "get_wind_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_offset", PROPERTY_HINT_RANGE, "0,1,0.1,or_lesser,or_greater"), "set_wind_offset", "get_wind_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_time", PROPERTY_HINT_RANGE, "0,10,0.1, or_lesser,or_greater"), "set_wind_time", "get_wind_time");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_strength"), "set_wind_strength", "get_wind_strength");
-	ADD_GROUP("Wind2", "wind2_");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind2_time", PROPERTY_HINT_RANGE, "0,10,0.1, or_lesser,or_greater"), "set_wind2_time", "get_wind2_time");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind2_strength"), "set_wind2_strength", "get_wind2_strength");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_strength", PROPERTY_HINT_RANGE, "0,1000"), "set_wind_strength", "get_wind_strength");
+	//ADD_GROUP("Wind2", "wind2_");
+	//ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind2_time", PROPERTY_HINT_RANGE, "0,10,0.1, or_lesser,or_greater"), "set_wind2_time", "get_wind2_time");
+	//ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind2_strength"), "set_wind2_strength", "get_wind2_strength");
 	ADD_GROUP("Scale", "scale_");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "scale_time", PROPERTY_HINT_RANGE, "0,10,0.1, or_lesser,or_greater"), "set_scale_time", "get_scale_time");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "scale_strength"), "set_scale_strength", "get_scale_strength");
@@ -184,8 +175,7 @@ REDDeform::REDDeform() {
 	ci = VS::get_singleton()->deform_create();
 	wind_rotation = 90.0f;
 	wind_offset = 1.0f;
-	//waves_count = 0.5;
-	//elasticity = 0.5;
+
 	wind_time = 1.0f;
 	wind_strength = 100.0f;
 	wind2_time = 1.0f;
