@@ -326,11 +326,12 @@ Ref<Image> ResourceImporterPSD::read_image(_psd_layer_record *layer){
 }
 
 Rect2 ResourceImporterPSD::crop_alpha(Ref<BitMap> bitmap, int grow){
-	int x_min = 0;
-	int x_max = 0;
-	int y_min = 0;
-	int y_max = 0;
+
 	Size2 size = bitmap->get_size();
+	int x_min = size.width;
+	int x_max = 0;
+	int y_min = size.height;
+	int y_max = 0;
 	bitmap->grow_mask(grow, Rect2(Point2(0.0f, 0.0f), size));
 	Point2 xt = Point2(0.f, 0.f);
 	for (int x = 0; x < size.width; x++) {
@@ -339,13 +340,13 @@ Rect2 ResourceImporterPSD::crop_alpha(Ref<BitMap> bitmap, int grow){
 			xt.y = y;
 			if (bitmap->get_bit(xt)){
 				x_min = MIN(x_min, x);
-				x_max = MAX(x_min, x);
+				x_max = MAX(x_max, x);
 				y_min = MIN(y_min, y);
 				y_max = MAX(y_max, y);
 			}
 		}
 	}
-	return Rect2(x_min, y_min, x_max - x_min, y_max - y_min);
+	return Rect2(x_min, y_min, x_max - x_min + 1, y_max - y_min + 1);
 }
 
 void ResourceImporterPSD::apply_scale(Ref<Image> img, int texture_scale, int texture_max_size){
@@ -707,15 +708,17 @@ int ResourceImporterPSD::load_folder(_psd_context *context, String target_dir, i
 				bitmap_size = bitmap->get_size();
 				Rect2 crop = crop_alpha(bitmap, bitmap_size.width / 16);
 				crop.position = crop.position * img->get_size() / bitmap_size;
-				crop.size = ((crop.size) * img->get_size()) / (bitmap_size - Vector2(1.0f, 1.0f));
+				crop.size = crop.size * img->get_size() / bitmap_size;
 				Ref<Image> img_cropped = img->duplicate();
 				Ref<Image> img_save;
 				if (save_texture || update_polygon){
 					img_cropped->crop_from_point(crop.position.x, crop.position.y, crop.size.width, crop.size.height);
 					img_save = img_cropped->duplicate();
 				}
+
 				Vector2 polygon_size(crop.size.width * resolution_width / context->width, 
 									 crop.size.height * resolution_width / context->width);
+				red::print(polygon_size.x);
 				Point2 global_pos = Point2((layer->left + crop.position.x) * resolution_width / context->width, 
 										   (layer->top + crop.position.y) * resolution_width / context->width);
 				Point2 local_pos = global_pos - parent_pos - parent_offset - poly->get_offset();

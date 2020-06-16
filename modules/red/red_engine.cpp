@@ -54,6 +54,9 @@ Rect2 get_rect(PoolVector<Vector2> polygon, Vector2 offset) {
 	return item_rect;
 }
 
+void print(const float number) {
+	print_line(red::str(number));
+}
 
 void print(const int number) {
 	print_line(red::str(number));
@@ -61,6 +64,10 @@ void print(const int number) {
 
 void print(const String number) {
 	print_line(number);
+}
+
+String str(const float number) {
+	return String(std::to_string(number).c_str());
 }
 
 String str(const int number) {
