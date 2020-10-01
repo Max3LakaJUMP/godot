@@ -9,9 +9,18 @@
 #include "red_issue.h"
 #include "modules/red/red_controller_base.h"
 
+Camera2D* RED::get_camera() const{
+	return (Camera2D*)get_node(camera_path);
+}
+
+REDControllerBase* RED::get_controller() const{
+	return (REDControllerBase*)get_node(controller_path);
+}
+
 NodePath RED::get_controller_path() {
 	return controller_path;
 }
+
 void RED::set_controller_path(const NodePath &p_controller_path) {
 	controller_path = p_controller_path;
 }
@@ -87,8 +96,8 @@ void next_frame() {
 */
 
 void RED::attach_camera() {
-	if (!camera.is_empty()) {
-		Camera2D *cam = Object::cast_to<Camera2D>(get_node(camera));
+	if (!camera_path.is_empty()) {
+		Camera2D *cam = Object::cast_to<Camera2D>(get_node(camera_path));
 		cam->make_current();
 	}
 }
@@ -113,12 +122,14 @@ void RED::_bind_methods() {
 	
 	ClassDB::bind_method(D_METHOD("set_camera_mode", "camera_mode"), &RED::set_camera_mode);
 	ClassDB::bind_method(D_METHOD("get_camera_mode"), &RED::get_camera_mode);
-	ClassDB::bind_method(D_METHOD("set_camera", "camera"), &RED::set_camera);
-	ClassDB::bind_method(D_METHOD("get_camera"), &RED::get_camera);
+	ClassDB::bind_method(D_METHOD("set_camera_path", "camera"), &RED::set_camera_path);
+	ClassDB::bind_method(D_METHOD("get_camera_path"), &RED::get_camera_path);
 
 	ClassDB::bind_method(D_METHOD("set_controller_path", "controller_path"), &RED::set_controller_path);
 	ClassDB::bind_method(D_METHOD("get_controller_path"), &RED::get_controller_path);
-
+	
+	ClassDB::bind_method(D_METHOD("get_controller"), &RED::get_controller);
+	ClassDB::bind_method(D_METHOD("get_camera"), &RED::get_camera);
 	/*
     ClassDB::bind_method(D_METHOD("set_current_issue_path", "issue"), &RED::set_current_issue_path);
     ClassDB::bind_method(D_METHOD("get_current_issue_path"), &RED::get_current_issue_path);
@@ -127,9 +138,10 @@ void RED::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_current_frame_path", "frame"), &RED::set_current_frame_path);
 	ClassDB::bind_method(D_METHOD("get_current_frame_path"), &RED::get_current_frame_path);*/
 	//ClassDB::bind_method(D_METHOD("next_frame"), &RED::next_frame);
-
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "controller", PROPERTY_HINT_RESOURCE_TYPE, "REDControllerBase", 0), "", "get_controller");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "camera", PROPERTY_HINT_RESOURCE_TYPE, "Camera2D", 0), "", "get_camera");
 	ADD_GROUP("Properties", "");
-	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "camera", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Camera2D"), "set_camera", "get_camera");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "camera_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Camera2D"), "set_camera_path", "get_camera_path");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "controller_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDControllerBase"), "set_controller_path", "get_controller_path");
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "camera_mode"), "set_camera_mode", "get_camera_mode");
@@ -160,14 +172,14 @@ bool RED::get_html_mode() const {
 	return html_mode;
 }
 
-void RED::set_camera(const NodePath &c) {
-	if (camera == c)
+void RED::set_camera_path(const NodePath &c) {
+	if (camera_path == c)
 		return;
-	camera = c;
+	camera_path = c;
 }
 
-NodePath RED::get_camera() const {
-	return camera;
+NodePath RED::get_camera_path() const {
+	return camera_path;
 }
 /*
 void RED::set_current_page_path(const NodePath &p) {

@@ -905,6 +905,7 @@ public:
 		Vector2 scale_center;
 		Vector2 wind_strength;
 		Vector2 elasticity;
+		float time_offset;
 
 		Item *next;
 

@@ -657,7 +657,8 @@ public:
 	BIND2(canvas_item_deform_set_scale_center, RID, const Vector2 &)
 	BIND2(canvas_item_deform_set_wind_strength, RID, const Vector2 &)
 	BIND2(canvas_item_deform_set_elasticity, RID, const Vector2 &)
-
+	BIND2(canvas_item_deform_set_time_offset, RID, float)
+	
 	BIND1(canvas_item_clear, RID)
 	BIND2(canvas_item_set_draw_index, RID, int)
 

@@ -30,11 +30,8 @@ bool REDIssue::get_autostart() const {
 	return autostart;
 }
 
-
-
 REDPage *REDIssue::get_page (int p_id){
-    if (pages.size() == 0)
-        return nullptr;
+    ERR_FAIL_COND_V(pages.size() == 0, nullptr)
     int last_id = pages.size() - 1;
     p_id = MAX(MIN(p_id, last_id), 0);
     return pages[p_id];
@@ -50,6 +47,7 @@ void REDIssue::resize_instanced_list(int p_size){
 
 void REDIssue::set_page (int p_id, bool is_prev, const Vector2 &p_zoom){
     int count = get_page_scenes_count();
+    ERR_FAIL_INDEX(p_id, count)
     int last_id = count - 1;
     p_id = MAX(MIN(p_id, last_id), 0);
     resize_instanced_list(count);
@@ -87,15 +85,13 @@ void REDIssue::_notification(int p_what) {
 }
 
 void REDIssue::run() {
-    if (!Engine::get_singleton()->is_editor_hint()) {
-        REDControllerBase *controller = red::get_controller(this);
-        if (controller != nullptr){
-            controller->set_issue(this);
-        }
-    }
-    else{
-        //set_page (0, false);
-    }
+    if (Engine::get_singleton()->is_editor_hint())
+        return;
+    RED *r = red::red(this);
+    ERR_FAIL_NULL(r);
+    REDControllerBase *controller = r->get_controller();
+    ERR_FAIL_NULL(controller);
+    controller->set_issue(this);
 }
 
 void REDIssue::update_camera_pos(const Vector2 &p_camera_pos) const {
@@ -107,15 +103,13 @@ void REDIssue::update_camera_pos(const Vector2 &p_camera_pos) const {
 }
 
 void REDIssue::update_camera_zoom(const Vector2 &p_camera_zoom) {
-    if (!Engine::get_singleton()->is_editor_hint()) {
-        if (is_inside_tree()){
-            int count = get_pages_count();
-            resize_instanced_list(MAX(count, pages.size()));
-            for (int i = 0; i < count; i++){
-                if (pages[i] != nullptr){
-                    pages.write[i]->update_camera_zoom(p_camera_zoom);
-                }
-            }
+    if (Engine::get_singleton()->is_editor_hint() || !is_inside_tree())
+        return;
+    int count = get_pages_count();
+    resize_instanced_list(MAX(count, pages.size()));
+    for (int i = 0; i < count; i++){
+        if (pages[i] != nullptr){
+            pages.write[i]->update_camera_zoom(p_camera_zoom);
         }
     }
 }
@@ -129,30 +123,20 @@ int REDIssue::get_page_scenes_count() {
 }
 
 void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_camera_zoom) {
+    ERR_FAIL_INDEX(p_id, get_pages_count());
+    if (pages[p_id] != nullptr)
+        return;
     REDIssue *issue = this;
-    if (pages[p_id] != nullptr) {
-        return;
-    }
-	if (p_id < 0 || p_id >= issue->get_pages_count())
-		return;
-
 	Ref<PackedScene> scene = issue->get_page_scene(p_id);
-	if (scene.is_null())
-    {
-        return;
-    }
-
+    ERR_FAIL_COND(scene.is_null());
 	Node2D *node2d = (Node2D*)scene->instance();
 	add_child(node2d);
     if (!Engine::get_singleton()->is_editor_hint()) {
 	    node2d->set_owner(this);
     }
-	
-
 	Node *child = node2d->get_child(0);
-	if (child->get_class() != "REDPage"){
-        return;
-    }
+    ERR_FAIL_NULL(child);
+    ERR_FAIL_COND(child->get_class() != "REDPage");
 		
 	REDPage *page = (REDPage*)(child);
 	
@@ -171,7 +155,7 @@ void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_camera_zoom) {
 
 	for (int i = 0; i < count; i++) {
 		REDFrame *child_frame = page->get_frame(i);
-		if (child_frame!=nullptr){
+		if (child_frame != nullptr){
             child_frame->set_active(false);
             child_frame->update_origin_pos_gl();
 		}
@@ -181,7 +165,7 @@ void REDIssue::load_page(int p_id, bool is_prev, const Vector2 &p_camera_zoom) {
 		page->set_id(page->get_frames_count()-1);
         for (int i = 0; i < count; i++) {
             REDFrame *child_frame = page->get_frame(i);
-            if (child_frame!=nullptr){
+            if (child_frame != nullptr){
                 Ref<AnimationNodeStateMachinePlayback> playback = child_frame->get_playback();
                 if (playback.is_null())
                     continue;
@@ -225,47 +209,8 @@ void REDIssue::unload_pages() {
     }
 }
 
-
-void REDIssue::to_prev() {
-        /*
-	int old_id = get_id();
-    set_id(old_id - 1);
-	int new_id = get_id();
-	if (old_id != new_id) {
-		if (!next.is_empty()) {
-			unload_page(get_node(next));
-		}
-        set_next(current);
-        set_current(get_prev());
-
-        RED *r = red::get_red(this);
-        r->set_current_page_path(get_current());
-        set_prev(load_page(new_id-1, true));
-        Object::cast_to<REDPage>(get_node(current))->run(true);
-	}
-    */
-}
-
-void REDIssue::to_next() {
-    /*
-	int old_id = get_id();
-    set_id(old_id + 1);
-	int new_id = get_id();
-	if (old_id != new_id) {
-        if (!prev.is_empty()) {
-            unload_page(get_node(prev));
-        }
-        set_prev(current);
-        set_current(get_next());
-
-        RED *r = red::get_red(this);
-        r->set_current_page_path(get_current());
-        set_next(load_page(new_id+1));
-        Object::cast_to<REDPage>(get_node(current))->run(false);
-	}*/
-}
-
 void REDIssue::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("run"), &REDIssue::run);
     ClassDB::bind_method(D_METHOD("get_pages_count"), &REDIssue::get_pages_count);
 	
     ClassDB::bind_method(D_METHOD("set_invert_pages", "invert_pages"), &REDIssue::set_invert_pages);
@@ -285,9 +230,6 @@ void REDIssue::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_id"), &REDIssue::get_id);
     ClassDB::bind_method(D_METHOD("set_pages_pos", "pages_pos"), &REDIssue::set_pages_pos);
     ClassDB::bind_method(D_METHOD("get_pages_pos"), &REDIssue::get_pages_pos);
-
-    ClassDB::bind_method(D_METHOD("to_prev"), &REDIssue::to_prev);
-    ClassDB::bind_method(D_METHOD("to_next"), &REDIssue::to_next);
 
 	ClassDB::bind_method(D_METHOD("load_page", "i"), &REDIssue::load_page);
 	ClassDB::bind_method(D_METHOD("unload_page", "node"), &REDIssue::unload_page);

@@ -122,21 +122,32 @@ void REDPage::update_camera() const {
 void REDPage::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY: {
-            Node *issue = get_node(NodePath("../../"));
-            bool single_run = false;
-            if (issue){
-                if (!issue->is_class("REDIssue")){
+            if (!Engine::get_singleton()->is_editor_hint()){
+                Node *issue = get_node(NodePath("../../"));
+                bool single_run = false;
+                if (issue){
+                    if (!issue->is_class("REDIssue")){
+                        single_run = true;
+                    }
+                }else{
                     single_run = true;
                 }
-            }else{
-                single_run = true;
-            }
-            if (single_run){
-                REDControllerBase *controller = red::get_controller(this);
-                if (controller != nullptr){
-                    if (controller->get_issue()==nullptr){
-                        controller->set_page(this);
+                if (single_run){
+                    RED *r = red::red(this);
+                    if (r == nullptr){
+                        ERR_PRINT("Singleton red is NULL")
+                    }else{
+                        REDControllerBase *controller = r->get_controller();
+                        if (controller == nullptr){
+                            ERR_PRINT("Controller in red is NULL")
+                        }
+                        else{
+                            if (controller->get_issue() == nullptr){
+                                controller->set_page(this);
+                            }
+                        }
                     }
+
                 }
             }
 		} 
@@ -144,25 +155,25 @@ void REDPage::_notification(int p_what) {
 }
 
 void REDPage::run() {
-    if (!Engine::get_singleton()->is_editor_hint()) {
-        REDControllerBase *controller = red::get_controller(this);
-        if (controller != nullptr){
-            controller->set_page(this);
-        }
-    }
+    if (Engine::get_singleton()->is_editor_hint())
+        return;
+    RED *r = red::red(this);
+    ERR_FAIL_NULL(r);
+    REDControllerBase *controller = r->get_controller();
+    ERR_FAIL_NULL(controller);
+    controller->set_page(this);
 }
 
 void REDPage::pause_frames() {
-    if (is_inside_tree()){
-        int count = frames.size();
-        for (int i = 0; i < count; i++)
-        {
-            REDFrame *child_frame = get_frame(i);
-            if (child_frame != nullptr){
-                child_frame->set_active(false);
-                print_line("set_active");
-            }
-        }
+    if (!is_inside_tree())
+        return;
+    int count = frames.size();
+    for (int i = 0; i < count; i++)
+    {
+        REDFrame *child_frame = get_frame(i);
+        if (child_frame == nullptr)
+            continue;
+        child_frame->set_active(false);
     }
 }
 
@@ -172,22 +183,21 @@ void REDPage::update_camera_pos(const Vector2 &p_camera_pos) {
 }
 
 void REDPage::update_camera_zoom(const Vector2 &p_camera_zoom) {
-    if (is_inside_tree()){
-        int count = frames.size();
-        for (int i = 0; i < count; i++)
-        {
-            REDFrame *child_frame = get_frame(i);
-            if (child_frame != nullptr)
-                child_frame->update_camera_zoom_and_child(p_camera_zoom);
-        }
+    if (!is_inside_tree())
+        return;
+    int count = frames.size();
+    for (int i = 0; i < count; i++)
+    {
+        REDFrame *child_frame = get_frame(i);
+        if (child_frame == nullptr)
+            continue;
+        child_frame->update_camera_zoom_and_child(p_camera_zoom);
     }
 }
 
 
 
 void REDPage::_bind_methods() {
-
-
     ClassDB::bind_method(D_METHOD("set_frame", "id", "is_prev"), &REDPage::set_frame);
     ClassDB::bind_method(D_METHOD("get_frame", "id"), &REDPage::get_frame);
     ClassDB::bind_method(D_METHOD("set_frames", "frames"), &REDPage::set_frames);
@@ -213,11 +223,14 @@ int REDPage::get_frames_count() {
 }
 
 void REDPage::set_frame(int p_id, bool force_inactive, bool ended) {
+    if (id == p_id)
+        return;
+    ERR_FAIL_INDEX(p_id, get_frames_count());
     REDFrame *frame = get_frame(id);
+    ERR_FAIL_NULL(frame);
     /*
     if (force_inactive){
         if (frame != nullptr){
-
             if (ended)
                 frame->_ended();
             else {
@@ -225,12 +238,6 @@ void REDPage::set_frame(int p_id, bool force_inactive, bool ended) {
             }
         }
     }*/
-    int last_id = frames.size() - 1;
-    p_id = MAX(MIN(p_id, last_id), 0);
-
-    if (id == p_id){
-        return;
-    }
     set_id(p_id);
     /*if (!force_inactive){
         if (frame != nullptr){
@@ -240,11 +247,11 @@ void REDPage::set_frame(int p_id, bool force_inactive, bool ended) {
                 frame->_start_loop();
             }
         }
-    }*/
-    frame = get_frame(id);
-    if (frame != nullptr){
-        //frame->_starting();
     }
+    frame = get_frame(id);
+    /*if (frame != nullptr){
+        frame->_starting();
+    }*/
 	return;
 }
 
@@ -271,8 +278,8 @@ REDFrame *REDPage::get_frame (int p_id){
 */
 
 REDFrame *REDPage::get_frame (int p_id){
-    int last_id = frames.size() - 1;
-    p_id = MAX(MIN(p_id, last_id), 0);
+    ERR_FAIL_COND_V(frames.size() == 0, nullptr);
+    p_id = MAX(MIN(p_id, frames.size() - 1), 0);
     NodePath frame_path = frames[p_id];
     if (has_node(frame_path)){
         Node *node = get_node(frame_path);

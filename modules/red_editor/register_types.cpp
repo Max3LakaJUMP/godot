@@ -28,7 +28,7 @@ void register_red_editor_types() {
 
 	ClassDB::register_class<PSD>();
 	ClassDB::register_class<JSCN>();
-    	EditorPlugins::add_by_type<REDFrameEditorPlugin>();
+    EditorPlugins::add_by_type<REDFrameEditorPlugin>();
 	EditorPlugins::add_by_type<REDBubbleEditorPlugin>();
 	EditorPlugins::add_by_type<REDLineEditorPlugin>();
 	//EditorPlugins::add_by_type<REDPolygonEditorPlugin>();
@@ -46,6 +46,7 @@ void register_red_editor_types() {
 	ResourceFormatImporter::get_singleton()->add_importer(import_jscn);
 	import_psd.instance();
 	ResourceFormatImporter::get_singleton()->add_importer(import_psd);
+	ClassDB::register_class<RenderData>();
 #endif
 }
 

@@ -335,7 +335,8 @@ void RasterizerCanvasGLES3::_set_texture_rect_mode(bool p_enable, bool p_ninepat
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
-		
+		state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
+
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
@@ -1586,7 +1587,8 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 				state.scale_center = ci->scale_center;
 				state.wind_strength_object = ci->wind_strength;
 				state.elasticity = ci->elasticity;
-				
+				state.time_offset = ci->time_offset * 6.28;
+
 				state.wind_rotation = deform->wind_rotation;
 				state.wind_offset = deform->wind_offset;
 				state.wind_time = deform->wind_time;
@@ -1842,7 +1844,8 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
-			
+			state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
+
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
 			state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);
@@ -1956,7 +1959,8 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::SCALE_CENTER, state.scale_center);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
-							
+							state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
+
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_OFFSET, state.wind_offset);
 							state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_TIME, state.wind_time);

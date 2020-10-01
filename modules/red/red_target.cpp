@@ -7,13 +7,12 @@ void REDTarget::_notification(int p_what) {
 		} break;
 		case NOTIFICATION_LOCAL_TRANSFORM_CHANGED: {
 			emit_signal("_target_moved", get_transform());
-			//emit_signal("_target_moved", get_transform());
 		} break;
 	}
 }
 void REDTarget::_bind_methods() {
-	ADD_SIGNAL(MethodInfo("_target_moved"));
-	//ADD_SIGNAL(MethodInfo("_target_moved", PropertyInfo(Variant::TRANSFORM2D, "target_transform")));
+	//ADD_SIGNAL(MethodInfo("_target_moved"));
+	ADD_SIGNAL(MethodInfo("_target_moved", PropertyInfo(Variant::TRANSFORM2D, "target_transform")));
 }
 	
 REDTarget::REDTarget() {

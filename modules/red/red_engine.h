@@ -9,6 +9,7 @@
 #include "core/pool_vector.h"
 #include "core/dictionary.h"
 #include "scene/main/node.h"
+#include "scene/resources/bit_map.h"
 
 class Camera2D;
 class RED;
@@ -24,21 +25,19 @@ enum t {
 	PAGE,
 	FRAME
 };
+Vector<Vector2> ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon=2.0, bool is_closed=false);
+Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=0, float epsilon=4.0, bool single=true);
+
 PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> new_polygon, PoolVector<Vector2> old_uv, Size2 poly_size, Size2 uv_size);
 Rect2 get_rect(PoolVector<Vector2> polygon, Vector2 offset = Vector2());
 
 void print(const float number);
-void print(const int number);
 void print(const String number);
 String str(const int number);
 String str(const float number);
 Node *get_singleton(const Node *n);
-RED *get_red(const Node *n);
-Camera2D *get_camera(const Node *n);
-REDControllerBase *get_controller(const Node *n);
+RED *red(const Node *n);
 Vector2 get_zoom(const Node *n);
-
-
 
 void get_all_children(const Node *node, Vector<Node*> &output);
 
@@ -47,7 +46,7 @@ NodePath get_page_path_from_scene(const Node &n);
 void next(t t, const Node &node);
 Error create_dir(String dir);
 
-void scene_loader(String &scene_path);
+void scene_loader(const String &scene_path);
 Vector2 vector2(const Dictionary &p_dict);
 Color color(const Dictionary &p_dict);
 float get_z(const Dictionary &p_dict);
@@ -87,7 +86,7 @@ T *create_node(Node *parent, const String &name="", Node *owner=nullptr){
 		node->set_owner(owner);
 		return node;
 	}
-	return NULL;
+	ERR_FAIL_V(nullptr);
 }
 
 template <class T>

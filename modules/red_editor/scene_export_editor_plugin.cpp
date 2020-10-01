@@ -156,6 +156,7 @@ Dictionary SceneExportEditorPlugin::node_to_dict(Node *node){
 	
 	if (node->is_class("AnimationPlayer")){
 		AnimationPlayer *player = (AnimationPlayer*)node;
+		
 		Array animations;
 		List<StringName> animation_names;
 		player->get_animation_list(&animation_names);

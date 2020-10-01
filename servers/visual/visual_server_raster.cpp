@@ -109,7 +109,6 @@ void VisualServerRaster::draw(bool p_swap_buffers, double frame_step) {
 	VSG::scene->render_probes();
 	_draw_margins();
 	VSG::rasterizer->end_frame(p_swap_buffers);
-
 	while (frame_drawn_callbacks.front()) {
 
 		Object *obj = ObjectDB::get_instance(frame_drawn_callbacks.front()->get().object);

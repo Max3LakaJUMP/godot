@@ -43,12 +43,14 @@ private:
 	bool camera_mode;
 	bool camera_smooth;
 	bool b_can_control;
+	bool b_tween_created;
 	Vector2 camera_zoom_min;
 	Vector2 camera_zoom_max;
 	
 	
 	float zoom_k;
 	float zoom_k_target;
+	float orientation_k;
 	int target_id;
 	Vector2 frame_expand;
 	Vector2 mouse_offset_k;
@@ -69,7 +71,9 @@ private:
 	mutable Vector2 frame_pos_local;
 	mutable Vector2 mouse_offset_target;
 	mutable Vector2 frame_parallax;
-
+	mutable float screen_multiplayer;
+	mutable float screen_multiplayer_start;
+	mutable bool size_dirty;
 	mutable bool target_pos_local_dirty;
 	mutable bool target_zoom_dirty;
 	mutable bool target_parallax_dirty;
@@ -186,7 +190,15 @@ public:
 	void _target_pos_moved();
 	void _target_parallax_moved();
 	void _frame_zoom_changed();
+	void set_orientation_k(float p_orientation_k);
+	void set_orientation(const Orientation p_orientation);
+	Orientation get_orientation() const;
+	float get_screen_multiplayer() const;
+	virtual void _window_resized();
+	void size_changed();
 	REDControllerBase();
 };
+
+VARIANT_ENUM_CAST(REDControllerBase::Orientation);
 
 #endif // RED_CONTROLLER_BASE_H

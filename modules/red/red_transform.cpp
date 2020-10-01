@@ -133,6 +133,7 @@ Transform REDTransform::get_custom_global_transform() const{
 			mat_global = pi->get_custom_global_transform() * translator_global * _mat * translator_global.affine_inverse();
 		else
 			mat_global = translator_global * _mat * translator_global.affine_inverse();
+		global_dirty = false;
 	}
 	return mat_global;
 }
@@ -161,7 +162,6 @@ void REDTransform::_update_custom_transform(bool update_child, bool update_matri
 			if (pi)
 				pi->_update_custom_transform(true, false);
 		}
-		global_dirty = false;
 	}
 }
 

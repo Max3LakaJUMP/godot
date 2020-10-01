@@ -49,6 +49,9 @@
 #include "editor/editor_plugin.h" 
 #include "modules/red/red_frame.h" 
 #include "modules/red/red_page.h" 
+#include "modules/red/red_parallax_folder.h" 
+#include "modules/red/red_target.h" 
+#include "modules/red/red_transform.h" 
 #include "scene/resources/bit_map.h"
 #include "core/math/math_funcs.h"
 #include <string>
@@ -100,27 +103,68 @@ String ResourceImporterJSCN::get_preset_name(int p_idx) const {
 }
 
 void ResourceImporterJSCN::get_import_options(List<ImportOption> *r_options, int p_preset) const {
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/polygon"), true));
-	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/position"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/update"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/update_only_editor"), true));
+	// r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/polygon"), true));
+	// r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/position"), true));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "update/texture"), false));
 }
+
+Node *ResourceImporterJSCN::get_edited_scene_root(const String &p_path) const{
+	EditorData &editor_data = EditorNode::get_editor_data();
+	for (int i = 0; i < editor_data.get_edited_scene_count(); i++) {
+		if (editor_data.get_scene_path(i) == p_path)
+			return editor_data.get_edited_scene_root(i);
+	}
+	return nullptr;
+}
+
 void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, const Map<StringName, Variant> &p_options, String &scene_path, bool parent_is_root){
+	bool b_update = p_options["main/update"];
+	bool b_update_only_editor = p_options["main/update_only_editor"];
+	// bool update_polygon = p_options["update/polygon"];
+	// bool update_position = p_options["update/position"];
+	bool update_texture = p_options["update/texture"];
+	bool force_save = !b_update_only_editor;
+
 	Node *node;
 	String name = serialized["name"];
 	String type = serialized["type"];
 	bool need_create = true;
-	
-	if (parent==nullptr){
-		Ref<PackedScene> scene;
-		_File file2Check;
-		if (file2Check.file_exists(scene_path)){
-			scene = ResourceLoader::load(scene_path, "PackedScene");
-			node = scene->instance();
-			//node = EditorNode::get_singleton()->get_edited_scene()->get_child(0);
-			need_create = false;
-			if (node == nullptr)
+
+	if (parent == nullptr){
+		_File file_сheck;
+		if (file_сheck.file_exists(scene_path)){
+			if (!b_update){
 				return;
+			}
 		}
+		else{
+			red::scene_loader(scene_path);
+			force_save = true;
+		}
+		if (!EditorNode::get_singleton()->is_scene_open(scene_path)){
+			EditorNode::get_singleton()->load_scene(scene_path);
+		}
+		node = get_edited_scene_root(scene_path);
+		if (node == nullptr){
+			ERR_PRINTS("Can't get root node in edited scene");
+			return;
+		}	
+		need_create = false;
 	}
+	// if (parent == nullptr){
+	// 	Ref<PackedScene> scene;
+	// 	_File file2Check;
+	// 	if (file2Check.file_exists(scene_path)){
+	// 		scene = ResourceLoader::load(scene_path, "PackedScene");
+	// 		node = scene->instance();
+	// 		//node = EditorNode::get_singleton()->get_edited_scene()->get_child(0);
+	// 		need_create = false;
+	// 		if (node == nullptr)
+	// 			return;
+	// 	}
+	// }
 	else if (parent->has_node(name)){
 		node = parent->get_node(name);
 		need_create = false;
@@ -130,15 +174,18 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 			node = red::create_node<Node>(parent, name);
 		else if (type=="Node2D")
 			node = red::create_node<Node2D>(parent, name);
-		else if (type=="Polygon2D"){
+		else if (type=="Polygon2D")
 			node = red::create_node<Polygon2D>(parent, name);
-			print_line(type);}
-		//else if (type=="REDPolygon")
-		//	node = red::create_node<REDPolygon>(parent, name);
 		else if (type=="REDFrame")
 			node = red::create_node<REDFrame>(parent, name);
 		else if (type=="REDPage")
 			node = red::create_node<REDPage>(parent, name);
+		else if (type=="REDParallaxFolder")
+			node = red::create_node<REDParallaxFolder>(parent, name);
+		else if (type=="REDTarget")
+			node = red::create_node<REDTarget>(parent, name);
+		else if (type=="REDTransform")
+			node = red::create_node<REDTransform>(parent, name);
 		else if (type=="AnimationPlayer")
 			node = red::create_node<AnimationPlayer>(parent, name);
 		else if (type=="Skeleton2D")
@@ -151,6 +198,7 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 	}
 	List<PropertyInfo> plist;
 	ClassDB::get_property_list(node->get_class(), &plist, false, node);
+	print_line(node->get_name());
 	for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
 		String name = E->get().name;
 		if (name == "name" || name == "owner" || name == "_import_path" || 
@@ -161,7 +209,7 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 			name == "current_animation" || name == "assigned_animation") 
 			continue;
 		if (serialized.has(name)){
-			if (name == "texture" && need_create){
+			if (name == "texture" && (need_create || update_texture)){
 				String global_path = serialized[name];
 				node->set(name, ResourceLoader::load(global_path, "Texture"));
 			}
@@ -219,15 +267,15 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 			(serialized[name].get_type() == Variant::INT && node->get(name).get_type() == Variant::REAL) || 
 			(serialized[name].get_type() == Variant::REAL && node->get(name).get_type() == Variant::INT)){
 				node->set(name, serialized[name]);
-				print_line(std::to_string((int)serialized[name].get_type()).c_str());
-				print_line(std::to_string((int)node->get(name).get_type()).c_str());
-				print_line("Appled " + name + " property");
+				//print_line("Appled " + name + " property");
+				//print_line(std::to_string((int)serialized[name].get_type()).c_str());
+				//print_line(std::to_string((int)node->get(name).get_type()).c_str());
 			}else if (serialized[name].get_type()==4 && node->get(name).get_type()==15){
 				node->set(name, NodePath(serialized[name]));
 			}else {
-				print_line(std::to_string((int)serialized[name].get_type()).c_str());
-				print_line(std::to_string((int)node->get(name).get_type()).c_str());
 				print_line("Ignored " + name + " property");
+				//print_line(std::to_string((int)serialized[name].get_type()).c_str());
+				//print_line(std::to_string((int)node->get(name).get_type()).c_str());
 			}
 				
 		}
@@ -244,6 +292,9 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 				animation = Ref<Animation>(memnew(Animation));
 				player->add_animation(animation_name, animation);
 			}
+			if (animation_dict.has("length")){
+				animation->set_length(animation_dict["length"]);
+			}
 			List<PropertyInfo> animation_plist;
 			ClassDB::get_property_list("Animation", &animation_plist, false, animation.ptr());
 			for (List<PropertyInfo>::Element *E = animation_plist.front(); E; E = E->next()) {
@@ -251,10 +302,10 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 				if (name == "resource_local_to_scene" || name == "resource_path" || name == "resource_name" || 
 					name == "current_animation_length" || name == "current_animation_position") continue;
 				if (serialized.has(name)){
-					if (serialized[name].get_type()==animation->get(name).get_type())
+					if (serialized[name].get_type() == animation->get(name).get_type())
 						animation->set(name, serialized[name]);
 					else
-						print_line("Ignored " + name + " animaation property");
+						print_line("Ignored " + name + " animation property");
 				}
 			}
 			Array tracks = animation_dict["tracks"];
@@ -266,7 +317,12 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 				int track_i_new = -1;
 				if (animation->get_track_count()>0)
 					track_i_new = animation->find_track(track_path);
-				if (track_i_new==-1){
+				// Remove track (optional)
+				if (track_i_new != -1){
+					animation->remove_track(track_i_new);
+					track_i_new = -1;
+				}
+				if (track_i_new == -1){
 					track_i_new = animation->add_track((Animation::TrackType)track_type, -1);
 					animation->track_set_path(track_i_new, track["path"]);
 				} else if (animation->track_get_type(track_i_new) != track_type){
@@ -298,21 +354,24 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 		for (int i = 0; i < count; i++){
 			Dictionary child = children[i];
 			dict_to_node(child, node, p_options, scene_path);
-			print_line(node->get_name());
 		}
 	}
 	if (parent == nullptr){
-		
-		Ref<PackedScene> scene = memnew(PackedScene);
-		Error err = scene->pack(node);
-		if (err == OK){
-			//err = ResourceSaver::save(scene_path, scene);
+		if (force_save){
+			Ref<PackedScene> scene = memnew(PackedScene);
+			Error err = scene->pack(node);
 			if (err == OK){
-				EditorNode::get_singleton()->set_edited_scene(node);
-				//EditorNode::get_singleton()->reload_scene(scene_path);
+				err = ResourceSaver::save(scene_path, scene);
 			}
 		}
-		
+		EditorData &editor_data = EditorNode::get_editor_data();
+		int index = 0;
+		for (int i = 0; i < editor_data.get_edited_scene_count(); i++) {
+			if (editor_data.get_scene_path(i) == scene_path)
+				index = i;
+		}
+		editor_data.set_edited_scene(index);
+		//EditorNode::get_singleton()->reload_scene(scene_path);
 	}
 }
 

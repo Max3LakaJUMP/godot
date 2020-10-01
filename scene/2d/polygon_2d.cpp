@@ -143,6 +143,7 @@ void Polygon2D::_notification(int p_what) {
 				VS::get_singleton()->canvas_item_deform_set_scale_center(get_canvas_item(), scale_center);
 				VS::get_singleton()->canvas_item_deform_set_wind_strength(get_canvas_item(), wind_strength);
 				VS::get_singleton()->canvas_item_deform_set_elasticity(get_canvas_item(), elasticity);
+				VS::get_singleton()->canvas_item_deform_set_time_offset(get_canvas_item(), time_offset);
 			} else {
 				VS::get_singleton()->canvas_item_attach_deform(get_canvas_item(), RID());
 			}
@@ -804,6 +805,18 @@ void Polygon2D::set_elasticity(Vector2 p_elasticity){
 }
 
 
+void Polygon2D::set_time_offset(float p_time_offset){
+	if (time_offset == p_time_offset)
+		return;
+	time_offset = p_time_offset;
+	VS::get_singleton()->canvas_item_deform_set_time_offset(get_canvas_item(), time_offset);
+}
+
+float Polygon2D::get_time_offset() const{
+	return time_offset;
+}
+
+
 void Polygon2D::set_custom_transform(const NodePath &p_custom_transform){
 	if (custom_transform == p_custom_transform)
 		return;
@@ -825,7 +838,6 @@ void Polygon2D::set_deform(const NodePath &p_deform){
 NodePath Polygon2D::get_deform() const{
 	return deform;
 }
-
 
 PoolVector<Vector2> Polygon2D::_get_absolute_uv() const{
 	PoolVector<Vector2> uv_absolute;
@@ -892,6 +904,8 @@ void Polygon2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_wind_strength"), &Polygon2D::get_wind_strength);
 	ClassDB::bind_method(D_METHOD("set_elasticity", "elasticity"), &Polygon2D::set_elasticity);
 	ClassDB::bind_method(D_METHOD("get_elasticity"), &Polygon2D::get_elasticity);
+	ClassDB::bind_method(D_METHOD("set_time_offset", "time_offset"), &Polygon2D::set_time_offset);
+	ClassDB::bind_method(D_METHOD("get_time_offset"), &Polygon2D::get_time_offset);
 
 	ClassDB::bind_method(D_METHOD("set_move_polygon_with_uv", "move_polygon_with_uv"), &Polygon2D::set_move_polygon_with_uv);
 	ClassDB::bind_method(D_METHOD("get_move_polygon_with_uv"), &Polygon2D::get_move_polygon_with_uv);
@@ -999,22 +1013,25 @@ void Polygon2D::_bind_methods() {
 	ADD_GROUP("Deformation", "");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "deform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDDeform"), "set_deform", "get_deform");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "object_rotation", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater"), "set_object_rotation", "get_object_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "time_offset"), "set_time_offset", "get_time_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "uv_origin", PROPERTY_HINT_RANGE, "0,1"), "set_uv_origin", "get_uv_origin");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "scale_center"), "set_scale_center", "get_scale_center");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "wind_strength"), "set_wind_strength", "get_wind_strength");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "elasticity"), "set_elasticity", "get_elasticity");
+
 }
 
 Polygon2D::Polygon2D() {
 	clipper_top = true;
 	depth_position = 0.0f;
-	depth_size = 100.0;
-	depth_offset = 0.5;
+	depth_size = 0.0;
+	depth_offset = 0.0;
 	uv_origin = 0.55;
 	object_rotation = 0.0;
 	scale_center = Vector2(0.5, 0.5);
 	wind_strength = Vector2(1.0, 1.0);
 	elasticity = Vector2(0.5, 0.5);
+	time_offset = 0;
 
 	move_polygon_with_uv = false;
 	invert = 0;

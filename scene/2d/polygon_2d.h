@@ -87,6 +87,7 @@ class Polygon2D : public Node2D {
 	Vector2 scale_center;
 	Vector2 wind_strength;
 	Vector2 elasticity;
+	float time_offset;
 
 protected:
 	void _notification(int p_what);
@@ -189,6 +190,8 @@ public:
 	void set_wind_strength(Vector2 p_wind_strength);
 	Vector2 get_elasticity() const;
 	void set_elasticity(Vector2 p_elasticity);
+	void set_time_offset(float p_time_offset);
+	float get_time_offset() const;
 	PoolVector<Vector2> _get_absolute_uv() const;
 	void _set_absolute_uv(const PoolVector<Vector2> &p_uv);
 	void set_move_polygon_with_uv(bool p_move_polygon_with_uv);

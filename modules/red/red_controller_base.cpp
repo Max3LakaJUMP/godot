@@ -16,7 +16,26 @@
 #include "scene/animation/tween.h"
 #include "scene/main/timer.h"
 
+void REDControllerBase::size_changed(){
+	_window_resized();
+	size_dirty = true;
+	target_zoom_dirty = true;
+	if (b_tween_created){
+		screen_multiplayer_start = screen_multiplayer;
+		orientation_k = 0.0;
+		tween->stop(this, "set_orientation_k");
+		tween->interpolate_method(this, "set_orientation_k", orientation_k, 1.0, 1.0, Tween::TRANS_CUBIC, Tween::EASE_OUT);
+		tween->start();	
+	}
+}
+void REDControllerBase::_window_resized(){
+	if (get_script_instance() && get_script_instance()->has_method("_window_resized")) {
+		get_script_instance()->call("_window_resized");
+	}
+}
+
 void REDControllerBase::_frame_zoom_changed(){
+	size_dirty = true;
 	target_zoom_dirty = true;
 	update_camera_zoom();
 };
@@ -110,8 +129,7 @@ void REDControllerBase::_frame_change() {
 		_frame_end();
 	}
 	frame = page->get_frame(page->get_id());
-	if (frame == nullptr)
-		return;
+	ERR_FAIL_NULL(frame);
 	if (frame->is_start_immediate()){
 		_frame_start();
 	}
@@ -122,18 +140,13 @@ void REDControllerBase::_frame_change() {
 }
 
 void REDControllerBase::update_camera_to_frame(bool force_immediate) {
-    if (!camera_mode || Engine::get_singleton()->is_editor_hint()){
+    if (!camera_mode || Engine::get_singleton()->is_editor_hint())
 		return;
-	}
-    if (get_camera_path().is_empty()){
+	ERR_FAIL_NULL(frame);
+    if (get_camera_path().is_empty())
 		return;
-	}
-    if (frame == nullptr){
-		return;
-	}
-	if (reset_camera_on_frame_change){
+	if (reset_camera_on_frame_change)
 		set_zoom_k_target(0.0);
-	}
 	if (tween->is_active()){
 		tween->stop(camera, "set_position");	
 		tween->stop(camera, "set_zoom");
@@ -166,14 +179,11 @@ void REDControllerBase::update_camera_to_frame(bool force_immediate) {
 }
 
 void REDControllerBase::_frame_changed() {
+	ERR_FAIL_NULL(frame);
 	camera_state = CAMERA_STATIC;
 	last_dirrection = dirrection;
 	dirrection = DIRRECTION_NONE;
 	camera_timer->stop();
-	if (frame == nullptr)
-		return;
-	//frame_timer_connected = false;
-	//frame->_started();
 	frame->set_focused(true);
 	if (!frame->is_start_immediate()){
 		_frame_start();
@@ -223,35 +233,39 @@ bool REDControllerBase::get_camera_smooth() const{
 	return camera_smooth;
 }
 bool REDControllerBase::to_prev_page() {
-	if (!issue){
-		return false;
-	}
+	ERR_FAIL_NULL_V(issue, false)
 	dirrection = DIRRECTION_BACKWARD;
 	int new_id = issue->get_id() - 1;
-	if (new_id >= 0 && new_id < issue->get_pages_count()){
-		set_page(new_id, true);
-		return true;
+	int pages_count = issue->get_pages_count();
+	for (int i = new_id; i >= 0 && i < pages_count; i--){
+		if (issue->get_page(i)->get_frames_count() > 0){
+			set_page(i, true);
+			return true;
+		}else{
+			ERR_PRINTS("Skiping page: no frames");
+		}
 	}
 	return false;
 }
 
 bool REDControllerBase::to_next_page() {
-	if (!issue){
-		return false;
-	}
+	ERR_FAIL_NULL_V(issue, false)
 	int new_id = issue->get_id() + 1;
-	if (new_id > -1 && new_id < issue->get_pages_count()){
-		set_page(new_id);
-		return true;
+	int pages_count = issue->get_pages_count();
+	for (int i = new_id; i >= 0 && i < pages_count; i++){
+		if (issue->get_page(i)->get_frames_count() > 0){
+			set_page(i);
+			return true;
+		}else{
+			ERR_PRINTS("Skiping page: no frames");
+		}
 	}
 	return false;
 }
 
 
 bool REDControllerBase::to_prev_frame() {
-	if (!page){
-		return false;
-	}
+	ERR_FAIL_NULL_V(page, false)
 	int new_id = page->get_id() - 1;
 	if (new_id > -1 && new_id < page->get_frames_count()){
 		set_frame(new_id, false);
@@ -261,9 +275,7 @@ bool REDControllerBase::to_prev_frame() {
 }
 
 bool REDControllerBase::to_next_frame() {
-	if (!page){
-		return false;
-	}
+	ERR_FAIL_NULL_V(page, false)
 	/*
 	if (frame_next_timer_connected){
 		timer->disconnect("timeout", this, "_frame_change");
@@ -284,6 +296,7 @@ bool REDControllerBase::to_next_frame() {
 
 
 bool REDControllerBase::to_prev_frame_state(){
+	ERR_FAIL_NULL_V(frame, false)
 	int new_id = frame->get_id() - 1;
 	if (new_id > -1 && new_id < frame->get_states_count()){
 		set_state(new_id);
@@ -297,6 +310,7 @@ bool REDControllerBase::to_prev_frame_state(){
 
 
 bool REDControllerBase::to_next_frame_state() {
+	ERR_FAIL_NULL_V(frame, false)
 	int new_id = frame->get_id() + 1;
 	if (new_id > -1 && new_id < frame->get_states_count()){
 		set_state(new_id);
@@ -409,13 +423,8 @@ void REDControllerBase::set_issue_by_path(const NodePath &p_issue_path) {
 }
 
 void REDControllerBase::set_issue(REDIssue *p_issue) {
-	//if (issue != nullptr){
-	//	camera->disconnect("send_camera_zoom", issue, "update_camera");
-	//}
+	ERR_FAIL_NULL(p_issue);
     issue = p_issue;
-	if (issue == nullptr)
-		return;
-	//connect("send_camera_zoom", issue, "update_camera"));
 	set_page(issue->get_id());
 }
 
@@ -424,27 +433,22 @@ REDIssue *REDControllerBase::get_issue() const {
 }
 
 void REDControllerBase::set_page(REDPage *p_page){
-	set_issue(nullptr);
+	ERR_FAIL_NULL(p_page)  
 	page = p_page;
-	if (page == nullptr)
-		return;
 	set_frame(page->get_id());
 }
 
 void REDControllerBase::set_page(int p_id, bool is_prev){
-	if (issue == nullptr)
-		return;
+	ERR_FAIL_NULL(issue)  
 	issue->set_page(p_id, is_prev, get_target_camera_zoom());
 	page = issue->get_page(p_id);
-	if (page != nullptr){
-		set_frame(page->get_id(), !is_prev);
-	}
+	ERR_FAIL_NULL(page)  
+	set_frame(page->get_id(), !is_prev);
 }
 
 REDPage *REDControllerBase::get_page() const{
 	return page;
 }
-
 
 
 void REDControllerBase::set_frame_expand(const Vector2 &p_frame_expand){
@@ -465,21 +469,12 @@ Vector2 REDControllerBase::get_target_mouse() const{
 		//mouse_offset_target*=frame->get_scale();
 		target_mouse_dirty = false;
 	}
-	Size2 v_size = get_viewport()->get_size();
+	//Size2 v_size = get_viewport()->get_size();
+
 	mouse_offset_target = mouse_offset * mouse_offset_k * camera->get_zoom() / frame->get_camera_zoom();
 	if (zoom_k < 0.0)
 		mouse_offset_target *= 1 + zoom_k;
-	
-	if (orientation == ORIENTATION_HORIZONTAL){
-		mouse_offset_target.x *= v_size.x;
-		mouse_offset_target.y *= v_size.x;
-	}else if (orientation == ORIENTATION_VERTICAL){
-		mouse_offset_target.x *= v_size.y;
-		mouse_offset_target.y *= v_size.y;
-	}else{
-		mouse_offset_target.x *= v_size.y;
-		mouse_offset_target.y *= v_size.y;
-	}
+	mouse_offset_target *= get_viewport()->get_size();
 	return mouse_offset_target;
 }
 
@@ -495,9 +490,26 @@ Vector2 REDControllerBase::get_target_pos_local() const{
 }
 
 Vector2 REDControllerBase::get_target_pos_global() const{
-	return get_target_pos_local()*frame->get_scale() + frame->get_origin_pos_gl();
+	return get_target_pos_local() * frame->get_scale() + frame->get_origin_pos_gl();
 }
 
+float REDControllerBase::get_screen_multiplayer() const{
+	if (orientation_k == 1.0 && !size_dirty){
+		return screen_multiplayer;
+	}
+	float screen_multiplayer_next;
+	if (orientation == ORIENTATION_HORIZONTAL)
+		screen_multiplayer_next = page->get_size().width / get_viewport()->get_size().width;
+	else if (orientation == ORIENTATION_VERTICAL)
+		screen_multiplayer_next = page->get_size().height / get_viewport()->get_size().height;
+	else
+		screen_multiplayer_next = page->get_size().width / get_viewport()->get_size().height;
+	screen_multiplayer = (screen_multiplayer_start + orientation_k * (screen_multiplayer_next - screen_multiplayer_start));
+	if (orientation_k == 1.0){
+		size_dirty = false;
+	}
+	return screen_multiplayer;
+}
 
 Vector2 REDControllerBase::get_target_zoom() const{
 	if(target_zoom_dirty){
@@ -513,7 +525,13 @@ Vector2 REDControllerBase::get_target_zoom() const{
 	}
 	return frame_parallax_zoom;
 }
-
+Vector2 REDControllerBase::get_target_camera_zoom() const{
+	if (page){
+		return get_target_zoom() * get_screen_multiplayer();
+	}
+	return Vector2(1, 1);
+}
+/*
 Vector2 REDControllerBase::get_target_camera_zoom() const{
 	if (page){
 		if (orientation == ORIENTATION_HORIZONTAL)
@@ -524,18 +542,10 @@ Vector2 REDControllerBase::get_target_camera_zoom() const{
 			return get_target_zoom() * page->get_size().width / get_viewport()->get_size().height;
 	}
 	return Vector2(1, 1);
-}
+}*/
 
 Vector2 REDControllerBase::get_target_parallax_zoom() const{
-	if (orientation == ORIENTATION_HORIZONTAL)
-		return (camera->get_zoom() / (frame->get_camera_zoom() + abs(zoom_k) * (Vector2(1.0f, 1.0f) - frame->get_camera_zoom()))) * 
-				(get_viewport()->get_size().width / page->get_size().width);
-	else if (orientation == ORIENTATION_VERTICAL)
-		return (camera->get_zoom() / (frame->get_camera_zoom() + abs(zoom_k) * (Vector2(1.0f, 1.0f) - frame->get_camera_zoom()))) * 
-				(get_viewport()->get_size().height / page->get_size().height);
-	else
-		return (camera->get_zoom() / (frame->get_camera_zoom() + abs(zoom_k) * (Vector2(1.0f, 1.0f) - frame->get_camera_zoom()))) * 
-				(get_viewport()->get_size().height / page->get_size().width);
+	return (camera->get_zoom() / (frame->get_camera_zoom() + abs(zoom_k) * (Vector2(1.0f, 1.0f) - frame->get_camera_zoom()))) * get_screen_multiplayer();
 }
 
 Vector2 REDControllerBase::get_target_parallax() const{
@@ -598,7 +608,7 @@ void REDControllerBase::set_zoom_k_target(const float p_val) {
 	if (zoom_k == zoom_k_target)
 		return;
 	tween->stop(this, "set_zoom_k");	
-	tween->interpolate_method(this, "set_zoom_k", zoom_k, zoom_k_target, ABS(zoom_k-zoom_k_target), Tween::TRANS_CUBIC, Tween::EASE_OUT);
+	tween->interpolate_method(this, "set_zoom_k", zoom_k, zoom_k_target, ABS(zoom_k - zoom_k_target), Tween::TRANS_CUBIC, Tween::EASE_OUT);
 	tween->start();	
 }
 
@@ -613,21 +623,13 @@ void REDControllerBase::zoom_out(const float &p_val) {
 void REDControllerBase::zoom_reset() {
 	set_zoom_k_target(0.0f);
 }
+
 void REDControllerBase::set_mouse_offset(const Vector2 &p_mouse_offset) {
 	if (mouse_offset == p_mouse_offset)
 		return;
 	mouse_offset = p_mouse_offset;
 	target_mouse_dirty = true;
 	update_camera_pos();
-
-	//if(camera_state == CAMERA_STATIC){
-		//tween->stop(camera, "set_position");	
-		//tween->follow_method(camera, "set_position", camera->get_position(), this, "get_target_pos_global", 0.5f, Tween::TRANS_CUBIC, Tween::EASE_OUT);
-		//tween->start();	
-		//tween->stop(camera, "set_offset");
-		//tween->interpolate_method(camera, "set_offset", camera->get_offset(), mouse_offset_target, 0.5f, Tween::TRANS_CUBIC, Tween::EASE_OUT);
-		//tween->start();
-	//}
 }
 
 
@@ -637,12 +639,6 @@ void REDControllerBase::set_mouse_offset_k(const Vector2 &p_max_mouse_offset) {
 	mouse_offset_k = p_max_mouse_offset;
 	target_mouse_dirty = true;
 	update_camera_pos();
-
-	//if(camera_state == CAMERA_STATIC){
-		//tween->stop(camera, "set_position");	
-		//tween->follow_method(camera, "set_position", camera->get_position(), this, "get_target_pos_global", 0.5f, Tween::TRANS_CUBIC, Tween::EASE_OUT);
-		//tween->start();	
-	//}
 }
 
 Vector2 REDControllerBase::get_mouse_offset_k() const{
@@ -698,14 +694,7 @@ void REDControllerBase::update_camera_parallax() {
 		return;
 	if (camera_state == CAMERA_STATIC){
 		frame->set_parallax_offset(get_target_parallax());
-		Vector2 p = camera->get_zoom();
-		if (orientation == ORIENTATION_HORIZONTAL)
-			p = p * get_viewport()->get_size().width / page->get_size().width;
-		else if (orientation == ORIENTATION_VERTICAL)
-			p = p * get_viewport()->get_size().height / page->get_size().height;
-		else
-			p = p * get_viewport()->get_size().height / page->get_size().width;
-		frame->set_parallax_zoom(p);
+		frame->set_parallax_zoom(camera->get_zoom() * get_screen_multiplayer());
 	}
 }
 
@@ -737,8 +726,6 @@ Vector2 REDControllerBase::get_global_camera_zoom() const{
 	return (frame == nullptr) ? camera_zoom_min + zoom_k * (camera_zoom_max - camera_zoom_min) : camera_zoom_min + zoom_k * (camera_zoom_max - camera_zoom_min) * frame->get_camera_zoom();
 }
 
-
-
 Vector2 REDControllerBase::get_mouse_offset() const{
 	return mouse_offset;
 }
@@ -751,37 +738,31 @@ void REDControllerBase::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE:{
 			if (!Engine::get_singleton()->is_editor_hint()) {
-				set_process_input(true);
-				frame_timer = memnew(Timer);
-				add_child(frame_timer);
-				frame_timer->set_owner(this);
-				frame_timer->connect("timeout", this, "_frame_change");
-
-				camera_timer = memnew(Timer);
-				add_child(camera_timer);
-				camera_timer->set_owner(this);
-				camera_timer->connect("timeout", this, "_frame_changed");
-
-				tween = memnew(Tween);
-				add_child(tween);
-
-
 				group_name = "__cameras_" + itos(get_viewport()->get_viewport_rid().get_id());
 				add_to_group(group_name);
+				set_process_input(true);
 			}
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
-			get_tree()->get_root()->disconnect("size_changed", this, "_frame_zoom_changed");
-			remove_from_group(group_name);
+			if (!Engine::get_singleton()->is_editor_hint()) {
+				get_tree()->get_root()->disconnect("size_changed", this, "size_changed");
+				remove_from_group(group_name);
+				tween->queue_delete();
+				frame_timer->queue_delete();
+				camera_timer->queue_delete();
+			}
 		} break;
 		case NOTIFICATION_READY: {
 			camera = (Camera2D*)(get_node(camera_path));
-			if (!camera){
-				camera = memnew(Camera2D);
-				add_child(camera);
-				camera->set_owner(this);
+			if (!Engine::get_singleton()->is_editor_hint()) {
+				tween = red::create_node<Tween>(this);
+				frame_timer = red::create_node<Timer>(this);
+				camera_timer = red::create_node<Timer>(this);
+				frame_timer->connect("timeout", this, "_frame_change");
+				camera_timer->connect("timeout", this, "_frame_changed");
+				b_tween_created = true;
 			}
-			get_tree()->get_root()->connect("size_changed", this, "_frame_zoom_changed");
+			get_tree()->get_root()->connect("size_changed", this, "size_changed");
 		} break;
 	}
 }
@@ -808,7 +789,40 @@ void REDControllerBase::_input(const Ref<InputEvent> &p_event) {
 	}
 }
 
+void REDControllerBase::set_orientation_k(float p_orientation_k) {
+	if (orientation_k == p_orientation_k)
+		return;
+	orientation_k = p_orientation_k;
+	update_camera_zoom();
+	update_camera_pos();
+}
+
+
+void REDControllerBase::set_orientation(const Orientation p_orientation) {
+	if (orientation == p_orientation)
+		return;
+	orientation = p_orientation;
+	orientation_k = 0.0;
+	if (!camera_mode || Engine::get_singleton()->is_editor_hint())
+		return;
+	size_dirty = true;
+	screen_multiplayer_start = screen_multiplayer;
+	if (b_tween_created){
+		tween->stop(this, "set_orientation_k");
+		tween->interpolate_method(this, "set_orientation_k", orientation_k, 1.0, 1.0, Tween::TRANS_CUBIC, Tween::EASE_OUT);
+		tween->start();	
+	}
+	else{
+		set_orientation_k(1.0);
+	}
+}
+
+REDControllerBase::Orientation REDControllerBase::get_orientation() const{
+	return orientation;
+}
+
 void REDControllerBase::_bind_methods() {
+
 	ClassDB::bind_method(D_METHOD("set_issue_by_path", "issue_path"), &REDControllerBase::set_issue_by_path);
 	ClassDB::bind_method(D_METHOD("_frame_start"), &REDControllerBase::_frame_start);
 	ClassDB::bind_method(D_METHOD("_frame_end"), &REDControllerBase::_frame_end);
@@ -869,7 +883,13 @@ void REDControllerBase::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_frame_expand", "frame_expand"), &REDControllerBase::set_frame_expand);
 	ClassDB::bind_method(D_METHOD("get_frame_expand"), &REDControllerBase::get_frame_expand);
 	ClassDB::bind_method(D_METHOD("_input"), &REDControllerBase::_input);
+	ClassDB::bind_method(D_METHOD("set_orientation_k", "orientation_k"), &REDControllerBase::set_orientation_k);
+	ClassDB::bind_method(D_METHOD("set_orientation", "orientation"), &REDControllerBase::set_orientation);
+	ClassDB::bind_method(D_METHOD("get_orientation"), &REDControllerBase::get_orientation);
+	ClassDB::bind_method(D_METHOD("size_changed"), &REDControllerBase::size_changed);
 
+	ClassDB::add_virtual_method(get_class_static(), MethodInfo("_window_resized"));
+	
 	ADD_GROUP("Frame", "");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "frame_expand"), "set_frame_expand", "get_frame_expand");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "reset_camera_on_frame_change"), "set_reset_camera_on_frame_change", "is_reset_camera_on_frame_change");
@@ -884,10 +904,18 @@ void REDControllerBase::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "camera_smooth"), "set_camera_smooth", "get_camera_smooth");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "camera_mode"), "set_camera_mode", "get_camera_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "orientation", PROPERTY_HINT_ENUM, "ORIENTATION_HORIZONTAL, ORIENTATION_VERTICAL, ORIENTATION_HYBRID"), "set_orientation", "get_orientation");
+	
+	BIND_ENUM_CONSTANT(ORIENTATION_HORIZONTAL);
+	BIND_ENUM_CONSTANT(ORIENTATION_VERTICAL);
+	BIND_ENUM_CONSTANT(ORIENTATION_HYBRID);
 }
 
 REDControllerBase::REDControllerBase() {
 	orientation = ORIENTATION_HYBRID;
+	orientation_k = 1.0;
+	screen_multiplayer_start = 1.0;
+	size_dirty = true;
 	target_pos_local_dirty = true;
 	target_zoom_dirty = true;
 	target_mouse_dirty = true;
@@ -904,10 +932,13 @@ REDControllerBase::REDControllerBase() {
 
 	camera_mode = true;
 	b_can_control = true;
+	b_tween_created = false;
 	zoom_k = 0.0;
 	zoom_k_target = 0.0;
+	frame_parallax_zoom = Vector2(1, 1);
 	camera_zoom_min = Vector2(0.5f, 0.5f);
 	camera_zoom_max = Vector2(4, 4);
 	mouse_offset_k = Vector2(1, 1);
 	mouse_offset = Vector2(0, 0);
+	screen_multiplayer = 1.0;
 }

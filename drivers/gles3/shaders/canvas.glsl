@@ -56,7 +56,8 @@ uniform highp float depth_offset;
 	uniform highp vec2 scale_center;
 	uniform highp vec2 wind_strength_object;
 	uniform highp vec2 elasticity;
-	
+	uniform highp float time_offset;
+
 	uniform highp float wind_rotation;
 	uniform float wind_offset;
 	
@@ -274,7 +275,7 @@ void main() {
 		outvec.xy = rotate(outvec.xy, -object_rad);
 		float mask = 1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0);
 		mask = clamp(mask, 0.0, 1.0);
-		float t = (time) * 6.28;
+		float t = time * 6.28;
 		vec2 wave;
 		wave.x = ((1.0 - mask) * elasticity.y) * 6.28;
 		wave.y = (uv_rot.x * elasticity.x) * 6.28;
@@ -284,11 +285,11 @@ void main() {
 		wind_target.y = wind_target.y * 0.5 - 0.5;
 		wind_target = wind_target * wind_offset;
 		
-		vec2 cycle_wind = wind(t / wind_time, direction, wave, wind_from_top, wind_from_bellow) + wind_target;
-		vec2 cycle_wind2 = wind((t + 0.79) / wind2_time, direction, wave, wind_from_top, wind_from_bellow);
-		vec2 cycle_scale = sin(t / scale_time) * (uv_rot - scale_center);
+		vec2 cycle_wind = wind(t / wind_time + time_offset, direction, wave, wind_from_top, wind_from_bellow) + wind_target;
+		//vec2 cycle_wind2 = wind((t + 0.79) / wind2_time + time_offset, direction, wave, wind_from_top, wind_from_bellow);
+		vec2 cycle_scale = sin(t / scale_time + time_offset) * (uv_rot - scale_center);
 		
-		outvec.xy = outvec.xy + (cycle_wind * wind_strength + cycle_wind2 * wind2_strength + cycle_scale * scale_strength) * mask * wind_strength_object * color.g;
+		outvec.xy = outvec.xy + (cycle_wind * wind_strength + cycle_scale * scale_strength) * mask * wind_strength_object * color.g;
 		outvec.xy = rotate(outvec.xy, object_rad);
 	}
 #endif
@@ -634,8 +635,10 @@ void main() {
 #endif
 
 	if (use_default_normal) {
-		normal.xy = textureLod(normal_texture, uv, 0.0).xy * 2.0 - 1.0;
-		normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));
+		// enable z in normal
+		normal.xyz =  textureLod(normal_texture, uv, 0.0).xyz * 2.0 - 1.0;
+		//normal.xy = textureLod(normal_texture, uv, 0.0).xy * 2.0 - 1.0;
+		//normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));
 		normal_used = true;
 	} else {
 		normal = vec3(0.0, 0.0, 1.0);
@@ -747,13 +750,19 @@ FRAGMENT_SHADER_CODE
 #endif
 
 		light *= real_light_color;
+		float light_height_normalized = 1.0;
 
 		if (normal_used) {
 			vec3 light_normal = normalize(vec3(light_vec, -real_light_height));
-			light *= max(dot(-light_normal, normal), 0.0);
+			//light *= max(dot(-light_normal, normal), 0.0);
+			light.a *= max(dot(-light_normal, normal), 0.0);
+			light_height_normalized = 1.0 - max(light_normal.b, 0);
 		}
-
-		color *= light;
+		vec4 color_x_light = color * light;
+		light.a = clamp(light.a * color.a, 0.0, 1.0);
+		vec4 rim_light = (color_x_light + light.a * (light * color.a - color_x_light));
+		color = rim_light + light_height_normalized * (color_x_light - rim_light);
+		//color *= light;
 
 #ifdef USE_SHADOWS
 #ifdef SHADOW_VEC_USED

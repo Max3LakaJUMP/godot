@@ -746,7 +746,8 @@ void REDFrame::_notification(int p_what) {
 			//Ref<AnimationNodeStateMachinePlayback> playback = get_playback();
 			//if (playback != nullptr)
 			//	playback->connect("animation_started", this, "animation_changed");
-			origin_pos_gl = get_camera_pos().get_origin();
+			update_origin_pos_gl();
+			//origin_pos_gl = get_camera_pos().get_origin();
 			origin_scale = get_scale();
 			origin_pos = get_position();
 		} break;

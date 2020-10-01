@@ -1035,6 +1035,14 @@ void VisualServerCanvas::canvas_item_deform_set_elasticity(RID p_item, const Vec
 	canvas_item->elasticity = p_elasticity;
 }
 
+void VisualServerCanvas::canvas_item_deform_set_time_offset(RID p_item, float p_time_offset) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->time_offset = p_time_offset;
+}
+
 void VisualServerCanvas::canvas_item_set_copy_to_backbuffer(RID p_item, bool p_enable, const Rect2 &p_rect) {
 
 	Item *canvas_item = canvas_item_owner.getornull(p_item);

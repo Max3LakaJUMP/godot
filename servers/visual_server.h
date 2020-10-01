@@ -964,7 +964,8 @@ public:
 	virtual void canvas_item_deform_set_scale_center(RID p_item, const Vector2 &p_scale_center) = 0;
 	virtual void canvas_item_deform_set_wind_strength(RID p_item, const Vector2 &p_wind_strength) = 0;
 	virtual void canvas_item_deform_set_elasticity(RID p_item, const Vector2 &p_elasticity) = 0;
-	
+	virtual void canvas_item_deform_set_time_offset(RID p_item, float p_time_offset) = 0;
+
 	virtual void canvas_item_clear(RID p_item) = 0;
 	virtual void canvas_item_set_draw_index(RID p_item, int p_index) = 0;
 

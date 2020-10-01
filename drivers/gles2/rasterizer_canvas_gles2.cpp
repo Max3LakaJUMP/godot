@@ -2619,11 +2619,15 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 			//custom_transform
 			if (p_ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(p_ci->custom_transform)) {
 				custom_transform = storage->custom_transform_owner.get(p_ci->custom_transform);
+				state.depth_size = p_ci->depth_size;
+				state.depth_offset = p_ci->depth_offset;
 				Transform pos;
 				pos.set_origin(Vector3(world_pos.get_origin().x, world_pos.get_origin().y, p_ci->depth_position));
 				state.custom_transform = pos.affine_inverse() * custom_transform->transform * pos;
-				state.depth_size = p_ci->depth_size;
-				state.depth_offset = p_ci->depth_offset;
+				if (state.depth_size <= 0){
+					Vector3 offset = state.custom_transform.origin;
+					state.custom_transform = Transform(1,0,0,0,1,0,0,0,1, offset.x, offset.y, offset.z);
+				}
 			}
 
 			bool use_custom_transform = custom_transform != NULL;
@@ -2651,6 +2655,7 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 				state.scale_center = p_ci->scale_center;
 				state.wind_strength_object = p_ci->wind_strength;
 				state.elasticity = p_ci->elasticity;
+				state.time_offset = p_ci->time_offset * 6.28;
 				
 				state.wind_rotation = deform->wind_rotation;
 				state.wind_offset = deform->wind_offset;
@@ -3098,11 +3103,15 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 		//custom_transform
 		if (ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(ci->custom_transform)) {
 			custom_transform = storage->custom_transform_owner.get(ci->custom_transform);
+			state.depth_size = ci->depth_size;
+			state.depth_offset = ci->depth_offset;
 			Transform pos;
 			pos.set_origin(Vector3(world_pos.get_origin().x, world_pos.get_origin().y, ci->depth_position));
 			state.custom_transform = pos.affine_inverse() * custom_transform->transform * pos;
-			state.depth_size = ci->depth_size;
-			state.depth_offset = ci->depth_offset;
+			if (state.depth_size <= 0){
+				Vector3 offset = state.custom_transform.origin;
+				state.custom_transform = Transform(1,0,0,0,1,0,0,0,1, offset.x, offset.y, offset.z);
+			}
 		}
 
 		bool use_custom_transform = custom_transform != NULL;
@@ -3131,7 +3140,8 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			state.scale_center = ci->scale_center;
 			state.wind_strength_object = ci->wind_strength;
 			state.elasticity = ci->elasticity;
-			
+			state.time_offset = ci->time_offset * 6.28;
+
 			state.wind_rotation = deform->wind_rotation;
 			state.wind_offset = deform->wind_offset;
 			state.wind_time = deform->wind_time;

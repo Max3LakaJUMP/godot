@@ -10,9 +10,113 @@
 #include "core/math/vector3.h"
 #include "core/pool_vector.h"
 #include "scene/2d/camera_2d.h"
+#include "scene/resources/bit_map.h"
 #include <string>
 
 namespace red {
+
+Vector<Vector2> ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon, bool is_closed) {
+	Vector<Vector2> resultList;
+	if(is_closed){
+		pointList.push_back(pointList[0]);
+		pointList.push_back(pointList[1]);
+	}
+	float dmax = 0;
+	int index = 0;
+	for (int i = 1; i < pointList.size() - 1; ++i)
+	{
+		Point2 vec1 = Point2(pointList[i].x -pointList[0].x, pointList[i].y - pointList[0].y);
+		Point2 vec2 = Point2(pointList[pointList.size() - 1].x - pointList[0].x, pointList[pointList.size() - 1].y - pointList[0].y);
+		float d_vec2 = sqrt(vec2.x*vec2.x + vec2.y*vec2.y);
+		float cross_product = vec1.x*vec2.y - vec2.x*vec1.y;
+		float d = abs(cross_product / d_vec2);
+		if (d > dmax) {
+			index = i;
+			dmax = d;
+		}
+	}
+	// If max distance is greater than epsilon, recursively simplify
+	if (dmax > epsilon)
+	{
+		Vector<Vector2> pre_part, next_part;
+		for (int i = 0; i <= index; ++i) pre_part.push_back(pointList[i]);
+		for (int i = index; i < pointList.size(); ++i) next_part.push_back(pointList[i]);
+		Vector<Vector2> resultList1 = ramer_douglas_peucker(pre_part, epsilon);
+		Vector<Vector2> resultList2 = ramer_douglas_peucker(next_part, epsilon);
+		resultList.append_array(resultList1);
+		for (int i = 1; i < resultList2.size(); ++i) resultList.push_back(resultList2[i]);
+	}
+	else
+	{
+		resultList.push_back(pointList[0]);
+		resultList.push_back(pointList[pointList.size() - 1]);
+	}
+	if(is_closed){
+		pointList.resize(pointList.size()-2);
+		resultList.resize(resultList.size()-2);
+	}
+	return resultList;
+}
+
+Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow, float epsilon, bool single){
+	Vector<PoolVector<Vector2> > result;
+	Vector<Vector<Vector2> > result_pre;
+	if (bitmap_mask.is_valid()){
+		float grow = bitmap_mask->get_size().width * polygon_grow / 128.0;
+		if (grow != 0){
+			Rect2 r = Rect2(Point2(0, 0), bitmap_mask->get_size());
+			if (polygon_grow < 0){
+				bitmap_mask->shrink_mask(Math::round(ABS(grow)), r);
+			}else{
+				bitmap_mask->grow_mask(Math::round(grow), r);
+			}
+		}
+		if (bitmap_mask.is_valid()){
+			Vector<Vector<Vector2> > polygon_array = bitmap_mask->clip_opaque_to_polygons(Rect2(Point2(), bitmap_mask->get_size()));
+			int count = polygon_array.size();
+			if ((count == 1 && single) || !single){
+				for (int i = 0; i < count; i++)
+				{
+					if (polygon_array[i].size() > 3 && epsilon > 0.0){
+						Vector<Vector2> in_array = polygon_array[i];
+						Vector<Vector2> out_array = ramer_douglas_peucker(in_array, epsilon, true);
+						result_pre.push_back(out_array);
+					}
+					else if (polygon_array[i].size() > 2){
+						result_pre.push_back(polygon_array[i]);
+					}
+				}
+			}
+		}
+	}
+	{
+		int count = result_pre.size();
+		if (count > 0){
+			for (size_t i = 0; i < count; i++){
+				if (result_pre[i].size() > 3){
+					PoolVector<Vector2> polygon;
+					Vector2 k = polygon_size / bitmap_mask->get_size();
+					for (int j = 0; j < result_pre[i].size(); j++){
+						polygon.append(result_pre[i][j] * k);
+					}
+					result.push_back(polygon);
+				}
+			}
+		} 
+	}
+	{
+		int count = result.size();
+		if (count == 0){
+			PoolVector<Vector2> polygon;
+			polygon.append(Vector2(0,0));
+			polygon.append(Vector2(polygon_size.x, 0));
+			polygon.append(polygon_size);
+			polygon.append(Vector2(0, polygon_size.y));
+			result.push_back(polygon);
+		}
+	}
+	return result;
+}
 
 
 PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> new_polygon, PoolVector<Vector2> old_uv, Size2 poly_size, Size2 uv_size) {
@@ -35,7 +139,6 @@ PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> 
 		}
 		uvs_w[i] = target_uv;
 	}
-	print(uvs.size());
 	return uvs;
 }
 
@@ -58,10 +161,6 @@ void print(const float number) {
 	print_line(red::str(number));
 }
 
-void print(const int number) {
-	print_line(red::str(number));
-}
-
 void print(const String number) {
 	print_line(number);
 }
@@ -74,32 +173,12 @@ String str(const int number) {
 	return String(std::to_string(number).c_str());
 }
 
-RED *get_red(const Node *n) {
-	Node *root = n->get_tree()->get_root();
-	Node *r = root->find_node(NodePath("RED"));
-	if (r==NULL)
+RED *red(const Node *n) {
+	Node *r = n->get_tree()->get_root()->get_node(NodePath("red"));
+	if (r == NULL)
 		return nullptr;
 	else
 		return (RED*)r;
-}
-
-REDControllerBase *get_controller(const Node *n) {
-	Node *root = n->get_tree()->get_root();
-	if (root->has_node(NodePath("/root/red/RED"))){
-		RED *r = (RED*)(root->get_node(NodePath("/root/red/RED")));
-		NodePath controller_path = r->get_controller_path();
-		if (!controller_path.is_empty())
-			return (REDControllerBase*)(r->get_node(controller_path));
-	}
-	return nullptr;
-}
-
-Camera2D *get_camera(const Node *n) {
-	REDControllerBase* controller = get_controller(n);
-	if (controller != nullptr){
-		return controller->get_camera();
-	}
-	return nullptr;
 }
 
 void get_all_children(const Node *node, Vector<Node*> &output){
@@ -127,7 +206,7 @@ Error create_dir(String dir){
 	return OK;
 }
 
-void scene_loader(String &scene_path){
+void scene_loader(const String &scene_path){
 	_File file2Check;
 	if (!file2Check.file_exists(scene_path)){
 		Ref<PackedScene> scene = memnew(PackedScene);

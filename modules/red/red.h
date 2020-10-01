@@ -9,6 +9,8 @@
 class REDPage;
 class REDFrame;
 class REDIssue;
+class REDControllerBase;
+class Camera2D;
 
 class RED : public Node {
 	GDCLASS(RED, Node);
@@ -16,7 +18,7 @@ class RED : public Node {
 	bool vertical_mode;
 	bool html_mode;
 
-	NodePath camera;
+	NodePath camera_path;
 	NodePath controller_path;
 
 	NodePath issue;
@@ -43,8 +45,10 @@ public:
 	bool get_vertical_mode() const;
 	void set_html_mode(bool b);
 	bool get_html_mode() const;
-	void set_camera(const NodePath &c);
-	NodePath get_camera() const;
+	void set_camera_path(const NodePath &c);
+	NodePath get_camera_path() const;
+	REDControllerBase *get_controller() const;
+	Camera2D *get_camera() const;
 	RED();
 };
 

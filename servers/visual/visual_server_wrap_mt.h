@@ -562,7 +562,7 @@ public:
 	FUNC2(canvas_item_set_z_as_relative_to_parent, RID, bool)
 	FUNC3(canvas_item_set_copy_to_backbuffer, RID, bool, const Rect2 &)
 	FUNC2(canvas_item_attach_skeleton, RID, RID)
-	
+
 	FUNC2(canvas_item_attach_custom_transform, RID, RID)
 	FUNC2(canvas_item_custom_transform_set_depth_position, RID, float)
 	FUNC2(canvas_item_custom_transform_set_depth_size, RID, float)
@@ -575,7 +575,8 @@ public:
 	FUNC2(canvas_item_deform_set_scale_center, RID, const Vector2 &)
 	FUNC2(canvas_item_deform_set_wind_strength, RID, const Vector2 &)
 	FUNC2(canvas_item_deform_set_elasticity, RID, const Vector2 &)
-	
+	FUNC2(canvas_item_deform_set_time_offset, RID, float)
+
 	FUNC1(canvas_item_clear, RID)
 	FUNC2(canvas_item_set_draw_index, RID, int)
 

@@ -64,11 +64,6 @@ public:
 	void load_pages();
 	void unload_pages();
 
-
-	void to_prev();
-	void to_next();
-
-
 	REDIssue();
 };
 

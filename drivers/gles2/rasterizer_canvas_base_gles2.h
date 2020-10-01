@@ -103,7 +103,8 @@ public:
 		Vector2 scale_center;
 		Vector2 wind_strength_object;
 		Vector2 elasticity;
-		
+		float time_offset;
+
 		float wind_rotation;
 		float wind_offset;
 		float wind_time;

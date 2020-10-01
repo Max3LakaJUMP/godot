@@ -127,6 +127,7 @@ void REDDeform::set_waves_count(float p_waves_count) {
 float REDDeform::get_elasticity() const{
 	return elasticity;
 }
+
 void REDDeform::set_elasticity(float p_elasticity) {
 	elasticity = p_elasticity;
 }
