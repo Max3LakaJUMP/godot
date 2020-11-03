@@ -4,16 +4,181 @@
 #include "red_page.h"
 #include "red_frame.h"
 #include "core/node_path.h"
-#include "core/node_path.h"
+#include "core/image.h"
 
 #include "core/bind/core_bind.h"
 #include "core/math/vector3.h"
 #include "core/pool_vector.h"
 #include "scene/2d/camera_2d.h"
+#include "scene/2d/polygon_2d.h"
 #include "scene/resources/bit_map.h"
 #include <string>
 
 namespace red {
+
+Ref<BitMap> read_bitmap(Ref<Image> p_img, float p_threshold, Size2 max_size){
+	Ref<Image> img = p_img->duplicate();
+	Vector2 image_size = img->get_size();
+	Size2 resized_size = Vector2(CLAMP(max_size.x, 16, image_size.x), CLAMP(max_size.y, 16, image_size.y));
+	img->resize(resized_size.x, resized_size.y);
+	Ref<BitMap> bitmap;
+	bitmap.instance();
+	bitmap->create_from_image_alpha(img, p_threshold);
+	return bitmap;
+}
+
+PoolColorArray get_normals(PoolVector2Array vtxs){
+	PoolColorArray arr;
+	for (int i = 0; i < vtxs.size(); i++){	
+		int prev = i == 0 ? vtxs.size() - 1 : i - 1;
+		int next = i == vtxs.size() - 1 ? 0 : i + 1;
+		Vector2 baca = (vtxs[prev] - vtxs[i] - (vtxs[next] - vtxs[i])) / 2.0;
+		Vector3 normal = Vector3(baca.x, baca.y, 0.0).cross(Vector3(0.0, 0.0, -1.0)).normalized();
+		arr.push_back(Color(-normal.x * 0.5 + 0.5, -normal.y * 0.5 + 0.5, 0.0));
+	}
+	return arr;
+}
+
+Vector<Polygon2D*> bitmap_to_polygon2d(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow, float epsilon, bool single, bool normals_to_colors, Rect2 &crop_rect){
+	Vector<Polygon2D*> meshes;
+	Vector<PoolVector<Vector2> > low_res_list = red::bitmap_to_polygon(bitmap_mask, polygon_size, polygon_grow, epsilon, single, crop_rect);
+	int poly_count = low_res_list.size();
+	for (int poly_i = 0; poly_i < poly_count; poly_i++)
+	{	
+		Polygon2D *mesh = memnew(Polygon2D);
+		mesh->set_name(String("bitmap_mesh") + String(Variant(poly_i)));
+		PoolVector<Vector2> polygon = low_res_list[poly_i];
+		// PoolVector<Vector2> polygon;
+		// int end = low_res.size()-1;
+		// int smooth_factor = 0;
+		// for(int i=0; i<low_res.size(); ++i){
+		// 	int b = i == end ? 0 : i + 1;
+		// 	int pre_a = i == 0 ? end : i - 1;
+		// 	int post_b = i == end - 1 ? 0 : b + 1;
+		// 	polygon.push_back(low_res[i]);
+		// 	for(int j=0; j<smooth_factor; ++j){
+		// 		polygon.push_back(low_res[i].cubic_interpolate(low_res[b], low_res[pre_a], low_res[post_b], (j+1)*1.0/(smooth_factor+1)));
+		// 	}
+		// }
+		if (normals_to_colors){
+			PoolColorArray color = get_normals(polygon);
+			mesh->set_vertex_colors(color);
+		}
+		mesh->set_polygon(polygon);
+		{
+			PoolVector<Vector2> uv;
+			for (int i = 0; i < polygon.size(); i++)
+				uv.append(polygon[i]/polygon_size);
+			mesh->set_uv(uv);
+		}
+		{
+			Vector<Vector2> result;
+			int count = polygon.size();
+			result.resize(count);
+			for (int i = 0; i < count; i++) {
+				result.write[i] = polygon[i];
+			}
+			Vector<int> delanay = Geometry::triangulate_delaunay_2d(result);
+			Array polygons;
+			for (int i = 0; i < delanay.size(); i += 3){
+				PoolIntArray p;
+				for (int j = 0; j < 3; j++){
+					p.push_back(delanay[i+j]);
+				}
+				polygons.push_back(p);
+			}
+			mesh->set_polygons(polygons);
+		}
+		meshes.push_back(mesh);
+	}
+	return meshes;
+}
+
+Ref<Image> merge_images(Ref<Image> main_image, Vector<Ref<Image> > &additional_images, Vector<Vector2> &offsets){
+	Ref<Image> img;
+	int images_count = additional_images.size();
+	ERR_FAIL_COND_V_MSG(images_count != offsets.size(), img, "Images and offsets error")
+	int target_width = main_image->get_width();
+	int target_height = main_image->get_height();
+	PoolVector<uint8_t> data;
+	int data_size = target_width * target_height * 4;
+	data.resize(data_size);
+	PoolVector<uint8_t>::Write w = data.write();
+	// Point2 offset = Point2(layer->left - atlas_img.img_rect.position.x, layer->top - atlas_img.img_rect.position.y); //invert
+	// Point2 size = Point2(layer->right - atlas_img.img_rect.position.x, layer->bottom - atlas_img.img_rect.position.y);
+	int j = 0;
+	int x = -1;
+	int y = 0;
+
+	Vector<Rect2> rects;
+	Vector<int> ps;
+	Vector<float> p_adds;
+	for (int i = 0; i < images_count; i++)
+	{
+		Vector2 offset = offsets[i];
+
+		Rect2 rect;
+		rect.set_position(offset);
+		rect.set_size(Size2(additional_images[i]->get_width(), additional_images[i]->get_height()) + offset);
+
+		int p = MAX(offset.x, 0) + MAX(additional_images[i]->get_width() * offset.y, 0);
+		float p_add = MAX(offset.x, 0) + MAX(additional_images[i]->get_width() - target_width, 0);
+
+		rects.push_back(rect);
+		ps.push_back(p);
+		p_adds.push_back(p_add);
+
+	}
+	int p = 0;
+	// int p = 0;
+	// p += MAX(layer->width * (-offset.y), 0);
+	// p += MAX(-offset.x, 0);
+	// float p_add = MAX(-offset.x, 0) + MAX(layer->right - (atlas_img.img_rect.position.x + atlas_img.img_rect.size.width), 0);
+	PoolVector<uint8_t> pixels = main_image->get_data();
+
+	while(true){
+		x++;
+		if (x == target_width){
+			for (int i = 0; i < images_count; i++){
+				if (y >= rects[i].position.y && y < rects[i].size.y)
+					ps.write[i] += p_adds[i];
+			}
+			x = 0;
+			y++;
+		}
+		if (y == target_height || j >= data_size - 3){
+			break;
+		}
+		float k = (float)((uint8_t) 255 / (pixels[p+3]));
+		uint8_t r = 255;
+		uint8_t g = 255;
+		uint8_t b = 255;
+		uint8_t a = 255;
+		if (k < 1){
+			for (int i = 0; i < images_count; i++){
+				if (x >= rects[i].position.x && y >= rects[i].position.y && x < rects[i].size.x && y < rects[i].size.y){
+					PoolVector<uint8_t> additional_pixels = additional_images[i]->get_data();
+					int ps_i = ps[i];
+					r = additional_pixels[ps_i];
+					g = additional_pixels[ps_i+1];
+					b = additional_pixels[ps_i+2];
+					a = additional_pixels[ps_i+3];
+					ps.write[i] = ps[i] + 4;
+				}
+			}
+		}
+		w[j] = (uint8_t) (r + k * (pixels[p] - r));
+		w[j+1] = (uint8_t) (g + k * (pixels[p+1] - g));
+		w[j+2] = (uint8_t) (b + k * (pixels[p+2] - b));
+		w[j+3] = (uint8_t) (a + k * (pixels[p+3] - a));
+		p += 4;
+
+		j += 4;
+	}
+	img.instance();
+	img->create(target_width, target_height, false, Image::FORMAT_RGBA8, data);
+	return img;
+}
 
 Vector<Vector2> ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon, bool is_closed) {
 	Vector<Vector2> resultList;
@@ -58,9 +223,11 @@ Vector<Vector2> ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon
 	return resultList;
 }
 
-Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow, float epsilon, bool single){
+Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow, float epsilon, bool single, Rect2 &crop_rect){
 	Vector<PoolVector<Vector2> > result;
 	Vector<Vector<Vector2> > result_pre;
+	Vector2 k;
+
 	if (bitmap_mask.is_valid()){
 		float grow = bitmap_mask->get_size().width * polygon_grow / 128.0;
 		if (grow != 0){
@@ -72,14 +239,18 @@ Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &p
 			}
 		}
 		if (bitmap_mask.is_valid()){
-			Vector<Vector<Vector2> > polygon_array = bitmap_mask->clip_opaque_to_polygons(Rect2(Point2(), bitmap_mask->get_size()));
+			if(crop_rect.size.x == 0)
+				crop_rect = Rect2(Point2(0, 0), bitmap_mask->get_size());
+			Vector<Vector<Vector2> > polygon_array = bitmap_mask->clip_opaque_to_polygons(crop_rect);
 			int count = polygon_array.size();
 			if ((count == 1 && single) || !single){
+				k = polygon_size / (crop_rect.size);
+				//crop_rect.position = crop_rect.position;
 				for (int i = 0; i < count; i++)
 				{
 					if (polygon_array[i].size() > 3 && epsilon > 0.0){
 						Vector<Vector2> in_array = polygon_array[i];
-						Vector<Vector2> out_array = ramer_douglas_peucker(in_array, epsilon, true);
+						Vector<Vector2> out_array = red::ramer_douglas_peucker(in_array, epsilon, true);
 						result_pre.push_back(out_array);
 					}
 					else if (polygon_array[i].size() > 2){
@@ -90,19 +261,15 @@ Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &p
 		}
 	}
 	{
-		int count = result_pre.size();
-		if (count > 0){
-			for (size_t i = 0; i < count; i++){
-				if (result_pre[i].size() > 3){
-					PoolVector<Vector2> polygon;
-					Vector2 k = polygon_size / bitmap_mask->get_size();
-					for (int j = 0; j < result_pre[i].size(); j++){
-						polygon.append(result_pre[i][j] * k);
-					}
-					result.push_back(polygon);
-				}
-			}
-		} 
+		for (size_t i = 0; i < result_pre.size(); i++){
+			int poly_count = result_pre[i].size();
+			PoolVector<Vector2> polygon;
+			polygon.resize(poly_count);
+			PoolVector<Vector2>::Write polygon_w = polygon.write();
+			for (int j = 0; j < poly_count; j++)
+				polygon_w[j] = (result_pre[i][j] - crop_rect.position) * k;
+			result.push_back(polygon);
+		}
 	}
 	{
 		int count = result.size();
@@ -117,7 +284,6 @@ Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &p
 	}
 	return result;
 }
-
 
 PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> new_polygon, PoolVector<Vector2> old_uv, Size2 poly_size, Size2 uv_size) {
 	int len = new_polygon.size();
@@ -155,6 +321,28 @@ Rect2 get_rect(PoolVector<Vector2> polygon, Vector2 offset) {
 			item_rect.expand_to(pos);
 	}
 	return item_rect;
+}
+
+Size2 get_full_size(PoolVector<Vector2> &polygon, PoolVector<Vector2> &uv) {
+	int l = polygon.size();
+	PoolVector<Vector2>::Read polygon_r = polygon.read();
+	PoolVector<Vector2>::Read uv_r = uv.read();
+	Rect2 uv_rect = Rect2();
+	Rect2 item_rect = Rect2();
+	for (int i = 0; i < l; i++) {
+		Vector2 uv_pos = uv_r[i];
+		Vector2 pos = polygon_r[i];
+		if (i == 0){
+			uv_rect.position = uv_pos;
+			item_rect.position = pos;
+		}
+		else{
+			uv_rect.expand_to(uv_pos);
+			item_rect.expand_to(pos);
+		}
+	}
+	item_rect.size = item_rect.size / uv_rect.size;
+	return item_rect.size;
 }
 
 void print(const float number) {
@@ -369,7 +557,7 @@ String globalize(String &p_path){
 		return settings->globalize_path(p_path);
 	else
 		ERR_PRINTS("Error can't globalize: " + p_path);
-		return p_path;
+	return p_path;
 }
 String localize(String &p_path){
 	ProjectSettings *settings = ProjectSettings::get_singleton();
@@ -377,7 +565,7 @@ String localize(String &p_path){
 		return settings->localize_path(p_path);
 	else
 		ERR_PRINTS("Error can't localize: " + p_path);
-		return p_path;
+	return p_path;
 }
 /*
 REDPage *get_page_from_scene(const Node &n) {

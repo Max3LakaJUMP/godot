@@ -55,8 +55,10 @@
 #include "core/message_queue.h"
 #include "editor/editor_node.h" 
 #include "editor/import/resource_importer_texture_atlas.h"
+#include "facegen/facegen.h"
+#include "mediapipe.h"
+#include "red_render_data.h"
 
-//#include "modules/red/red_polygon.h"
 #include "scene/main/viewport.h"
 #include "scene/gui/viewport_container.h"
 #include "modules/red/red_engine.h"
@@ -105,6 +107,7 @@ String ResourceImporterPSD::get_preset_name(int p_idx) const {
 void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int p_preset) const {
 	r_options->push_back(ImportOption(PropertyInfo(Variant::REAL, "main/scene_width"), 2000.0f));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "main/canvas_width"), 512));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/detect_faces"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/update"), false));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "main/update_only_editor"), true));
 
@@ -141,246 +144,9 @@ void ResourceImporterPSD::get_import_options(List<ImportOption> *r_options, int 
 	r_options->push_back(ImportOption(PropertyInfo(Variant::OBJECT, "materials/frame_outline", PROPERTY_HINT_RESOURCE_TYPE, "Material"), ResourceLoader::load("res://redot/materials/frame_outline.material")));
 }
 
-Vector<Vector2> ResourceImporterPSD::ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon, bool is_closed) {
-	Vector<Vector2> resultList;
-	if(is_closed){
-		pointList.push_back(pointList[0]);
-		pointList.push_back(pointList[1]);
-	}
-	float dmax = 0;
-	int index = 0;
-	for (int i = 1; i < pointList.size() - 1; ++i)
-	{
-		Point2 vec1 = Point2(pointList[i].x -pointList[0].x, pointList[i].y - pointList[0].y);
-		Point2 vec2 = Point2(pointList[pointList.size() - 1].x - pointList[0].x, pointList[pointList.size() - 1].y - pointList[0].y);
-		float d_vec2 = sqrt(vec2.x*vec2.x + vec2.y*vec2.y);
-		float cross_product = vec1.x*vec2.y - vec2.x*vec1.y;
-		float d = abs(cross_product / d_vec2);
-		if (d > dmax) {
-			index = i;
-			dmax = d;
-		}
-	}
-	// If max distance is greater than epsilon, recursively simplify
-	if (dmax > epsilon)
-	{
-		Vector<Vector2> pre_part, next_part;
-		for (int i = 0; i <= index; ++i) pre_part.push_back(pointList[i]);
-		for (int i = index; i < pointList.size(); ++i) next_part.push_back(pointList[i]);
-		Vector<Vector2> resultList1 = ramer_douglas_peucker(pre_part, epsilon);
-		Vector<Vector2> resultList2 = ramer_douglas_peucker(next_part, epsilon);
-		resultList.append_array(resultList1);
-		for (int i = 1; i < resultList2.size(); ++i) resultList.push_back(resultList2[i]);
-	}
-	else
-	{
-		resultList.push_back(pointList[0]);
-		resultList.push_back(pointList[pointList.size() - 1]);
-	}
-	if(is_closed){
-		pointList.resize(pointList.size()-2);
-		resultList.resize(resultList.size()-2);
-	}
-	return resultList;
-}
-/*
-//https://gist.github.com/TimSC/0813573d77734bcb6f2cd2cf6cc7aa51
-Vector<Vector2> ResourceImporterPSD::ramer_douglas_peucker(Vector<Point2> &pointList, double epsilon, bool is_closed) {
-	if(pointList.size() < 2)
-		return pointList;
-	if(is_closed){
-		pointList.push_back(pointList[0]);
-	}
-	Vector<Point2> out;
-	// Find the point with the maximum distance from line between start and end
-	double dmax = 0.0;
-	size_t index = 0;
-	size_t end = pointList.size()-1;
-	for(size_t i = 1; i < end; i++)
-	{
-		//PerpendicularDistance(pointList[i], pointList[0], pointList[end]);
-		//PerpendicularDistance(const Point &pt, const Point &lineStart, const Point &lineEnd)
-		double dx = pointList[end].x - pointList[0].x;
-		double dy = pointList[end].y - pointList[0].y;
-		//Normalise
-		double mag = pow(pow(dx,2.0)+pow(dy,2.0),0.5);
-		if(mag > 0.0)
-			dx /= mag; dy /= mag;
-		double pvx = pointList[i].x - pointList[0].x;
-		double pvy = pointList[i].y - pointList[0].y;
-		//Get dot product (project pv onto normalized direction)
-		double pvdot = dx * pvx + dy * pvy;
-		//Scale line direction vector
-		double dsx = pvdot * dx;
-		double dsy = pvdot * dy;
-		//Subtract this from pv
-		double ax = pvx - dsx;
-		double ay = pvy - dsy;
-		double d = pow(pow(ax,2.0)+pow(ay,2.0),0.5);
-		if (d > dmax)
-		{
-			index = i;
-			dmax = d;
-		}
-	}
-
-	// If max distance is greater than epsilon, recursively simplify
-	if(dmax > epsilon)
-	{
-		// Recursive call
-		Vector<Point2> recResults1;
-		Vector<Point2> recResults2;
-		Vector<Point2> firstLine;
-		Vector<Point2> lastLine;
-		for (int i = 0; i < index + 2; i++)
-		{
-			firstLine.push_back(pointList[i]);
-		}
-		for (int i = index; i < pointList.size(); i++)
-		{
-			lastLine.push_back(pointList[i]);
-		}
-		
-		//firstLine.push_back(pointList[0]);
-		//firstLine.push_back(pointList[index+1]);
-		//lastLine.push_back(pointList[index]);
-		//lastLine.push_back(pointList[pointList.size()-1]);
-		recResults1 = ramer_douglas_peucker(firstLine, epsilon);
-		recResults2 = ramer_douglas_peucker(lastLine, epsilon);
-		//Vector<Point2> firstLine(pointList.begin(), pointList.begin()+index+1);
-		//Vector<Point2> lastLine(pointList.begin()+index, pointList.end());
-		// Build the result list
-		//out.assign(recResults1.begin(), recResults1.end()-1);
-		//out.insert(out.end(), recResults2.begin(), recResults2.end());
-		out.append_array(recResults1);
-		out.append_array(recResults2);
-	} 
-	else 
-	{
-		//Just return start and end points
-		out.clear();
-		out.push_back(pointList[0]);
-		out.push_back(pointList[end]);
-	}
-	if(is_closed){
-		pointList.resize(pointList.size()-1);
-		out.resize(out.size()-1);
-	}
-	return out;
-}
-*/
-Vector<Vector2> ResourceImporterPSD::simplify_polygon_corner(Vector<Vector2> &p_polygon, float min_distance){
-	int prev = 0;
-	int next = 0;
-	Vector<Vector2> output;
-	bool prev_added = true;
-	int points_count = p_polygon.size();
-	int l = points_count - 1;
-	Point2 point = p_polygon[l];
-	for (int i = 0; i < points_count; i++){
-		if (prev_added){
-			if (i == 0)
-				prev = l;
-			else
-				prev = i - 1;
-		}else{
-			if (i <= 1)
-				prev = points_count - 2;
-			else
-				prev = i - 2;
-		}
-		if (i == l)
-			next = 0;
-		else
-			next = i + 1;
-		point = p_polygon[i];
-		float p_dist = p_polygon[prev].distance_to(point);
-		float n_dist = p_polygon[next].distance_to(point);
-		Vector2 p = (p_polygon[i] - p_polygon[prev]).normalized();
-		Vector2 n = (p_polygon[next] - p_polygon[i]).normalized();
-		if (n_dist > min_distance && p.dot(n) == 0.0){
-			prev_added = true;
-			output.push_back(point);
-		}else{
-			prev_added = false;
-		}
-	}
-	return output;
-}
-
-Vector<Vector2> ResourceImporterPSD::simplify_polygon_distance(Vector<Vector2> &p_polygon, float min_distance, Size2 &size){
-	int prev = 0;
-	int next = 0;
-	Vector<Vector2> output;
-	bool prev_added = true;
-	int points_count = p_polygon.size();
-	int l = points_count - 1;
-	Point2 point = p_polygon[l];
-	bool last_on_side = point.x == 0 || point.y == 0 || point.x == size.x || point.y == size.y;
-	for (int i = 0; i < points_count; i++){
-		if (prev_added){
-			if (i==0)
-				prev = l;
-			else
-				prev = i - 1;
-		}else{
-			if (i<=1)
-				prev = points_count - 2;
-			else
-				prev = i - 2;
-		}
-		if (i == l)
-			next = 0;
-		else
-			next = i + 1;
-		point = p_polygon[i];
-		float p_dist = p_polygon[prev].distance_to(point);
-		float n_dist = p_polygon[next].distance_to(point);
-		bool on_side = point.x == 0 || point.y == 0 || point.x == size.x || point.y == size.y;
-		if ((n_dist >= min_distance && p_dist >= min_distance) || on_side || (i == 0 && !last_on_side)){
-			prev_added = true;
-			output.push_back(point);
-		}else{
-			prev_added = false;
-		}
-	}
-	return output;
-}
-
-Vector<Vector2> ResourceImporterPSD::simplify_polygon_direction(Vector<Vector2> &p_polygon, float max_dot){
-	int prev = 0;
-	int next = 0;
-	Vector<Vector2> polygon_dist;
-	bool prev_added = true;
-	for (int i = 0; i < p_polygon.size(); i++){
-		if (!prev_added){
-			prev_added = true;
-			polygon_dist.push_back(p_polygon[i]);
-			continue;
-		}
-		if (i==0)
-			prev = p_polygon.size()-1;
-		else
-			prev = i - 1;
-		if (i == p_polygon.size()-1)
-			next = 0;
-		else
-			next = i + 1;
-		Vector2 p = (p_polygon[i] - p_polygon[prev]).normalized();
-		Vector2 n = (p_polygon[next] - p_polygon[i]).normalized();
-		if (p.dot(n) <= max_dot){
-			prev_added = true;
-			polygon_dist.push_back(p_polygon[i]);
-		}else{
-			prev_added = false;
-		}
-	}
-	return polygon_dist;
-}
-
 Ref<Image> ResourceImporterPSD::read_mask(_psd_layer_record *layer){
 	PoolVector<uint8_t> data;
-	int len = layer->layer_mask_info.width*layer->layer_mask_info.height;
+	int len = layer->layer_mask_info.width * layer->layer_mask_info.height;
 	if (layer->layer_mask_info.width < 2 || layer->layer_mask_info.height < 2){
 		Ref<BitMap> bitmap;
 		return bitmap;
@@ -519,181 +285,6 @@ Vector3 ResourceImporterPSD::find_normal_border(const Ref<BitMap> bitmap, const 
 	Vector2 normal2d = min_coord - point;
 	return Vector3(normal2d.x, normal2d.y, 0.0).normalized();
 }
-RenderData::RenderData(){
-	//init();
-}
-
-void RenderData::init(){
-	EditorData &editor_data = EditorNode::get_editor_data();
-	Node *scene_root = editor_data.get_edited_scene_root();
-	ERR_FAIL_NULL(scene_root);
-	//generator_container = red::create_node<ViewportContainer>(scene_root, String("generator_container") + String(Variant(container_i)));
-	//generator_container = memnew(ViewportContainer);
-	//generator_container->set_name(String("generator_container") + String(Variant(container_i)));
-	//normal_generator = memnew(Viewport);
-	//container_i += 1;
-	set_name(String("generator_container"));
-	scene_root->add_child(this);
-	set_owner(scene_root);
-
-	viewport = red::create_node<Viewport>(this, "generator");
-	viewport->set_update_mode(Viewport::UpdateMode::UPDATE_ALWAYS);
-	viewport->set_usage(Viewport::USAGE_2D);
-	viewport->set_use_own_world(true);
-	viewport->set_vflip(true);
-	viewport->set_size(resolution);
-	viewport->set_transparent_background(false);
-
-	generate_polygons();
-	generate_pp();
-
-	camera = red::create_node<Camera2D>(viewport, "camera");
-	camera->make_current();
-	camera->set_anchor_mode(Camera2D::ANCHOR_MODE_FIXED_TOP_LEFT);
-	camera->set_visible(false);
-}
-
-PoolColorArray RenderData::get_normals(PoolVector2Array vtxs){
-	PoolColorArray arr;
-	for (int i = 0; i < vtxs.size(); i++){	
-		int prev = i == 0 ? vtxs.size() - 1 : i - 1;
-		int next = i == vtxs.size() - 1 ? 0 : i + 1;
-		Vector2 baca = (vtxs[prev] - vtxs[i] - (vtxs[next] - vtxs[i])) / 2.0;
-		Vector3 normal = Vector3(baca.x, baca.y, 0.0).cross(Vector3(0.0, 0.0, -1.0)).normalized();
-		arr.push_back(Color(-normal.x * 0.5 + 0.5, -normal.y * 0.5 + 0.5, 0.0));
-	}
-	return arr;
-}
-
-void RenderData::generate_polygons(){
-	Vector<PoolVector<Vector2> > low_res_list = red::bitmap_to_polygon(bitmap, resolution, 1.0, 4.0, false);
-	int poly_count = low_res_list.size();
-	for (int poly_i = 0; poly_i < poly_count; poly_i++)
-	{
-		Polygon2D *mesh = red::create_node<Polygon2D>(viewport, String("mesh") + String(Variant(poly_i)));
-		PoolVector<Vector2> low_res = low_res_list[poly_i];
-		PoolVector<Vector2> polygon;
-		int end = low_res.size()-1;
-		int smooth_factor = 0;
-		for(int i=0; i<low_res.size(); ++i){
-			int b = i == end ? 0 : i + 1;
-			int pre_a = i == 0 ? end : i - 1;
-			int post_b = i == end - 1 ? 0 : b + 1;
-			polygon.push_back(low_res[i]);
-			for(int j=0; j<smooth_factor; ++j){
-				polygon.push_back(low_res[i].cubic_interpolate(low_res[b], low_res[pre_a], low_res[post_b], (j+1)*1.0/(smooth_factor+1)));
-			}
-		}
-		PoolColorArray color = get_normals(polygon);
-
-		Vector<Vector2> result;
-		int count = polygon.size();
-		result.resize(count);
-		for (int i = 0; i < count; i++) {
-			result.write[i] = polygon[i];
-		}
-		Vector<int> delanay = Geometry::triangulate_delaunay_2d(result);
-		Array polygons;
-		
-		for (int i = 0; i < delanay.size(); i += 3){
-			PoolIntArray p;
-			for (int j = 0; j < 3; j++){
-				p.push_back(delanay[i+j]);
-			}
-			polygons.push_back(p);
-		}
-		PoolVector<Vector2> uv;
-		for (int i = 0; i < polygon.size(); i++)
-			uv.append(Vector2(polygon[i].x/resolution.x, polygon[i].y/resolution.y));
-		mesh->set_polygons(polygons);
-		mesh->set_polygon(polygon);
-		mesh->set_uv(uv);
-		mesh->set_vertex_colors(color);
-		Ref<ShaderMaterial> material;
-		material.instance();
-		material->set_shader(ResourceLoader::load("res://redot/shaders/editor/normal_baker/mesh.shader", "Shader"));
-		mesh->set_material(material);
-		Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
-		if (texture.is_valid())
-			mesh->set_texture(texture);
-	}
-}
-
-void RenderData::generate_pp(){
-	back_mesh = red::create_node<Polygon2D>(viewport, "back_mesh");
-	pass1_mesh = red::create_node<Polygon2D>(viewport, "pass1_mesh");
-	bb = red::create_node<BackBufferCopy>(viewport, "bb");
-	pass2_mesh = red::create_node<Polygon2D>(viewport, "pass2_mesh");
-	
-	viewport->move_child(back_mesh, 0);
-	bb->set_copy_mode(BackBufferCopy::COPY_MODE_VIEWPORT);
-	
-	PoolVector<Vector2> polygon;
-	PoolVector<Vector2> uv;
-	polygon.append(Vector2(0,0));
-	polygon.append(Vector2(resolution.x, 0));
-	polygon.append(resolution);
-	polygon.append(Vector2(0, resolution.y));
-
-	back_mesh->set_polygon(polygon);
-	pass1_mesh->set_polygon(polygon);
-	pass2_mesh->set_polygon(polygon);
-
-	uv.append(Vector2(0, 0));
-	uv.append(Vector2(1.0, 0));
-	uv.append(Vector2(1.0, 1.0));
-	uv.append(Vector2(0.0, 1.0));
-
-	back_mesh->set_uv(uv);
-	pass1_mesh->set_uv(uv);
-	pass2_mesh->set_uv(uv);
-
-	Ref<ShaderMaterial> back_mat;
-	Ref<ShaderMaterial> pass1_mat;
-	Ref<ShaderMaterial> pass2_mat;
-	back_mat.instance();
-	pass1_mat.instance();
-	pass2_mat.instance();
-	back_mat->set_shader(ResourceLoader::load("res://redot/shaders/editor/normal_baker/back.shader", "Shader"));
-	pass1_mat->set_shader(ResourceLoader::load("res://redot/shaders/editor/normal_baker/pass1.shader", "Shader"));
-	pass2_mat->set_shader(ResourceLoader::load("res://redot/shaders/editor/normal_baker/pass2.shader", "Shader"));
-
-	back_mesh->set_material(back_mat);
-	pass1_mesh->set_material(pass1_mat);
-	pass2_mesh->set_material(pass2_mat);
-
-	// todo blanc texture
-	Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
-	if (texture.is_valid())
-		back_mesh->set_texture(texture);
-	
-	if (rim_image.is_valid()){
-		Ref<ImageTexture> rim_texture;
-		rim_texture.instance();
-		rim_texture->create_from_image(rim_image);
-		pass2_mesh->set_texture(rim_texture);
-		pass2_mat->set_shader_param("use_texture", true);
-	}
-}
-
-void RenderData::render(){
-	VisualServer *server = VisualServer::get_singleton();
-	server->draw();
-	server->connect("frame_post_draw", this, "_render_png");
-}
-
-void RenderData::_render_png(){
-	if(!is_queued_for_deletion()){
-		VisualServer::get_singleton()->disconnect("frame_post_draw", this, "_render_png");
-		Ref<Image> normal_texture = viewport->get_texture()->get_data();
-		normal_texture->save_png(render_path);
-		if (ResourceLoader::import){
-			ResourceLoader::import(render_path);
-		}
-		//queue_delete();
-		set_visible(false);
-	}
-}
 
 Ref<Image> ResourceImporterPSD::read_rim(_psd_layer_record *layer, img_data &atlas_img){
 	Ref<Image> img;
@@ -763,6 +354,29 @@ Ref<Image> ResourceImporterPSD::read_rim(_psd_layer_record *layer, img_data &atl
 	img.instance();
 	img->create(atlas_img.img_rect.size.width, atlas_img.img_rect.size.height, false, Image::FORMAT_RGBA8, data);
 	return img;
+}
+
+uint8_t *ResourceImporterPSD::read_image_to_mediapipe(_psd_layer_record *layer){
+	int len = layer->width * layer->height;
+	uint8_t *buffer = (uint8_t*)malloc( len * 3 * sizeof(uint8_t) );
+	{
+		int j = 0;
+		for (int i = 0; i < len; i++) {
+			unsigned int pixel = layer->image_data[i];
+			uint8_t alpha = (uint8_t) ((pixel & 0xFF000000) >> 24);
+			if (alpha > ((uint8_t) 32)){
+				buffer[j] = (uint8_t) ((pixel & 0x00FF0000) >> 16);
+				buffer[j+1] = (uint8_t) ((pixel & 0x0000FF00) >> 8);
+				buffer[j+2] = (uint8_t) ((pixel & 0x000000FF));
+			}else{
+				buffer[j] = (uint8_t) 255;
+				buffer[j+1] = (uint8_t) 255;
+				buffer[j+2] = (uint8_t) 255;
+			}
+			j+=3;
+		}
+	}
+	return buffer;
 }
 
 Ref<Image> ResourceImporterPSD::read_image(_psd_layer_record *layer){
@@ -905,17 +519,13 @@ void ResourceImporterPSD::apply_border(Ref<Image> img, float p_threshold){
 	}
 	img->unlock();
 }
-void RenderData::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("_render_png"), &RenderData::_render_png);
-}
 
 void ResourceImporterPSD::_bind_methods() {
-    //ClassDB::bind_method(D_METHOD("_render_viewport"), &ResourceImporterPSD::_render_viewport);
+
 }
 
 Node *ResourceImporterPSD::get_edited_scene_root(const String &p_path) const{
 	EditorData &editor_data = EditorNode::get_editor_data();
-	//EditorData editor_data = EditorNode::get_editor_data();
 	for (int i = 0; i < editor_data.get_edited_scene_count(); i++) {
 		if (editor_data.get_scene_path(i) == p_path)
 			return editor_data.get_edited_scene_root(i);
@@ -1007,7 +617,7 @@ void ResourceImporterPSD::load_clipped_layers(_psd_context *context, int start, 
 
 		if (load_layer_data){
 			if(name == "rim"){
-				atlas.normal = read_rim(layer, atlas);
+				atlas.rim = read_rim(layer, atlas);
 			}else{
 				atlas.img = read_atlas(layer, atlas);
 			}
@@ -1022,65 +632,77 @@ void ResourceImporterPSD::load_clipped_layers(_psd_context *context, int start, 
 	}
 }
 
-Vector<PoolVector<Vector2> > ResourceImporterPSD::bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow, float epsilon, bool single){
-	Vector<PoolVector<Vector2> > result;
-	Vector<Vector<Vector2> > result_pre;
-	if (bitmap_mask.is_valid()){
-		float grow = bitmap_mask->get_size().width * polygon_grow / 128.0;
-		if (grow != 0){
-			Rect2 r = Rect2(Point2(0, 0), bitmap_mask->get_size());
-			if (polygon_grow < 0){
-				bitmap_mask->shrink_mask(Math::round(ABS(grow)), r);
-			}else{
-				bitmap_mask->grow_mask(Math::round(grow), r);
-			}
-		}
-		if (bitmap_mask.is_valid()){
-			Vector<Vector<Vector2> > polygon_array = bitmap_mask->clip_opaque_to_polygons(Rect2(Point2(), bitmap_mask->get_size()));
-			int count = polygon_array.size();
-			if ((count == 1 && single) || !single){
-				for (int i = 0; i < count; i++)
-				{
-					if (polygon_array[i].size() > 3 && epsilon > 0.0){
-						Vector<Vector2> in_array = polygon_array[i];
-						Vector<Vector2> out_array = ramer_douglas_peucker(in_array, epsilon, true);
-						result_pre.push_back(out_array);
-					}
-					else if (polygon_array[i].size() > 2){
-						result_pre.push_back(polygon_array[i]);
-					}
-				}
-			}
+void ResourceImporterPSD::normal_to_polygon(Node *apply_polygon, const String &normal_path){
+	Polygon2D *p = Object::cast_to<Polygon2D>(apply_polygon);
+	if(p){
+		Ref<Texture> normal = ResourceLoader::load(normal_path, "Texture");
+		if (normal.is_valid()){
+			p->set_normalmap(normal);
 		}
 	}
-	{
-		int count = result_pre.size();
-		if (count > 0){
-			for (size_t i = 0; i < count; i++){
-				if (result_pre[i].size() > 3){
-					PoolVector<Vector2> polygon;
-					Vector2 k = polygon_size / bitmap_mask->get_size();
-					for (int j = 0; j < result_pre[i].size(); j++){
-						polygon.append(result_pre[i][j] * k);
-					}
-					result.push_back(polygon);
-				}
-			}
-		} 
-	}
-	{
-		int count = result.size();
-		if (count == 0){
-			PoolVector<Vector2> polygon;
-			polygon.append(Vector2(0,0));
-			polygon.append(Vector2(polygon_size.x, 0));
-			polygon.append(polygon_size);
-			polygon.append(Vector2(0, polygon_size.y));
-			result.push_back(polygon);
-		}
-	}
-	return result;
 }
+
+void ResourceImporterPSD::render_normal(Ref<BitMap> bitmap, String &diffuse_path, String &normal_path, Size2 &resolution, Ref<Image> rim_image, Polygon2D *apply_polygon){
+	Node *normal_data_parent = EditorNode::get_editor_data().get_edited_scene_root();
+	REDRenderData *normal_data = red::create_node<REDRenderData>(normal_data_parent, String("generator_container"), nullptr, true);
+	normal_data->set_resolution(resolution);
+	normal_data->set_use_background(true);
+	normal_data->set_render_path(normal_path);
+	normal_data->set_delete_after_render(true);
+	{
+		Vector<Polygon2D*> polygons = red::bitmap_to_polygon2d(bitmap, resolution, 1.0, 4.0, false, true);
+		red::print(polygons.size());
+		for (int i = 0; i < polygons.size(); i++){
+			Polygon2D* p = polygons[i];
+			Ref<ShaderMaterial> material;
+			material.instance();
+			material->set_shader(ResourceLoader::load("res://redot/shaders/editor/normal_baker/mesh.shader", "Shader"));
+			p->set_material(material);
+			Ref<Texture> texture = ResourceLoader::load(diffuse_path, "Texture");
+			if (texture.is_valid())
+				p->set_texture(texture);
+			normal_data->add_child(polygons[i]);
+			polygons[i]->set_owner(normal_data->get_owner());
+		}
+	}
+	{
+		Array materials;
+		for (int i = 0; i < 3; i++){
+			String shader_path;
+			switch (i){
+			case 0: shader_path = "res://redot/shaders/editor/normal_baker/back.shader"; break;
+			case 1: shader_path = "res://redot/shaders/editor/normal_baker/pass1.shader"; break;
+			default: shader_path = "res://redot/shaders/editor/normal_baker/pass2.shader"; break;
+			}
+			Ref<Shader> shader = ResourceLoader::load(shader_path, "Shader");
+			Ref<ShaderMaterial> material;
+			material.instance();
+			material->set_shader(shader);
+			materials.push_back(material);
+		}
+		Ref<Texture> texture = ResourceLoader::load(diffuse_path, "Texture");
+		if (texture.is_valid()){
+			Ref<ShaderMaterial> m = materials[0];
+			m->set_shader_param("tex", texture);
+		}
+		if (rim_image.is_valid()){
+			Ref<ShaderMaterial> m = materials[2];
+			Ref<ImageTexture> rim_texture;
+			rim_texture.instance();
+			rim_texture->create_from_image(rim_image);
+			m->set_shader_param("tex", rim_texture);
+			m->set_shader_param("use_texture", true);
+		}
+		normal_data->set_materials(materials);
+	}
+	int light_mask = rim_image.is_valid() ? 2 : 1;
+	if(apply_polygon){
+		apply_polygon->set_light_mask(rim_image.is_valid() ? 2 : 1);
+	}
+	normal_data->connect("rendered", this, "normal_to_polygon", varray(apply_polygon, normal_path), CONNECT_ONESHOT);
+	normal_data->render();
+}
+
 
 int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_path, int start, Materials &materials, 
 									 Node *parent, Vector2 parent_pos, Vector2 parent_offset, const Map<StringName, Variant> &p_options, 
@@ -1148,9 +770,11 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 				
 				String png_path = target_dir + "/" + name + ".png";
 				String normal_path = target_dir + "/" + name + "_normal.png";
-				String rim_path = target_dir + "/" + name + "_normal_rim.png";
+				String rim_path = target_dir + "/" + name + "_rim.png";
 				bool save_texture = !file_сheck.file_exists(png_path) || (p_options["update/texture"] && updateble);
+				bool save_rim = !file_сheck.file_exists(rim_path) || (p_options["update/texture"] && updateble);
 				int update_pos = p_options["update/layer_pos"];
+				bool detect_faces = p_options["main/detect_faces"];
 
 				bool update_material = false;
 				bool update_polygon = false;
@@ -1181,6 +805,9 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 				} 
 				else {
 					poly = (Polygon2D*)parent->get_node(name);
+					if (poly->get_polygon().size() == 0){
+						update_polygon = true;
+					}
 				}
 				if (poly == nullptr){
 					continue;
@@ -1195,6 +822,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 				float bitmap_threshold = 0.2f;
 				Size2 bitmap_size(p_options["texture/bitmap_size"], p_options["texture/bitmap_size"]);
 				Size2 texture_max_size(p_options["texture/max_size"], p_options["texture/max_size"]);
+				int texture_scale_mode = p_options["texture/scale"];
 				
 				img_data clipper_image_data;
 				Ref<Image> layer_image = read_image(layer);
@@ -1203,13 +831,14 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 				Vector2 polygon_size = layer_image->get_size() * image_size_to_scene_size;
 				Ref<BitMap> bitmap = read_bitmap(layer_image, bitmap_threshold, bitmap_size);
 				// Rect2 crop_rect = get_crop(bitmap, alpha_grow * bitmap->get_size() * scene_size / polygon_size);
-				Rect2 crop_rect = get_crop(bitmap, bitmap->get_size() * scene_size * alpha_grow / 128.0);
+				Rect2 crop_rect_bitmap = get_crop(bitmap, bitmap->get_size() * scene_size * alpha_grow / 128.0);
+				Rect2 crop_rect;
 				{
 					clipper_image_data.img = layer_image;
 					clipper_image_data.bitmap = bitmap;
 					Vector2 bitmap_k = layer_image->get_size() / bitmap->get_size();
-					crop_rect.position = Point2(Math::round(crop_rect.position.x * bitmap_k.x), Math::round(crop_rect.position.y * bitmap_k.y));
-					crop_rect.size = Size2(Math::round(crop_rect.size.width * bitmap_k.x), Math::round(crop_rect.size.height * bitmap_k.y));
+					crop_rect.position = Point2(Math::round(crop_rect_bitmap.position.x * bitmap_k.x), Math::round(crop_rect_bitmap.position.y * bitmap_k.y));
+					crop_rect.size = Size2(Math::round(crop_rect_bitmap.size.width * bitmap_k.x), Math::round(crop_rect_bitmap.size.height * bitmap_k.y));
 					clipper_image_data.img_rect = Rect2(Point2(layer->left, layer->top) + crop_rect.position, crop_rect.size);
 					clipper_image_data.polygon_name = name;
 				}
@@ -1219,35 +848,26 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 
 				if (save_texture || update_polygon){
 					layer_image->crop_from_point(crop_rect.position.x, crop_rect.position.y, crop_rect.size.width, crop_rect.size.height);
-					//Ref<Image> img_save = clipper_image_data.img->duplicate();
+					// todo cliped layers support
 					load_clipped_layers(context, final_iter+1, clipper_image_data, true);
-					apply_scale(clipper_image_data, image_resize, p_options["texture/scale"], 32, texture_max_size);
+					apply_scale(clipper_image_data, image_resize, texture_scale_mode, 32, texture_max_size);
 					apply_border(clipper_image_data.img, 0.75f);
 
-					clipper_image_data.img->save_png(png_path);
-					if (ResourceLoader::import){
-						ResourceLoader::import(png_path);
+					if(save_texture){
+						clipper_image_data.img->save_png(png_path);
+						if (ResourceLoader::import){
+							ResourceLoader::import(png_path);
+						}
 					}
-					if (clipper_image_data.normal.is_valid()){
-						apply_scale(clipper_image_data.normal, image_resize, p_options["texture/scale"], 32, texture_max_size);
-						//clipper_image_data.normal->save_png(rim_path);
-						//if (ResourceLoader::import){
-						//	ResourceLoader::import(rim_path);
-						//}
-					}else{
-						rim_path = "";
+					if(save_rim){
+						if (clipper_image_data.rim.is_valid()){
+							apply_scale(clipper_image_data.rim, image_resize, texture_scale_mode, 32, texture_max_size);
+							clipper_image_data.rim->save_png(rim_path);
+							if (ResourceLoader::import){
+								ResourceLoader::import(rim_path);
+							}
+						}
 					}
-
-					RenderData *normal_data = memnew(RenderData);
-					normal_data->resolution = clipper_image_data.img->get_size();
-					normal_data->png_path = png_path;
-					normal_data->render_path = normal_path;
-					normal_data->bitmap = read_bitmap(layer_image, bitmap_threshold, bitmap_size);
-					normal_data->rim_image = clipper_image_data.normal;
-
-					normal_data->init();
-					normal_data->render();
-					//generate_normal();
 				}else{
 					load_clipped_layers(context, final_iter+1, clipper_image_data, false);
 				}
@@ -1255,58 +875,13 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 					Ref<Texture> texture = ResourceLoader::load(png_path, "Texture");
 					if (texture.is_valid())
 						poly->set_texture(texture);
-					if (clipper_image_data.normal.is_valid() && poly->get_normalmap().is_null()){
-						Ref<Texture> normalmap = ResourceLoader::load(normal_path, "Texture");
-						if (normalmap.is_valid()){
-							poly->set_normalmap(normalmap);
-							poly->set_light_mask(2);
-						}
-					}
 					materials.apply_material(layer, poly, parent_clipper, clipper_image_data);
 				}
 				if (update_polygon){
 					Ref<BitMap> bitmap_poly;
 					if(p_options["texture/alpha_to_polygon"])
 						bitmap_poly = read_bitmap(layer_image, bitmap_threshold, bitmap_size);
-					poly->set_polygon(bitmap_to_polygon(bitmap_poly, polygon_size, scene_size.width * polygon_grow, 3.0, true)[0]);
-				}
-				if (update_polygon && false){
-					PoolVector<Vector2> polygon;
-					Vector<Vector2> polygon_vec;
-					Ref<BitMap> bitmap_poly;
-					if(p_options["texture/alpha_to_polygon"]){
-						bitmap_poly = read_bitmap(layer_image, bitmap_threshold, bitmap_size);
-						Rect2 r = Rect2(Point2(0, 0), bitmap_poly->get_size());
-						// todo better grow poly value
-						float grow = bitmap_poly->get_size().width * scene_size.width * polygon_grow / (MAX(polygon_size.width, polygon_size.height));
-						bitmap_poly->grow_mask(grow, r);
-						Vector<Vector<Vector2> > polygon_array = bitmap_poly->clip_opaque_to_polygons(r);
-						if (polygon_array.size() == 1){
-							polygon_vec = polygon_array[0];
-							float min_distance = bitmap_poly->get_size().width * scene_size.width / (MAX(polygon_size.width, polygon_size.height) * vertex_count_per_scene);
-							polygon_vec = simplify_polygon_distance(polygon_vec, min_distance, bitmap_poly->get_size());
-							for (int i = 0; i < 3; i++){
-								Vector<Vector2> polygon_vec2 = simplify_polygon_direction(polygon_vec, 0.95);
-								if (polygon_vec.size() > 4){
-									polygon_vec = polygon_vec2;
-								}else{
-									break;
-								}
-							}
-						}
-					}
-					if (polygon_vec.size() > 4){
-						Vector2 k = polygon_size / bitmap_poly->get_size();
-						for (int i = 0; i < polygon_vec.size(); i++){
-							polygon.append(polygon_vec[i]*k);
-						}
-					}else{
-						polygon.append(Vector2(0,0));
-						polygon.append(Vector2(polygon_size.x, 0));
-						polygon.append(polygon_size);
-						polygon.append(Vector2(0, polygon_size.y));
-					}
-					poly->set_polygon(polygon);
+					poly->set_polygon(red::bitmap_to_polygon(bitmap_poly, polygon_size, scene_size.width * polygon_grow, 3.0, true)[0]);
 				}
 				if (update_polygon_transform){
 					Rect2 k = red::get_rect(poly->get_uv());
@@ -1324,25 +899,27 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 					poly->set_position(local_pos);
 				}
 				if (update_uv){
-					Vector2 psd_offset = local_pos - poly->get_position();
 					Rect2 poly_rect = red::get_rect(poly->get_polygon());
+					Vector2 psd_offset = local_pos - poly->get_position();
+					Vector2 uv_offset = poly_rect.position / poly_rect.size;
 					Vector<Vector2> uv_temp;
 					if (poly->get_uv().size() != poly->get_polygon().size() || reset_uv){
 						PoolVector<Vector2>::Read polyr = poly->get_polygon().read();
 						for (int i = 0; i < poly->get_polygon().size(); i++)
-							uv_temp.push_back(polyr[i] / poly_rect.size);
+							uv_temp.push_back((polyr[i]) / poly_rect.size);
 					}
 					else{
 						PoolVector<Vector2>::Read uvr = poly->get_uv().read();
+
 						Rect2 real = red::get_rect(poly->get_uv());
 						for (int i = 0; i < poly->get_uv().size(); i++)
-							uv_temp.push_back((uvr[i] - real.position) / (real.size));
+							uv_temp.push_back((uvr[i] - real.position) / real.size + uv_offset);
 					}
 					PoolVector<Vector2> new_uv;
-					Vector2 uv_offset = psd_offset / polygon_size;
-					Vector2 uv_size = poly_rect.size / polygon_size;
+					Vector2 psd_offset_uv = psd_offset / polygon_size;
+					Vector2 psd_scale_uv = poly_rect.size / polygon_size;
 					for (int i = 0; i < uv_temp.size(); i++)
-						new_uv.append((uv_temp[i] * uv_size - uv_offset)/clipper_image_data.count);
+						new_uv.append((uv_temp[i] * psd_scale_uv - psd_offset_uv) / clipper_image_data.count);
 					poly->set_uv(new_uv);
 				}
 				if (reorder){
@@ -1550,47 +1127,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 						bitmap_poly = read_bitmap(bitmap_img, 0.2f, Vector2(MIN(128, image_size.x), MIN(128, image_size.y)));
 					else
 						polygon_size = scene_size;
-					clipper->set_polygon(bitmap_to_polygon(bitmap_poly, polygon_size, 0.0, 4.0, true)[0]);
-				}
-
-				if (apply_mask && false){
-					Ref<Image> bitmap_img = read_mask(layer_folder);
-					PoolVector<Vector2> polygon;
-					if (bitmap_img.is_valid()){
-						Vector2 image_size = bitmap_img->get_size();
-						Vector2 resized_size = Vector2(MIN(128, image_size.x), MIN(128, image_size.y));
-						bitmap_img->resize(resized_size.x, resized_size.y);
-						Ref<BitMap> bitmap_mask;
-						bitmap_mask.instance();
-						bitmap_mask->create_from_image_alpha(bitmap_img, 0.2f);
-						if (bitmap_mask.is_valid()){
-							Vector<Vector<Vector2> > polygon_array = bitmap_mask->clip_opaque_to_polygons(Rect2(Point2(), bitmap_mask->get_size()));
-							Vector<Vector2> polygon_vec;
-							if (polygon_array.size() > 0){
-								polygon_vec = polygon_array[0];
-								if (polygon_vec.size() > 4){
-									polygon_vec = simplify_polygon_distance(polygon_vec, 4.0f, bitmap_mask->get_size());
-								}
-								if (polygon_vec.size() > 4){
-									polygon_vec = simplify_polygon_direction(polygon_vec);
-								}
-								if (polygon_vec.size() > 2){
-									Size2 k = Size2(image_size.width * scene_k, 
-													image_size.height * scene_k) / bitmap_mask->get_size();
-									for (int i = 0; i < polygon_vec.size(); i++){
-										polygon.append(polygon_vec[i] * k);
-									}
-								}
-							}
-						}
-					}
-					if (polygon.size() < 2){
-						polygon.append(Vector2(0, 0));
-						polygon.append(Vector2(scene_size.width, 0));
-						polygon.append(scene_size);
-						polygon.append(Vector2(0, scene_size.height));
-					}
-					clipper->set_polygon(polygon);
+					clipper->set_polygon(red::bitmap_to_polygon(bitmap_poly, polygon_size, 0.0, 4.0, true)[0]);
 				}
 				Vector2 half_frame = (clipper) ? clipper->_edit_get_rect().size / 2.0 : Vector2(0,0);
 				Vector2 frame_anchor_offset = (anchor == ANCHOR_CENTER) ? -half_frame : Vector2(0,0);
@@ -1700,6 +1237,8 @@ Error ResourceImporterPSD::import(const String &p_source_file, const String &p_s
 	ERR_FAIL_NULL_V(parent, OK);
 	Materials mats;
 	mats.init(p_options, parent);
+	
+	//wow();
 	load_folder(context, scene_path, 0, mats, parent, Vector2(0,0), Vector2(0,0), p_options, force_save, 0);
 	psd_image_free(context);
 	return OK;

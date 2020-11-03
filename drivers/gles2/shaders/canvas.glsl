@@ -110,7 +110,12 @@ uniform highp float shadow_distance_mult;
 
 varying vec4 light_uv_interp;
 varying vec2 transformed_light_uv;
+#if defined(USE_CUSTOM_TRANSFORM)
+varying mat3 local_rot;
+#else
 varying vec4 local_rot;
+#endif
+
 
 #ifdef USE_SHADOWS
 varying highp vec2 pos;
@@ -345,9 +350,10 @@ VERTEX_SHADER_CODE
 	//local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
 	//local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
 	
-	#if defined(USE_CUSTOM_TRANSFORM)
-		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(1.0, 0.0, 0.0, 0.0))).xy);
-		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(0.0, 1.0, 0.0, 0.0))).xy);
+	#if defined(USE_CUSTOM_TRANSFORM) //todo custom_matrix mask
+		local_rot[0] = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(1.0, 0.0, 0.0, 0.0))).xyz);
+		local_rot[1] = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(0.0, 1.0, 0.0, 0.0))).xyz);
+		local_rot[2] = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(0.0, 0.0, 1.0, 0.0))).xyz);
 	#else
 		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
 		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
@@ -442,7 +448,11 @@ uniform lowp sampler2D light_texture; // texunit:-4
 varying vec4 light_uv_interp;
 varying vec2 transformed_light_uv;
 
+#if defined(USE_CUSTOM_TRANSFORM)
+varying mat3 local_rot;
+#else
 varying vec4 local_rot;
+#endif
 
 #ifdef USE_SHADOWS
 
@@ -601,7 +611,11 @@ FRAGMENT_SHADER_CODE
 	vec2 shadow_vec = transformed_light_uv;
 
 	if (normal_used) {
+		#if defined(USE_CUSTOM_TRANSFORM)
+		normal.xyz = local_rot * normal;
+		#else
 		normal.xy = mat2(local_rot.xy, local_rot.zw) * normal.xy;
+		#endif
 	}
 
 	float att = 1.0;

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -28,34 +28,38 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef SCENE_EXPORT_EDITOR_PLUGIN_H
-#define SCENE_EXPORT_EDITOR_PLUGIN_H
+#ifndef MEDIAPIPE_EDITOR_PLUGIN_H
+#define MEDIAPIPE_EDITOR_PLUGIN_H
 
 #include "editor/plugins/abstract_polygon_2d_editor.h"
-#include "scene/2d/line_2d.h"
-#include "scene/gui/menu_button.h"
+#include "mediapipe.h"
 
-class SceneExportEditorPlugin : public EditorPlugin {
+class MediapipeEditor : public AbstractPolygon2DEditor {
 
-	GDCLASS(SceneExportEditorPlugin, EditorPlugin);
-	MenuButton *red_menu;
+	GDCLASS(MediapipeEditor, AbstractPolygon2DEditor);
+
+	Mediapipe *node;
+
 protected:
-	static void _bind_methods();
+	virtual Node2D *_get_node() const;
+	virtual void _set_node(Node *p_line);
+
+	virtual bool _is_line() const;
+	virtual int _get_polygon_count() const; 
+	virtual Variant _get_polygon(int p_idx) const;
+	virtual void _set_polygon(int p_idx, const Variant &p_polygon) const;
+	virtual void _action_set_polygon(int p_idx, const Variant &p_previous, const Variant &p_polygon);
 
 public:
-	SceneExportEditorPlugin(EditorNode *p_node);
-	void red_clicked(const int id);
-
-	void to_maya();
-	Dictionary scene_to_dict(Node *root);
-	Dictionary node_to_dict(Node *node);
-	Error save_json(Dictionary &p_data, String &p_path);
-	
-	Vector<int> triangulate(const PoolVector2Array &points, const Array &polygons);
-	void selection_to_normals();
-	
-	void create_mediapipe();
-	void attach_transform();
+	MediapipeEditor(EditorNode *p_editor);
 };
 
-#endif // SCENE_EXPORT_EDITOR_PLUGIN_H
+class MediapipeEditorPlugin : public AbstractPolygon2DEditorPlugin {
+
+	GDCLASS(MediapipeEditorPlugin, AbstractPolygon2DEditorPlugin);
+
+public:
+	MediapipeEditorPlugin(EditorNode *p_node);
+};
+
+#endif // MEDIAPIPE_EDITOR_PLUGIN_H

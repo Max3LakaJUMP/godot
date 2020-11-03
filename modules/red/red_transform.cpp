@@ -139,7 +139,7 @@ Transform REDTransform::get_custom_global_transform() const{
 }
 
 void REDTransform::_update_custom_xform_values() {
-	_custom_pos = _mat.basis.elements[2];
+	_custom_pos = _mat.origin;
 	_custom_rotation = _mat.get_basis().get_rotation();
 	_custom_scale = _mat.get_basis().get_scale();
 	_custom_xform_dirty = false;
@@ -238,6 +238,14 @@ void REDTransform::set_custom_transform(const Transform &p_transform) {
 	//_notify_transform();
 }
 
+void REDTransform::set_rest_rotation_degrees(const Vector3 &p_degrees) {
+	_rest_rotation_degrees = p_degrees;
+}
+
+Vector3 REDTransform::get_rest_rotation_degrees() const{
+	return _rest_rotation_degrees;
+}
+
 RID REDTransform::get_ci(){
 	return ci;
 }
@@ -259,18 +267,25 @@ void REDTransform::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_custom_transform", "xform"), &REDTransform::set_custom_transform);
 	
 	ClassDB::bind_method(D_METHOD("get_custom_global_transform"), &REDTransform::get_custom_global_transform);
+	
+	ClassDB::bind_method(D_METHOD("set_rest_rotation_degrees", "degrees"), &REDTransform::set_rest_rotation_degrees);
+	ClassDB::bind_method(D_METHOD("get_rest_rotation_degrees"), &REDTransform::get_rest_rotation_degrees);
 
-
+	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM, "transform", PROPERTY_HINT_NONE, "", 0), "set_custom_transform", "get_custom_transform");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_position"), "set_depth_position", "get_depth_position");
+	ADD_GROUP("Transform", "custom_");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "custom_position"), "set_custom_position", "get_custom_position");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "custom_rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_custom_rotation", "get_custom_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "custom_rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_custom_rotation", "get_custom_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "custom_rotation_degrees", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater", PROPERTY_USAGE_EDITOR), "set_custom_rotation_degrees", "get_custom_rotation_degrees");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "custom_scale"), "set_custom_scale", "get_custom_scale");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_position"), "set_depth_position", "get_depth_position");
-	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM, "transform", PROPERTY_HINT_NONE, "", 0), "set_custom_transform", "get_custom_transform");
+	ADD_GROUP("Rest", "rest_");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rest_rotation_degrees"), "set_rest_rotation_degrees", "get_rest_rotation_degrees");
 }
 
 REDTransform::REDTransform() {
 	depth_position = 0.0f;
+	_rest_rotation_degrees = Vector3(0, 0, 0);
+
 	_custom_pos = Vector3(0, 0, 0);
 	_custom_rotation = Vector3(0, 0, 0);
 	_custom_scale = Vector3(1, 1, 1);

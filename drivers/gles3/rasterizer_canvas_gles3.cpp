@@ -1562,6 +1562,10 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 				state.custom_transform = pos.affine_inverse() * custom_transform->transform * pos;
 				state.depth_size = ci->depth_size;
 				state.depth_offset = ci->depth_offset;
+				if (state.depth_size <= 0){
+					Vector3 offset = state.custom_transform.origin;
+					state.custom_transform = Transform(1,0,0,0,1,0,0,0,1, offset.x, offset.y, offset.z);
+				}
 			}
 
 			bool use_custom_transform = custom_transform != NULL;

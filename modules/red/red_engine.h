@@ -16,6 +16,7 @@ class RED;
 class REDPage;
 class REDFrame;
 class REDControllerBase;
+class Polygon2D;
 
 namespace red {
 enum t {
@@ -25,11 +26,16 @@ enum t {
 	PAGE,
 	FRAME
 };
+Ref<BitMap> read_bitmap(Ref<Image> p_img, float p_threshold, Size2 max_size);
+PoolColorArray get_normals(PoolVector2Array vtxs);
+Vector<Polygon2D*> bitmap_to_polygon2d(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=1.0, float epsilon=4.0, bool single=false, bool normals_to_colors=false, Rect2 &crop_rect=Rect2());
+Ref<Image> merge_images(Ref<Image> main_image, Vector<Ref<Image> > &additional_images, Vector<Vector2> &offsets);
 Vector<Vector2> ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon=2.0, bool is_closed=false);
-Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=0, float epsilon=4.0, bool single=true);
+Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=0, float epsilon=4.0, bool single=true, Rect2 &crop_rect=Rect2());
 
 PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> new_polygon, PoolVector<Vector2> old_uv, Size2 poly_size, Size2 uv_size);
 Rect2 get_rect(PoolVector<Vector2> polygon, Vector2 offset = Vector2());
+Size2 get_full_size(PoolVector<Vector2> &polygon, PoolVector<Vector2> &uv);
 
 void print(const float number);
 void print(const String number);
@@ -66,11 +72,13 @@ PoolVector<float> pool_real_array(Array &p_arr);
 String globalize(String &p_path);
 String localize(String &p_path);
 template <class T>
-T *create_node(Node *parent, const String &name="", Node *owner=nullptr){
+T *create_node(Node *parent, const String &name="", Node *owner=nullptr, bool force=false){
 	if (parent){
 		NodePath p(name);
-		if (parent->has_node(p)){
-			return Object::cast_to<T>(parent->get_node(p));
+		if(!force){
+			if (parent->has_node(p)){
+				return Object::cast_to<T>(parent->get_node(p));
+			}
 		}
 		T *node = memnew(T);
 		if (name != ""){

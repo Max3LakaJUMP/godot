@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  line_2d_editor_plugin.h                                              */
+/*  resource_importer_texture_atlas.h                                    */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,34 +28,73 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef SCENE_EXPORT_EDITOR_PLUGIN_H
-#define SCENE_EXPORT_EDITOR_PLUGIN_H
+#ifndef RED_RENDER_DATA
+#define RED_RENDER_DATA
 
-#include "editor/plugins/abstract_polygon_2d_editor.h"
-#include "scene/2d/line_2d.h"
-#include "scene/gui/menu_button.h"
+#include "core/image.h"
+#include "core/io/resource_importer.h"
 
-class SceneExportEditorPlugin : public EditorPlugin {
+#include "scene/resources/mesh.h"
+#include "scene/resources/texture.h"
+#include "modules/red/red_clipper.h"
+#include "scene/gui/viewport_container.h"
+#include "core/array.h"
 
-	GDCLASS(SceneExportEditorPlugin, EditorPlugin);
-	MenuButton *red_menu;
+class ShaderMaterial;
+class ViewportContainer;
+class Viewport;
+class Camera2D;
+
+class REDRenderData : public ViewportContainer {
+	GDCLASS(REDRenderData, ViewportContainer);
+private:
+ 	Ref<Material> back_material;
+	Array materials;
+	Viewport *viewport;
+	Camera2D *camera;
+
+	String render_path;	
+
+	Size2 resolution;
+
+	bool apply_normal;
+
+	bool use_background;
+	bool _need_render;
+	bool _delete_after_render;
+	bool _clean_viewport_before_render;
 protected:
+	void _notification(int p_what);
 	static void _bind_methods();
-
 public:
-	SceneExportEditorPlugin(EditorNode *p_node);
-	void red_clicked(const int id);
+	void set_render_target(const Ref<ViewportTexture>);
+	Ref<ViewportTexture> get_render_target() const;
 
-	void to_maya();
-	Dictionary scene_to_dict(Node *root);
-	Dictionary node_to_dict(Node *node);
-	Error save_json(Dictionary &p_data, String &p_path);
+	void set_back_material(const Ref<ShaderMaterial> p_materials);
+	Ref<ShaderMaterial> get_back_material() const;
+	void set_materials(const Array &p_materials);
+	Array get_materials() const;
+	void set_render_path(const String &p_render_path);
+	String get_render_path() const;
+	void set_resolution(const Size2 &p_resolution);
+	Size2 get_resolution() const;
+	void set_apply_normal(bool p_apply_normal);
+	bool get_apply_normal() const;
+
+	void set_use_background(bool p_use_background);
+	bool get_use_background() const;
+	void set_delete_after_render(bool p_delete_after_render);
+	bool get_delete_after_render() const;
+	void set_clean_viewport_before_render(bool p_clean_viewport_before_render);
+	bool get_clean_viewport_before_render() const;
 	
-	Vector<int> triangulate(const PoolVector2Array &points, const Array &polygons);
-	void selection_to_normals();
-	
-	void create_mediapipe();
-	void attach_transform();
+	Ref<ViewportTexture> render_target;	
+	void render();
+	void render(const Size2 &p_resolution_override);
+	void _render0();
+	void _render();
+	void _normal_to_polygon();
+	REDRenderData();
 };
 
-#endif // SCENE_EXPORT_EDITOR_PLUGIN_H
+#endif // RED_RENDER_DATA

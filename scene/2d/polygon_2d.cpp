@@ -270,9 +270,9 @@ void Polygon2D::_notification(int p_what) {
 							uvs.write[i] = texmat.xform(uvr[i]) * size_k + offset;
 						}
 					} else {
-						Rect2 psd_poly_rect = red::get_rect(polygon);
+						Size2 tex_k = 1.0f / texture->get_size();
 						for (int i = 0; i < len; i++) {
-							uvs.write[i] = texmat.xform((points[i] + psd_poly_rect.position) / psd_poly_rect.size + texture_atlas->get_region().get_position());
+							uvs.write[i] = texmat.xform((points[i]) * tex_k + texture_atlas->get_region().get_position());
 						}
 					}
 				}else{
@@ -283,9 +283,9 @@ void Polygon2D::_notification(int p_what) {
 							uvs.write[i] = texmat.xform(uvr[i]);
 						}
 					} else {
-						Rect2 psd_poly_rect = red::get_rect(polygon);
+						Size2 tex_k = 1.0f / texture->get_size();
 						for (int i = 0; i < len; i++) {
-							uvs.write[i] = texmat.xform((points[i] + psd_poly_rect.position) / psd_poly_rect.size);
+							uvs.write[i] = texmat.xform(points[i]) * tex_k;
 						}
 					}
 				}

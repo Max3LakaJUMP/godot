@@ -9,15 +9,16 @@ if env["tools"]:
     for file in os.listdir(os.path.join(Dir('.').abspath, "libpsd", "src")):
         if file.endswith(".c"):
             libpsd_sources.append(os.path.join("libpsd", "src", file))
-
-    for path in ["libpsd/include"]:
+    for path in ["libpsd/include", "facegen"]:
         module_env.Prepend(CPPPATH=[path])
         env.Prepend(CPPPATH=[path])
-
+	
+	
     env_thirdparty = module_env.Clone()
     env_thirdparty.disable_warnings()
-    # lib = env_thirdparty.add_library("psd", libpsd_sources)
     env_thirdparty.add_source_files(env.modules_sources, libpsd_sources)
+    module_env.add_source_files(env.modules_sources, "*.cpp")
+	
     # inserted = False
     # for idx, linklib in enumerate(env["LIBS"]):
     #   if isbasestring(linklib): # first system lib such as "X11", otherwise SCons lib object
@@ -26,9 +27,11 @@ if env["tools"]:
     #         break
     # if not inserted:
     #     env.Append(LIBS=[lib])
+    # lib = env_thirdparty.add_library("psd", libpsd_sources)
+    # print(lib)
+    # module_env.Prepend(LIBS=["facegen.lib"])
 
 
-    module_env.add_source_files(env.modules_sources, "*.cpp")
 else:
     module_env.add_source_files(env.modules_sources, "register_types.cpp")
 

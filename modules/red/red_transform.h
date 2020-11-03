@@ -40,6 +40,7 @@ class REDTransform : public Node2D {
 
 	Vector3 _custom_pos;
 	Vector3 _custom_rotation;
+	Vector3 _rest_rotation_degrees;
 	Vector3 _custom_scale;
 	Transform _mat;
 	mutable Transform mat_global;
@@ -73,6 +74,8 @@ public:
 	Transform get_custom_transform() const;
 	Transform get_custom_global_transform() const;
 
+	void set_rest_rotation_degrees(const Vector3 &p_degrees);
+	Vector3 get_rest_rotation_degrees() const;
 	RID get_ci();
 	REDTransform();
 	~REDTransform();
