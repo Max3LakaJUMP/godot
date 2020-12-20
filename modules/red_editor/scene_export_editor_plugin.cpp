@@ -536,21 +536,11 @@ void SceneExportEditorPlugin::create_mediapipe() {
 		if (!apply_polygon)
 			continue;
 		Node *parent = apply_polygon->get_parent();
-		Node *face_scene_instance = face_scene->instance();
-		Polygon2D *apply_polygon3d = Object::cast_to<Polygon2D>(face_scene_instance->get_node(String("face")));
-		if (!apply_polygon3d){
-			face_scene_instance->queue_delete();
-			break;
-		}
-		face_scene_instance->remove_child(apply_polygon3d);
-		parent->add_child_below_node(apply_polygon, apply_polygon3d);
-		apply_polygon3d->set_owner(parent->get_owner());
-		face_scene_instance->queue_delete();
-		apply_polygon3d->set_name(String(apply_polygon->get_name()) + String("3d"));
-		apply_polygon3d->set_position(apply_polygon->get_position());
-
+		Node2D *new_parent = red::create_node<Node2D>(parent, "head");
+		parent->move_child(new_parent, apply_polygon->get_position_in_parent() + 1);
+		new_parent->set_position(apply_polygon->get_position());
 		Size2 polygon_size = red::get_full_size(apply_polygon->get_polygon(), apply_polygon->get_uv());
-		Mediapipe *mediapipe = red::create_node<Mediapipe>(apply_polygon3d, "mediapipe");
+		Mediapipe *mediapipe = red::create_node<Mediapipe>(new_parent, "mediapipe");
 		mediapipe->set_polygon_size(polygon_size);
 		mediapipe->set_face_scene(ResourceLoader::load(scene_path));
 		for (int i = 0; i < parent->get_child_count(); i++){

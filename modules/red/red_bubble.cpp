@@ -39,8 +39,61 @@
 #include "core/core_string_names.h"
 #include <string>
 
-//Line
+#ifdef TOOLS_ENABLED
+Dictionary REDBubble::_edit_get_state() const {
+	Dictionary state = Node2D::_edit_get_state();
+	state["offset"] = offset;
+	return state;
+}
 
+void REDBubble::_edit_set_state(const Dictionary &p_state) {
+	Node2D::_edit_set_state(p_state);
+	set_offset(p_state["offset"]);
+}
+
+void REDBubble::_edit_set_pivot(const Point2 &p_pivot) {
+	set_position(get_transform().xform(p_pivot));
+	set_offset(get_offset() - p_pivot);
+}
+
+Point2 REDBubble::_edit_get_pivot() const {
+	return Vector2();
+}
+
+bool REDBubble::_edit_use_pivot() const {
+	return true;
+}
+
+Rect2 REDBubble::_edit_get_rect() const {
+	if (rect_cache_dirty) {
+		int l = polygon.size();
+		PoolVector<Vector2>::Read r = polygon.read();
+		item_rect = Rect2();
+		for (int i = 0; i < l; i++) {
+			Vector2 pos = r[i] + offset;
+			if (i == 0)
+				item_rect.position = pos;
+			else
+				item_rect.expand_to(pos);
+		}
+		rect_cache_dirty = false;
+	}
+
+	return item_rect;
+}
+
+bool REDBubble::_edit_use_rect() const {
+	return polygon.size() > 0;
+}
+
+bool REDBubble::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	Vector<Vector2> REDBubble = Variant(polygon);
+	return Geometry::is_point_in_polygon(p_point - get_offset(), REDBubble);
+}
+#endif
+
+//Line
 void REDBubble::set_width(float p_width) {
 	if (p_width < 0.0)
 		p_width = 0.0;
@@ -268,58 +321,6 @@ void REDBubble::set_width_list(const PoolVector<float> &p_width_list) {
 
 PoolVector<float> REDBubble::get_width_list() const {
     return width_list;
-}
-
-Dictionary REDBubble::_edit_get_state() const {
-	Dictionary state = Node2D::_edit_get_state();
-	state["offset"] = offset;
-	return state;
-}
-
-void REDBubble::_edit_set_state(const Dictionary &p_state) {
-	Node2D::_edit_set_state(p_state);
-	set_offset(p_state["offset"]);
-}
-
-void REDBubble::_edit_set_pivot(const Point2 &p_pivot) {
-	set_position(get_transform().xform(p_pivot));
-	set_offset(get_offset() - p_pivot);
-}
-
-Point2 REDBubble::_edit_get_pivot() const {
-	return Vector2();
-}
-
-bool REDBubble::_edit_use_pivot() const {
-	return true;
-}
-
-Rect2 REDBubble::_edit_get_rect() const {
-	if (rect_cache_dirty) {
-		int l = polygon.size();
-		PoolVector<Vector2>::Read r = polygon.read();
-		item_rect = Rect2();
-		for (int i = 0; i < l; i++) {
-			Vector2 pos = r[i] + offset;
-			if (i == 0)
-				item_rect.position = pos;
-			else
-				item_rect.expand_to(pos);
-		}
-		rect_cache_dirty = false;
-	}
-
-	return item_rect;
-}
-
-bool REDBubble::_edit_use_rect() const {
-	return polygon.size() > 0;
-}
-
-bool REDBubble::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
-
-	Vector<Vector2> REDBubble = Variant(polygon);
-	return Geometry::is_point_in_polygon(p_point - get_offset(), REDBubble);
 }
 
 void REDBubble::set_spikes(const float p_detail) {

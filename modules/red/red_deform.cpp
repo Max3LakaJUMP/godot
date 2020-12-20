@@ -175,10 +175,10 @@ void REDDeform::_bind_methods() {
 REDDeform::REDDeform() {
 	ci = VS::get_singleton()->deform_create();
 	wind_rotation = 90.0f;
-	wind_offset = 1.0f;
+	wind_offset = 0.0f;
 
 	wind_time = 1.0f;
-	wind_strength = 100.0f;
+	wind_strength = 10.0f;
 	wind2_time = 1.0f;
 	wind2_strength = 0.0;
 	scale_time = 1.0f;

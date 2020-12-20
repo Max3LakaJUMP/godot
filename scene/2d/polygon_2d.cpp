@@ -128,6 +128,7 @@ void Polygon2D::_notification(int p_what) {
 				VS::get_singleton()->canvas_item_custom_transform_set_depth_position(get_canvas_item(), depth_position);
 				VS::get_singleton()->canvas_item_custom_transform_set_depth_size(get_canvas_item(), depth_size);
 				VS::get_singleton()->canvas_item_custom_transform_set_depth_offset(get_canvas_item(), depth_offset);
+				VS::get_singleton()->canvas_item_custom_transform_set_soft_body(get_canvas_item(), soft_body);
 			} else {
 				VS::get_singleton()->canvas_item_attach_custom_transform(get_canvas_item(), RID());
 			}
@@ -142,7 +143,7 @@ void Polygon2D::_notification(int p_what) {
 				VS::get_singleton()->canvas_item_deform_set_uv_origin(get_canvas_item(), uv_origin);
 				VS::get_singleton()->canvas_item_deform_set_scale_center(get_canvas_item(), scale_center);
 				VS::get_singleton()->canvas_item_deform_set_wind_strength(get_canvas_item(), wind_strength);
-				VS::get_singleton()->canvas_item_deform_set_elasticity(get_canvas_item(), elasticity);
+				VS::get_singleton()->canvas_item_deform_set_elasticity(get_canvas_item(), wave);
 				VS::get_singleton()->canvas_item_deform_set_time_offset(get_canvas_item(), time_offset);
 			} else {
 				VS::get_singleton()->canvas_item_attach_deform(get_canvas_item(), RID());
@@ -270,7 +271,7 @@ void Polygon2D::_notification(int p_what) {
 							uvs.write[i] = texmat.xform(uvr[i]) * size_k + offset;
 						}
 					} else {
-						Size2 tex_k = 1.0f / texture->get_size();
+						Size2 tex_k = Size2(1.0f, 1.0f) / texture->get_size();
 						for (int i = 0; i < len; i++) {
 							uvs.write[i] = texmat.xform((points[i]) * tex_k + texture_atlas->get_region().get_position());
 						}
@@ -283,7 +284,7 @@ void Polygon2D::_notification(int p_what) {
 							uvs.write[i] = texmat.xform(uvr[i]);
 						}
 					} else {
-						Size2 tex_k = 1.0f / texture->get_size();
+						Size2 tex_k = Size2(1.0f, 1.0f) / texture->get_size();
 						for (int i = 0; i < len; i++) {
 							uvs.write[i] = texmat.xform(points[i]) * tex_k;
 						}
@@ -749,6 +750,17 @@ void Polygon2D::set_depth_offset(float p_depth){
 }
 
 
+float Polygon2D::get_soft_body() const{
+	return soft_body;
+}
+
+void Polygon2D::set_soft_body(float p_soft_body){
+	if (soft_body == p_soft_body)
+		return;
+	soft_body = p_soft_body;
+	VS::get_singleton()->canvas_item_custom_transform_set_soft_body(get_canvas_item(), soft_body);
+}
+
 float Polygon2D::get_object_rotation() const{
 	return object_rotation;
 }
@@ -775,7 +787,7 @@ Vector2 Polygon2D::get_scale_center() const{
 	return scale_center;
 }
 
-void Polygon2D::set_scale_center(Vector2 p_scale_center){
+void Polygon2D::set_scale_center(const Vector2 &p_scale_center){
 	if (scale_center == p_scale_center)
 		return;
 	scale_center = p_scale_center;
@@ -786,22 +798,22 @@ Vector2 Polygon2D::get_wind_strength() const{
 	return wind_strength;
 }
 
-void Polygon2D::set_wind_strength(Vector2 p_wind_strength){
+void Polygon2D::set_wind_strength(const Vector2 &p_wind_strength){
 	if (wind_strength == p_wind_strength)
 		return;
 	wind_strength = p_wind_strength;
 	VS::get_singleton()->canvas_item_deform_set_wind_strength(get_canvas_item(), wind_strength);
 }
 
-Vector2 Polygon2D::get_elasticity() const{
-	return elasticity;
+Vector2 Polygon2D::get_wave() const{
+	return wave;
 }
 
-void Polygon2D::set_elasticity(Vector2 p_elasticity){
-	if (elasticity == p_elasticity)
+void Polygon2D::set_wave(const Vector2 &p_wave){
+	if (wave == p_wave)
 		return;
-	elasticity = p_elasticity;
-	VS::get_singleton()->canvas_item_deform_set_elasticity(get_canvas_item(), elasticity);
+	wave = p_wave;
+	VS::get_singleton()->canvas_item_deform_set_elasticity(get_canvas_item(), p_wave);
 }
 
 
@@ -894,6 +906,8 @@ void Polygon2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_depth_size"), &Polygon2D::get_depth_size);
 	ClassDB::bind_method(D_METHOD("set_depth_offset", "depth_offset"), &Polygon2D::set_depth_offset);
 	ClassDB::bind_method(D_METHOD("get_depth_offset"), &Polygon2D::get_depth_offset);
+	ClassDB::bind_method(D_METHOD("set_soft_body", "soft_body"), &Polygon2D::set_soft_body);
+	ClassDB::bind_method(D_METHOD("get_soft_body"), &Polygon2D::get_soft_body);
 	ClassDB::bind_method(D_METHOD("set_object_rotation", "object_rotation"), &Polygon2D::set_object_rotation);
 	ClassDB::bind_method(D_METHOD("get_object_rotation"), &Polygon2D::get_object_rotation);
 	ClassDB::bind_method(D_METHOD("set_uv_origin", "uv_origin"), &Polygon2D::set_uv_origin);
@@ -902,8 +916,8 @@ void Polygon2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_scale_center"), &Polygon2D::get_scale_center);
 	ClassDB::bind_method(D_METHOD("set_wind_strength", "wind_strength"), &Polygon2D::set_wind_strength);
 	ClassDB::bind_method(D_METHOD("get_wind_strength"), &Polygon2D::get_wind_strength);
-	ClassDB::bind_method(D_METHOD("set_elasticity", "elasticity"), &Polygon2D::set_elasticity);
-	ClassDB::bind_method(D_METHOD("get_elasticity"), &Polygon2D::get_elasticity);
+	ClassDB::bind_method(D_METHOD("set_wave", "wave"), &Polygon2D::set_wave);
+	ClassDB::bind_method(D_METHOD("get_wave"), &Polygon2D::get_wave);
 	ClassDB::bind_method(D_METHOD("set_time_offset", "time_offset"), &Polygon2D::set_time_offset);
 	ClassDB::bind_method(D_METHOD("get_time_offset"), &Polygon2D::get_time_offset);
 
@@ -1009,6 +1023,7 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_position"), "set_depth_position", "get_depth_position");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_size"), "set_depth_size", "get_depth_size");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_offset"), "set_depth_offset", "get_depth_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "soft_body"), "set_soft_body", "get_soft_body");
 
 	ADD_GROUP("Deformation", "");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "deform", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDDeform"), "set_deform", "get_deform");
@@ -1017,8 +1032,7 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "uv_origin", PROPERTY_HINT_RANGE, "0,1"), "set_uv_origin", "get_uv_origin");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "scale_center"), "set_scale_center", "get_scale_center");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "wind_strength"), "set_wind_strength", "get_wind_strength");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "elasticity"), "set_elasticity", "get_elasticity");
-
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "wave"), "set_wave", "get_wave");
 }
 
 Polygon2D::Polygon2D() {
@@ -1026,11 +1040,12 @@ Polygon2D::Polygon2D() {
 	depth_position = 0.0f;
 	depth_size = 0.0;
 	depth_offset = 0.0;
+	soft_body = 0.0f;
 	uv_origin = 0.55;
 	object_rotation = 0.0;
 	scale_center = Vector2(0.5, 0.5);
 	wind_strength = Vector2(1.0, 1.0);
-	elasticity = Vector2(0.5, 0.5);
+	wave = Vector2(0.5, 0.5);
 	time_offset = 0;
 
 	move_polygon_with_uv = false;

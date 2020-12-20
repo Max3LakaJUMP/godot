@@ -16,14 +16,18 @@
 
 namespace red {
 
-Ref<BitMap> read_bitmap(Ref<Image> p_img, float p_threshold, Size2 max_size){
-	Ref<Image> img = p_img->duplicate();
-	Vector2 image_size = img->get_size();
+Ref<BitMap> read_bitmap(const Ref<Image> p_img, float p_threshold, Size2 max_size){
+	Vector2 image_size = p_img->get_size();
 	Size2 resized_size = Vector2(CLAMP(max_size.x, 16, image_size.x), CLAMP(max_size.y, 16, image_size.y));
-	img->resize(resized_size.x, resized_size.y);
 	Ref<BitMap> bitmap;
 	bitmap.instance();
-	bitmap->create_from_image_alpha(img, p_threshold);
+	if(resized_size != image_size){
+		Ref<Image> img = p_img->duplicate();
+		img->resize(resized_size.x, resized_size.y);
+		bitmap->create_from_image_alpha(img, p_threshold);
+	}else{
+		bitmap->create_from_image_alpha(p_img, p_threshold);
+	}
 	return bitmap;
 }
 
@@ -180,18 +184,21 @@ Ref<Image> merge_images(Ref<Image> main_image, Vector<Ref<Image> > &additional_i
 	return img;
 }
 
-Vector<Vector2> ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon, bool is_closed) {
-	Vector<Vector2> resultList;
+Vector<Vector2> ramer_douglas_peucker(const Vector<Vector2> &p_point_list, double epsilon, bool is_closed) {
+	Vector<Vector2> point_list;
+	point_list.append_array(p_point_list);
 	if(is_closed){
-		pointList.push_back(pointList[0]);
-		pointList.push_back(pointList[1]);
+		point_list.push_back(point_list[0]);
+		point_list.push_back(point_list[1]);
 	}
+	Vector<Vector2> resultList;
+
 	float dmax = 0;
 	int index = 0;
-	for (int i = 1; i < pointList.size() - 1; ++i)
+	for (int i = 1; i < point_list.size() - 1; ++i)
 	{
-		Point2 vec1 = Point2(pointList[i].x -pointList[0].x, pointList[i].y - pointList[0].y);
-		Point2 vec2 = Point2(pointList[pointList.size() - 1].x - pointList[0].x, pointList[pointList.size() - 1].y - pointList[0].y);
+		Point2 vec1 = Point2(point_list[i].x -point_list[0].x, point_list[i].y - point_list[0].y);
+		Point2 vec2 = Point2(point_list[point_list.size() - 1].x - point_list[0].x, point_list[point_list.size() - 1].y - point_list[0].y);
 		float d_vec2 = sqrt(vec2.x*vec2.x + vec2.y*vec2.y);
 		float cross_product = vec1.x*vec2.y - vec2.x*vec1.y;
 		float d = abs(cross_product / d_vec2);
@@ -204,21 +211,35 @@ Vector<Vector2> ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon
 	if (dmax > epsilon)
 	{
 		Vector<Vector2> pre_part, next_part;
-		for (int i = 0; i <= index; ++i) pre_part.push_back(pointList[i]);
-		for (int i = index; i < pointList.size(); ++i) next_part.push_back(pointList[i]);
+		for (int i = 0; i <= index; ++i) pre_part.push_back(point_list[i]);
+		for (int i = index; i < point_list.size(); ++i) next_part.push_back(point_list[i]);
 		Vector<Vector2> resultList1 = ramer_douglas_peucker(pre_part, epsilon);
 		Vector<Vector2> resultList2 = ramer_douglas_peucker(next_part, epsilon);
 		resultList.append_array(resultList1);
 		for (int i = 1; i < resultList2.size(); ++i) resultList.push_back(resultList2[i]);
 	}
-	else
-	{
-		resultList.push_back(pointList[0]);
-		resultList.push_back(pointList[pointList.size() - 1]);
+	else{
+		resultList.push_back(point_list[0]);
+		resultList.push_back(point_list[point_list.size() - 1]);
 	}
 	if(is_closed){
-		pointList.resize(pointList.size()-2);
-		resultList.resize(resultList.size()-2);
+		Vector2 in1 = point_list[0];
+		Vector2 in2 = point_list[1];
+		Vector2 out_last1 = resultList[resultList.size()-1];
+		Vector2 out_last2 = resultList[resultList.size()-2];
+		Vector2 out1 = resultList[0];
+		Vector2 out2 = resultList[1];
+		if (out_last2 == in1){
+			resultList.resize(resultList.size() - 2);
+		}else if(out2 == in2){
+			resultList.resize(resultList.size() - 1);
+			resultList.remove(0);
+		}else{
+			resultList.resize(resultList.size() - 1);
+			resultList.push_back(out1);
+			resultList.remove(0);
+			resultList = ramer_douglas_peucker(resultList, epsilon);
+		}
 	}
 	return resultList;
 }
@@ -226,7 +247,7 @@ Vector<Vector2> ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon
 Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow, float epsilon, bool single, Rect2 &crop_rect){
 	Vector<PoolVector<Vector2> > result;
 	Vector<Vector<Vector2> > result_pre;
-	Vector2 k;
+	Vector2 k = polygon_size / (crop_rect.size);
 
 	if (bitmap_mask.is_valid()){
 		float grow = bitmap_mask->get_size().width * polygon_grow / 128.0;
@@ -245,13 +266,19 @@ Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &p
 			int count = polygon_array.size();
 			if ((count == 1 && single) || !single){
 				k = polygon_size / (crop_rect.size);
-				//crop_rect.position = crop_rect.position;
+				// for (int i = 0; i < count; i++){
+				// 	int polygon_array_len = polygon_array[i].size();
+				// 	for (int j = 0; j < polygon_array_len; j++){
+				// 		polygon_array.write[i].write[j] = (polygon_array[i][j] - crop_rect.position) * k;
+				// 	}
+				// }
 				for (int i = 0; i < count; i++)
 				{
 					if (polygon_array[i].size() > 3 && epsilon > 0.0){
 						Vector<Vector2> in_array = polygon_array[i];
 						Vector<Vector2> out_array = red::ramer_douglas_peucker(in_array, epsilon, true);
-						result_pre.push_back(out_array);
+						if(out_array.size() > 2)
+							result_pre.push_back(out_array);
 					}
 					else if (polygon_array[i].size() > 2){
 						result_pre.push_back(polygon_array[i]);
@@ -267,7 +294,7 @@ Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &p
 			polygon.resize(poly_count);
 			PoolVector<Vector2>::Write polygon_w = polygon.write();
 			for (int j = 0; j < poly_count; j++)
-				polygon_w[j] = (result_pre[i][j] - crop_rect.position) * k;
+				polygon_w[j] = (result_pre[i][j] - crop_rect.position) * k; //result_pre[i][j];
 			result.push_back(polygon);
 		}
 	}

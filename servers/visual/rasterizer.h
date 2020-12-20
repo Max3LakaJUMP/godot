@@ -361,7 +361,9 @@ public:
 
 	virtual RID custom_transform_create() = 0;
 	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform) = 0;
-	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_global, const Transform &p_offset, const Transform &p_global_offset) = 0;
+	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_transform) = 0;
+	virtual void custom_transform_set_old(RID p_custom_transform, const Transform &p_transform) = 0;
+	virtual void physics_strength_set(RID p_custom_transform, float p_physics_strength) = 0;
 	
 	/*DEFORM API */
 
@@ -894,9 +896,11 @@ public:
 		RID skeleton;
 		
 		RID custom_transform;
+		float physics_strength;
 		float depth_position;
 		float depth_size;
 		float depth_offset;
+		float soft_body;
 		RID clipper;
 		bool clipper_top;
 		RID deform;

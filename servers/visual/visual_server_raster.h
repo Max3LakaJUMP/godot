@@ -298,7 +298,9 @@ public:
 
 	BIND0R(RID, custom_transform_create)
 	BIND2(custom_transform_set, RID, const Transform &)
-	BIND4(custom_transform_set_global, RID, const Transform &, const Transform &, const Transform &)
+	BIND2(custom_transform_set_global, RID, const Transform &)
+	BIND2(custom_transform_set_old, RID, const Transform &)
+	BIND2(physics_strength_set, RID, float)
 
 	/*DEFORM API */
 	
@@ -649,6 +651,7 @@ public:
 	BIND2(canvas_item_custom_transform_set_depth_position, RID, float)
 	BIND2(canvas_item_custom_transform_set_depth_size, RID, float)
 	BIND2(canvas_item_custom_transform_set_depth_offset, RID, float)
+	BIND2(canvas_item_custom_transform_set_soft_body, RID, float)
 	BIND2(canvas_item_attach_clipper, RID, RID)
 	BIND2(canvas_item_attach_deform, RID, RID)
 	BIND2(canvas_item_clipper_top, RID, bool)

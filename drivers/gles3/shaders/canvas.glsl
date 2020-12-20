@@ -44,29 +44,37 @@ layout(std140) uniform CanvasItemData { //ubo:0
 };
 #ifdef USE_CUSTOM_TRANSFORM
 uniform highp mat4 custom_matrix;
+uniform highp mat4 old_custom_matrix;
+uniform highp mat4 custom_matrix_root;
+uniform highp mat4 custom_matrix_root_inverse;
+uniform highp float soft_body;
 uniform highp float depth_size;
 uniform highp float depth_offset;
+uniform highp float depth_position;
 #endif
 #if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
 	out vec4 world_pos_out;
 #endif
 #ifdef USE_DEFORM
-	uniform highp float object_rotation;
-	uniform highp float uv_origin;
-	uniform highp vec2 scale_center;
-	uniform highp vec2 wind_strength_object;
-	uniform highp vec2 elasticity;
-	uniform highp float time_offset;
+uniform highp mat4 deform_object_matrix;
+uniform highp mat4 deform_object_matrix_inverse;
+uniform highp float object_rotation;
+uniform highp float uv_origin;
+uniform highp vec2 scale_center;
+uniform highp vec2 wind_strength_object;
+uniform highp vec2 elasticity;
+uniform highp float time_offset;
 
-	uniform highp float wind_rotation;
-	uniform float wind_offset;
-	
-	uniform highp float wind_time;
-	uniform highp float wind_strength;
-	uniform highp float wind2_time;
-	uniform highp float wind2_strength;
-	uniform highp float scale_time;
-	uniform highp float scale_strength;
+uniform highp mat4 deform_wind_matrix;
+uniform highp float wind_rotation;
+uniform float wind_offset;
+
+uniform highp float wind_time;
+uniform highp float wind_strength;
+uniform highp float wind2_time;
+uniform highp float wind2_strength;
+uniform highp float scale_time;
+uniform highp float scale_strength;
 #endif
 uniform highp mat4 world_matrix;
 uniform highp mat4 inv_world_matrix;
@@ -169,11 +177,13 @@ vec2 rotate_uv(vec2 uv, float rotation)
     );
 }
 
-vec2 wind(float t, vec2 direction, vec2 wave, float wind_from_top, float wind_from_bellow)
+vec2 wind(float t, vec2 direction, vec2 wave)
 {
+	float wind_from_top = max(dot(direction, vec2(0,1)), 0.0);
+	float wind_from_bellow = abs(min(dot(direction, vec2(0,1)), 0.0));
 	vec2 wind_top;
-	wind_top.x = sin(t * 0.5 + wave.x+3.14) * 0.5;
-	wind_top.y = (cos(t + 3.14 + wave.y)*0.5-0.5*wind_from_bellow)*(-direction.y);
+	wind_top.x = sin(t * 0.5 + wave.x + 3.14) * 0.5;
+	wind_top.y = (cos(t + 3.14 + wave.y) * 0.5 - 0.5 * wind_from_bellow) * (-direction.y);
 	vec2 wind_side;
 	wind_side.x = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.x);
 	wind_side.y = (sin(t + wave.y) * 0.5 - 0.5);
@@ -271,34 +281,36 @@ void main() {
 #if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
 	float transform_mask = 1.0;
 #endif
-#ifdef USE_DEFORM
-	{
-		//todo custom transform
-		float wind_rad = radians(wind_rotation);
-		float object_rad = radians(object_rotation);
-		vec2 direction = rotate(vec2(0.0, 1.0), wind_rad - object_rad);
-		vec2 uv_rot = rotate_uv(uv_interp, -object_rad);
-		outvec.xy = rotate(outvec.xy, -object_rad);
-		float mask = 1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0);
-		mask = clamp(mask, 0.0, 1.0);
-		float t = time * 6.28;
-		vec2 wave;
-		wave.x = ((1.0 - mask) * elasticity.y) * 6.28;
-		wave.y = (uv_rot.x * elasticity.x) * 6.28;
-		float wind_from_top = max(dot(direction, vec2(0,1)), 0.0);
-		float wind_from_bellow = abs(min(dot(direction, vec2(0,1)), 0.0));
-		vec2 wind_target = direction;
-		wind_target.y = wind_target.y * 0.5 - 0.5;
-		wind_target = wind_target * wind_offset;
+
+// #ifdef USE_DEFORM
+// 	highp float deform_mask;
+// 	vec2 wave;
+// 	float t = time * 6.28;
+// 	vec2 uv_rot;
+// 	{
+// 		//todo custom transform
+// 		float wind_rad = radians(wind_rotation);
+// 		float object_rotation = radians(object_rotation);
+
+// 		vec2 direction = rotate(vec2(0.0, 1.0), wind_rad - object_rotation);
+// 		uv_rot = rotate_uv(uv_interp, -object_rotation);
+
+// 		deform_mask = 1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0);
+// 		deform_mask = clamp(deform_mask * color.g, 0.0, 1.0);
+
+// 		wave.x = ((1.0 - uv_rot.y) * elasticity.y) * 6.28;
+// 		wave.y = (uv_rot.x * elasticity.x) * 6.28;
+// 		vec2 wind_target = direction;
+// 		wind_target.y = wind_target.y * 0.5 - 0.5;
+// 		vec2 cycle_wind = wind(t / wind_time + time_offset, direction, wave) + wind_target * wind_offset;
+// 		//vec2 cycle_wind2 = wind((t + 0.79) / wind2_time + time_offset, direction, wave, wind_from_top, wind_from_bellow);
+// 		vec2 cycle_scale = sin(t / scale_time + time_offset) * (uv_rot - scale_center);
 		
-		vec2 cycle_wind = wind(t / wind_time + time_offset, direction, wave, wind_from_top, wind_from_bellow) + wind_target;
-		//vec2 cycle_wind2 = wind((t + 0.79) / wind2_time + time_offset, direction, wave, wind_from_top, wind_from_bellow);
-		vec2 cycle_scale = sin(t / scale_time + time_offset) * (uv_rot - scale_center);
-		
-		outvec.xy = outvec.xy + (cycle_wind * wind_strength + cycle_scale * scale_strength) * mask * wind_strength_object * color.g;
-		outvec.xy = rotate(outvec.xy, object_rad);
-	}
-#endif
+// 		outvec.xy = rotate(outvec.xy, -object_rotation);
+// 		outvec.xy = outvec.xy + (cycle_wind * wind_strength + cycle_scale * scale_strength) * deform_mask * wind_strength_object;
+// 		outvec.xy = rotate(outvec.xy, object_rotation);
+// 	}
+// #endif
 #define extra_matrix extra_matrix_instance
 
 	float point_size = 1.0;
@@ -321,20 +333,88 @@ VERTEX_SHADER_CODE
 	pixel_size_interp = abs(dst_rect.zw) * vertex;
 #endif
 #if !defined(SKIP_TRANSFORM_USED)
+	outvec = extra_matrix * outvec;
+
 	#ifdef USE_CUSTOM_TRANSFORM
 		#if defined(DEPTH_USED)
 			outvec.z = (depth - depth_offset) * depth_size;
 		#endif
+		vec4 outvec_physics = outvec + transform_mask * (old_custom_matrix * outvec - outvec);
 		outvec = outvec + transform_mask * (custom_matrix * outvec - outvec);
-		#if defined(DEPTH_USED)
-			outvec.z *= max_depth;
+		// max offset
+		// vec3 origin_diff = (outvec_physics.xyz - outvec.xyz);
+		// outvec_physics.xyz = origin_diff * min(100.0 / length(origin_diff), 1.0) + outvec.xyz;
+	#endif
+		#if defined(USE_DEFORM)
+		{
+			highp mat2 object_matrix = mat2(deform_object_matrix);
+			highp mat2 object_matrix_inverse = mat2(deform_object_matrix_inverse);
+			vec2 uv_rot = rotate_uv((uv_interp - 0.5) * 1.25 + 0.5, -object_rotation);
+			
+			float t = time * 6.28;
+			highp vec2 wave;
+			wave.x = ((1.0 - uv_rot.y) * elasticity.y) * 6.28;
+			wave.y = (uv_rot.x * elasticity.x) * 6.28;
+			float deform_mask = 1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0);
+			deform_mask = clamp(deform_mask * color.g, 0.0, 1.0);
+			
+			// physics
+			#ifdef USE_CUSTOM_TRANSFORM
+			highp vec2 cycle_physics = vec2(0,0);
+			{
+				highp float physics_offset = length(outvec_physics.xy - outvec.xy);
+				if (physics_offset > 0.001){
+					highp vec2 physics_direction = normalize(object_matrix_inverse * (outvec_physics.xy - outvec.xy));
+					highp vec2 physics_target = physics_direction;
+					physics_target.y = physics_target.y * 0.5 - 0.5;
+					cycle_physics = (physics_target + wind(2.0 * t + time_offset, physics_direction, wave) * 0.25) * physics_offset * soft_body;
+				}
+			}
+			#endif
+			// wind
+			highp vec2 cycle_wind = vec2(0,0);
+			{
+				highp vec2 wind_direction = mat2(deform_wind_matrix) * vec2(0.0, 1.0);
+				highp vec2 wind_target = wind_direction;
+				wind_target.y = wind_target.y * 0.5 - 0.5;
+				cycle_wind = (wind(t / wind_time + time_offset, wind_direction, wave) + wind_target * wind_offset) * wind_strength;
+			}
+			// scale
+			highp vec2 cycle_scale = (sin(t / scale_time + time_offset) * (uv_rot - scale_center)) * scale_strength;
+			// apply
+			outvec.xy = object_matrix_inverse * outvec.xy;
+			#ifdef USE_CUSTOM_TRANSFORM
+			outvec.xy += ((cycle_wind + cycle_scale) * wind_strength_object + cycle_physics) * deform_mask;
+			#else
+			outvec.xy += ((cycle_wind + cycle_scale) * wind_strength_object) * deform_mask;
+			#endif
+			outvec.xy = object_matrix * outvec.xy;
+			// gravity
+			// vec2 object_direction = object_matrix * vec2(0,1);
+			// float object_is_facing_top = (dot(object_direction, vec2(0,-1)) * 0.5 + 0.5) * 
+			// 							 (dot(mat2(cos(object_rotation), sin(object_rotation), -sin(object_rotation), cos(object_rotation))*vec2(0,1), vec2(0,1)) * 0.5 + 0.5);
+			// float gravity = 50.0;
+			// outvec.y = outvec.y + object_is_facing_top * gravity * deform_mask;
+			//// Old1
+			// outvec.xy = rotate(outvec.xy, -object_rotation);
+			// outvec.xy = outvec.xy + cycle_wind * soft_body * ph_strength * deform_mask;
+			// outvec.xy = rotate(outvec.xy, object_rotation);
+			//// Old2
+			// vec4 force = soft_body * deform_mask * deform_mask * (outvec_physics - outvec);
+			// outvec.xyz = outvec.xyz + force.xyz;
+		}
+		#else
+			#if defined(USE_CUSTOM_TRANSFORM)
+				outvec = outvec + soft_body * (outvec_physics - outvec);
+			#endif
 		#endif
+	#if defined(USE_CUSTOM_TRANSFORM) && defined(DEPTH_USED)
+		outvec.z *= max_depth;
 	#endif
 	#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
 		world_pos_out = world_matrix * outvec;
 	#endif
 	
-	outvec = extra_matrix * outvec;
 	outvec = modelview_matrix * outvec;
 #else
 	#if (defined(WORLD_POS_USED) || defined(USE_CLIPPER))
@@ -384,9 +464,9 @@ VERTEX_SHADER_CODE
 	//local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);
 
 	#if defined(USE_CUSTOM_TRANSFORM) //todo custom_matrix mask
-		local_rot[0] = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(1.0, 0.0, 0.0, 0.0))).xyz);
-		local_rot[1] = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(0.0, 1.0, 0.0, 0.0))).xyz);
-		local_rot[2] = normalize((modelview_matrix * (extra_matrix_instance * custom_matrix * vec4(0.0, 0.0, 1.0, 0.0))).xyz);
+		local_rot[0] = normalize((modelview_matrix * (extra_matrix_instance * (custom_matrix * vec4(1.0, 0.0, 0.0, 0.0)))).xyz);
+		local_rot[1] = normalize((modelview_matrix * (extra_matrix_instance * (custom_matrix * vec4(0.0, 1.0, 0.0, 0.0)))).xyz);
+		local_rot[2] = normalize((modelview_matrix * (extra_matrix_instance * (custom_matrix * vec4(0.0, 0.0, 1.0, 0.0)))).xyz);
 	#else
 		local_rot.xy = normalize((modelview_matrix * (extra_matrix_instance * vec4(1.0, 0.0, 0.0, 0.0))).xy);
 		local_rot.zw = normalize((modelview_matrix * (extra_matrix_instance * vec4(0.0, 1.0, 0.0, 0.0))).xy);

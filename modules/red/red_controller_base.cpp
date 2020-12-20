@@ -154,7 +154,8 @@ void REDControllerBase::update_camera_to_frame(bool force_immediate) {
 		tween->stop(frame, "set_parallax_offset");
 		tween->stop(frame, "set_frame_scale");
 	}
-	Size2 frame_size = frame->_edit_get_rect().size;
+	
+	Size2 frame_size = red::get_rect(frame->get_polygon(), frame->get_offset()).size;
 	if(camera_smooth && !force_immediate){
 		camera_state = CAMERA_MOVING;
 		Tween::TransitionType tween_transition_type = Tween::TRANS_CUBIC;

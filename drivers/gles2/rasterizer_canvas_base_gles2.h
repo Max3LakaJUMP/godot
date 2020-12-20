@@ -90,21 +90,28 @@ public:
 		Size2i skeleton_texture_size;
 		
 		Transform custom_transform;
+		Transform old_custom_transform;
+		Transform custom_transform_root;
+		float soft_body;
 		float depth_size;
 		float depth_offset;
+		float depth_position;
 		
 		Vector3 clipper_calc1;
 		Vector3 clipper_calc2;
 		Vector3 clipper_calc3;
 		Vector3 clipper_calc4;
 		
+		Transform deform_object_matrix;
+		Transform deform_object_matrix_inverse;
 		float object_rotation;
 		float uv_origin;
 		Vector2 scale_center;
 		Vector2 wind_strength_object;
 		Vector2 elasticity;
 		float time_offset;
-
+		
+		Transform deform_wind_matrix;
 		float wind_rotation;
 		float wind_offset;
 		float wind_time;

@@ -234,7 +234,9 @@ public:
 
 	FUNCRID(custom_transform)
 	FUNC2(custom_transform_set, RID, const Transform &)
-	FUNC4(custom_transform_set_global, RID, const Transform &, const Transform &, const Transform &)
+	FUNC2(custom_transform_set_global, RID, const Transform &)
+	FUNC2(custom_transform_set_old, RID, const Transform &)
+	FUNC2(physics_strength_set, RID, float)
 
 	/*DEFORM API */
 	
@@ -567,6 +569,7 @@ public:
 	FUNC2(canvas_item_custom_transform_set_depth_position, RID, float)
 	FUNC2(canvas_item_custom_transform_set_depth_size, RID, float)
 	FUNC2(canvas_item_custom_transform_set_depth_offset, RID, float)
+	FUNC2(canvas_item_custom_transform_set_soft_body, RID, float)
 	FUNC2(canvas_item_attach_clipper, RID, RID)
 	FUNC2(canvas_item_clipper_top, RID, bool)
 	FUNC2(canvas_item_attach_deform, RID, RID)

@@ -157,7 +157,7 @@ class Mediapipe : public Node2D {
 	bool need_init;
 	bool need_polygon_init;
 	bool _force_reset_polygon;
-	bool render_target_dirty;
+	bool in_render_target_dirty;
 	bool render_target_polygon_dirty;
 
 	float eye_size;
@@ -217,13 +217,19 @@ class Mediapipe : public Node2D {
 
 	REDRenderData *texture_renderer;
 	Ref<ViewportTexture> render_target;
-
-
+	
 	bool _init();
 	bool _polygon_init();
 	bool _texture_init();
 	bool _draw();
 	void send_name();
+public:
+	enum Anchor {
+		MEDIAPIPE_ANCHOR_CENTER,
+		MEDIAPIPE_ANCHOR_TOP_LEFT,
+	};
+private:
+	Anchor anchor;
 protected:
 	static void _bind_methods();
 	void _notification(int p_what);
@@ -232,12 +238,36 @@ public:
 	static void load_dll();
 	static void free_dll();
 
+	void set_anchor(const Anchor p_anchor) {
+		anchor = p_anchor;
+		for (int i = 0; i < red_face_data.parts_size; i++){
+			PoolVector<Vector2> poly = _get_polygon(i);
+			if (poly.size() > 0){
+				PoolVector<Vector2>::Write poly_write = poly.write();
+				Vector2 o = Vector2(face_offset.x, face_offset.y);
+				for (size_t i = 0; i < poly.size(); i++){
+					if(anchor == Mediapipe::MEDIAPIPE_ANCHOR_CENTER){
+						poly_write[i] -= o;
+					}else{
+						poly_write[i] += o;
+					}
+				}
+				_set_polygon(poly, i);
+			}
+		}
+		update();
+	}
+
+	Anchor get_anchor() const{
+		return anchor;
+	}
+
 	void set_eye_offset(const Vector3 &p_eye_offset) {
 		eye_offset = p_eye_offset;
 		update();
 	}
 
-	Vector3 get_eye_offset() {
+	Vector3 get_eye_offset() const{
 		return eye_offset;
 	}
 
@@ -246,7 +276,7 @@ public:
 		update();
 	}
 
-	float get_eye_size() {
+	float get_eye_size() const{
 		return eye_size;
 	}
 
@@ -262,7 +292,7 @@ public:
 		canonical_iris_landmarks = p_landmarks;
 	}
 
-	PoolVector<Vector3> get_canonical_iris_landmarks() {
+	PoolVector<Vector3> get_canonical_iris_landmarks() const{
 		return canonical_iris_landmarks;
 	}
 
@@ -270,7 +300,7 @@ public:
 		canonical_pose_transform = p_transform;
 	}
 
-	Transform get_canonical_pose_transform() {
+	Transform get_canonical_pose_transform() const{
 		return canonical_pose_transform;
 	}
 
@@ -314,7 +344,7 @@ public:
 		update();
 	}
 
-	bool get_edit_uv() {
+	bool get_edit_uv() const{
 		return edit_uv;
 	}
 
@@ -430,24 +460,28 @@ public:
 			return offsets;
 		PoolVector<Vector3>::Read landmarks_read;
 		PoolVector<Vector2>::Read polygon_read = p->polygon.read();
+		Vector2 _offset(0, 0);
+		if(anchor == Mediapipe::MEDIAPIPE_ANCHOR_CENTER){
+			_offset = Vector2(face_offset.x, face_offset.y);
+		}
 		if (part_id == red_face_data.parts_size - 2){
 			if (!calculate_iris_landmarks())
 				return offsets;
 			if (canonical_iris_landmarks.size() < 10)
 				return offsets;
 			landmarks_read = canonical_iris_landmarks.read();
-			offsets_write[0] = polygon_read[0] - Vector2(landmarks_read[5].x, landmarks_read[5].y);
-			offsets_write[1] = polygon_read[1] - Vector2(landmarks_read[8].x, landmarks_read[8].y);
-			offsets_write[2] = polygon_read[2] - Vector2(landmarks_read[9].x, landmarks_read[9].y);
+			offsets_write[0] = polygon_read[0] - Vector2(landmarks_read[5].x, landmarks_read[5].y) + _offset;
+			offsets_write[1] = polygon_read[1] - Vector2(landmarks_read[8].x, landmarks_read[8].y) + _offset;
+			offsets_write[2] = polygon_read[2] - Vector2(landmarks_read[9].x, landmarks_read[9].y) + _offset;
 		}else if (part_id == red_face_data.parts_size - 1){
 			if (!calculate_iris_landmarks())
 				return offsets;
 			if (canonical_iris_landmarks.size() < 10)
 				return offsets;
 			landmarks_read = canonical_iris_landmarks.read();
-			offsets_write[0] = polygon_read[0] - Vector2(landmarks_read[0].x, landmarks_read[0].y);
-			offsets_write[1] = polygon_read[1] - Vector2(landmarks_read[1].x, landmarks_read[1].y);
-			offsets_write[2] = polygon_read[2] - Vector2(landmarks_read[4].x, landmarks_read[4].y);
+			offsets_write[0] = polygon_read[0] - Vector2(landmarks_read[0].x, landmarks_read[0].y) + _offset;
+			offsets_write[1] = polygon_read[1] - Vector2(landmarks_read[1].x, landmarks_read[1].y) + _offset;
+			offsets_write[2] = polygon_read[2] - Vector2(landmarks_read[4].x, landmarks_read[4].y) + _offset;
 		}else{
 			if (!calculate_face_landmarks())
 				return offsets;
@@ -456,7 +490,7 @@ public:
 			landmarks_read = face_landmarks_rotated.read();
 			for (int i = 0; i < p->bones_count; i++){
 				Vector3 landmark = landmarks_read[p->get_ids()[int(i * p->vertex_step)]];
-				offsets_write[i] = polygon_read[i] - Vector2(landmark.x, landmark.y);
+				offsets_write[i] = polygon_read[i] - Vector2(landmark.x, landmark.y) + _offset;
 			}
 		}
 		return offsets;
@@ -468,24 +502,28 @@ public:
 		int vertex_step = p->vertex_step;
 		PoolVector<Vector2> polygon;
 		PoolVector<Vector3>::Read landmarks_read;
+		Vector2 _offset(0, 0);
+		if(anchor == Mediapipe::MEDIAPIPE_ANCHOR_CENTER){
+			_offset =  Vector2(-face_offset.x, -face_offset.y);
+		}
 		if (part_id == red_face_data.parts_size - 2){
 			if (canonical_iris_landmarks.size() < bones_count)
 				return polygon;
 			polygon.resize(bones_count);
 			PoolVector<Vector2>::Write polygon_write = polygon.write();
 			landmarks_read = canonical_iris_landmarks.read();
-			polygon_write[0] = Vector2(landmarks_read[5].x, landmarks_read[5].y);
-			polygon_write[1] = Vector2(landmarks_read[8].x, landmarks_read[8].y);
-			polygon_write[2] = Vector2(landmarks_read[9].x, landmarks_read[9].y);
+			polygon_write[0] = Vector2(landmarks_read[5].x, landmarks_read[5].y) + _offset;
+			polygon_write[1] = Vector2(landmarks_read[8].x, landmarks_read[8].y) + _offset;
+			polygon_write[2] = Vector2(landmarks_read[9].x, landmarks_read[9].y) + _offset;
 		}else if (part_id == red_face_data.parts_size - 1){
 			if (canonical_iris_landmarks.size() < bones_count)
 				return polygon;
 			polygon.resize(bones_count);
 			PoolVector<Vector2>::Write polygon_write = polygon.write();
 			landmarks_read = canonical_iris_landmarks.read();
-			polygon_write[0] = Vector2(landmarks_read[0].x, landmarks_read[0].y);
-			polygon_write[1] = Vector2(landmarks_read[1].x, landmarks_read[1].y);
-			polygon_write[2] = Vector2(landmarks_read[4].x, landmarks_read[4].y);
+			polygon_write[0] = Vector2(landmarks_read[0].x, landmarks_read[0].y) + _offset;
+			polygon_write[1] = Vector2(landmarks_read[1].x, landmarks_read[1].y) + _offset;
+			polygon_write[2] = Vector2(landmarks_read[4].x, landmarks_read[4].y) + _offset;
 		}else{
 			if (face_landmarks_rotated.size() < red_face_data.vertex_count)
 				return polygon;
@@ -494,7 +532,7 @@ public:
 			landmarks_read = face_landmarks_rotated.read();
 			for (int i = 0; i < bones_count; i++){
 				Vector3 landmark = landmarks_read[p->get_ids()[int(i * vertex_step)]];
-				polygon_write[i] = Vector2(landmark.x, landmark.y);
+				polygon_write[i] = Vector2(landmark.x, landmark.y) + _offset;
 			}
 		}
 		return polygon;
@@ -687,19 +725,19 @@ public:
 	}
 
 	Vector3 get_scaler(Vector3 eye_l, Vector3 eye_r, Vector3 jaw, Vector3 eye_l_target, Vector3 eye_r_target, Vector3 jaw_target) {
-		Vector3 scaler;
-		scaler.x = eye_l_target.distance_to(eye_r_target) / eye_l.distance_to(eye_r);
-		Vector3 eye_target = (eye_l_target + eye_r_target) * 0.5f;
-		Vector3 eye = (eye_l + eye_r) * 0.5;
-		scaler.y = eye_target.distance_to(jaw_target) / eye.distance_to(jaw);
-		scaler.z = (scaler.x + scaler.y) * 0.5;
-		return scaler;
-		// return get_scaler(	Vector2(eye_l.x, eye_l.y), 
-		// 					Vector2(eye_r.x, eye_r.y), 
-		// 					Vector2(jaw.x, jaw.y), 
-		// 					Vector2(eye_l_target.x, eye_l_target.y), 
-		// 					Vector2(eye_r_target.x, eye_r_target.y),  
-		// 					Vector2(jaw_target.x, jaw_target.y));
+		// Vector3 scaler;
+		// scaler.x = eye_l_target.distance_to(eye_r_target) / eye_l.distance_to(eye_r);
+		// Vector3 eye_target = (eye_l_target + eye_r_target) * 0.5f;
+		// Vector3 eye = (eye_l + eye_r) * 0.5;
+		// scaler.y = eye_target.distance_to(jaw_target) / eye.distance_to(jaw);
+		// scaler.z = (scaler.x + scaler.y) * 0.5;
+		// return scaler;
+		return get_scaler(	Vector2(eye_l.x, eye_l.y), 
+							Vector2(eye_r.x, eye_r.y), 
+							Vector2(jaw.x, jaw.y), 
+							Vector2(eye_l_target.x, eye_l_target.y), 
+							Vector2(eye_r_target.x, eye_r_target.y),  
+							Vector2(jaw_target.x, jaw_target.y));
 	}
 
 	Vector3 get_scaler(Vector2 eye_l, Vector2 eye_r, Vector2 jaw, Vector2 eye_l_target, Vector2 eye_r_target, Vector2 jaw_target) {
@@ -730,10 +768,10 @@ public:
 		if(!head_poly || head_poly->get_texture().is_null()){
 			return false;
 		}
-		texture_renderer = red::create_node<REDRenderData>(this, "face_texture_generator");
+		Node *parent = get_parent();
+		texture_renderer = red::create_node<REDRenderData>(parent, "face_texture_generator");
 		if(texture_renderer->is_connected("rendered", this, "_render_target_rendered"))
 			texture_renderer->disconnect("rendered", this, "_render_target_rendered");
-		face_texture_dirty = false;
 		float aspect_ratio = polygon_size.y / polygon_size.x;
 		Size2 viewport_size = head_poly->get_texture()->get_size();
 		viewport_size.y *= aspect_ratio;
@@ -742,10 +780,13 @@ public:
 		texture_renderer->set_clean_viewport_before_render(true);
 		texture_renderer->set_resolution(viewport_size);
 		if (render_target.is_null()){
-			render_target.instance();
+			render_target = texture_renderer->get_render_target();
+			if (render_target.is_null()){
+				render_target.instance();
+				texture_renderer->set_render_target(render_target);
+			}
 		}
-		texture_renderer->set_render_target(render_target);
-		//rd->set_delete_after_render(true);
+		parent->call_deferred("move_child", texture_renderer, 0);
 		// Init polygons
 		PoolVector<Vector2> uv;
 		uv.append(Vector2(0, 0));
@@ -791,20 +832,18 @@ public:
 		head_render_poly->set_polygon(head_polygon);
 		head_render_poly->set_uv(uv);
 		head_render_poly->set_texture(head_poly->get_texture());
-
-		
 		texture_renderer->render();
 		texture_renderer->connect("rendered", this, "_render_target_rendered", varray(), CONNECT_ONESHOT);
-		
 		canonical_face_landmarks_dirty = true;
 		canonical_iris_landmarks_dirty = true;
 		canonical_face_pose_dirty = true;
-		return true;
+		return false;
 	}
 
 	void _render_target_rendered() {
+		face_texture_dirty = false;
 		in_texture_dirty = true;
-		render_target_dirty = true;
+		in_render_target_dirty = true;
 		update();
 	}
 
@@ -918,15 +957,6 @@ public:
 			face_scene = ResourceLoader::load("res://redot/polygons/faces/default_face.tscn");
 			if (face_scene.is_null())
 				return false;
-		}
-		if(face_path.is_empty())
-			return false;
-		Polygon2D *polygon_object = Object::cast_to<Polygon2D>(get_node(face_path));
-		if (!polygon_object){
-			return false;
-		}
-		if (polygon_object->get_texture().is_null()){
-			return false;
 		}
 		if (canonical_face_landmarks.size() < face_data.vertex_count){
 			return false;
@@ -1290,14 +1320,15 @@ public:
 		}
 		if(face_path.is_empty())
 			return false;
+		
 		Polygon2D *source_object = Object::cast_to<Polygon2D>(get_node(face_path));
 		if (!source_object){
 			ERR_FAIL_V_MSG(false, "source_object")
 			return false;
 		}
-		Polygon2D *target_object = Object::cast_to<Polygon2D>(get_parent());
-		if (!target_object){
-			ERR_FAIL_V_MSG(false, "target_object")
+		Node2D *parent = Object::cast_to<Node2D>(get_parent());
+		if (!parent){
+			ERR_FAIL_V_MSG(false, "Parent is not a Node2D object")
 			return false;
 		}
 		if (!calculate_edited_landmarks()){
@@ -1331,176 +1362,199 @@ public:
 			face_scene_instance->queue_delete();
 			return false;
 		}
-		NodePath face_transform_path = target_object->get_custom_transform();
-		if (front_view){
-			REDTransform *head_transform = red::create_node<REDTransform>(target_object, "head_transform");
-			REDTransform *face_transform = red::create_node<REDTransform>(head_transform,"face_transform");
-			target_object->set_custom_transform(target_object->get_path_to(face_transform));
-			face_transform->set_custom_transform(canonical_pose_transform);
+		if(anchor == Mediapipe::MEDIAPIPE_ANCHOR_CENTER){
+			parent->set_position(source_object->get_position() + Vector2(face_offset.x, face_offset.y));
+		}else{
+			parent->set_position(source_object->get_position());
+		}
+		REDTransform *head_transform = red::create_node<REDTransform>(parent, "head_transform");
+		REDTransform *face_transform = red::create_node<REDTransform>(head_transform,"face_transform");
+		face_transform->set_custom_transform(canonical_pose_transform);
+		if (anchor == MEDIAPIPE_ANCHOR_CENTER){
+			head_transform->set_position(Point2(0.0, 0.0));
+			head_transform->set_depth_position(source_object->get_depth_position());
+		}else{
 			head_transform->set_position(Point2(face_offset.x, face_offset.y));
-			head_transform->set_depth_position(face_offset.z);
-			PoolVector<Vector3>::Read canonical_iris_landmarks_read = canonical_iris_landmarks.read();
-			for (int i = 0; i < 2; i++)
+			head_transform->set_depth_position(source_object->get_depth_position() + face_offset.z);
+		}
+		Polygon2D *target_object;
+		if(parent->has_node(NodePath("face"))){
+			target_object = Object::cast_to<Polygon2D>(parent->get_node(NodePath("face")));
+		}else{
+			face_scene_instance->remove_child(face_polygon);
+			parent->add_child(face_polygon);
+			face_polygon->set_owner(parent->get_owner());
+			target_object = face_polygon;
+		}
+		PoolVector<Vector3>::Read canonical_iris_landmarks_read = canonical_iris_landmarks.read();
+		for (int i = 0; i < 2; i++){
+			Polygon2D *loaded_eye;
+			Polygon2D *loaded_eye_blick;
+			NodePath eye_path;
+			NodePath blick_path;
+			String eye_name;
+			String eye_blick_name;
+			String transform_name;
+			int face_iris_center_id;
+			int face_iris_r_id;
+			int offsets_num;
+			const int *ids;
+			const int *iris_ids;
+			if(i == 0){
+				eye_path = eye_l_path;
+				blick_path = blick_l_path;
+				loaded_eye = eye_l;
+				loaded_eye_blick = eye_blick_l;
+				eye_name = "eye_l";
+				eye_blick_name = "eye_blick_l";
+				transform_name = "eye_l_transform";
+				face_iris_center_id = 5;
+				face_iris_r_id = 8;
+				offsets_num = 7;
+				ids = red_face_data.eye_l.get_ids();
+				iris_ids = red_face_data.iris_l.get_ids();
+			}else{
+				eye_path = eye_r_path;
+				blick_path = blick_r_path;
+				loaded_eye = eye_r;
+				loaded_eye_blick = eye_blick_r;
+				eye_name = "eye_r";
+				eye_blick_name = "eye_blick_r";
+				transform_name = "eye_r_transform";
+				face_iris_center_id = 0;
+				face_iris_r_id = 1;
+				offsets_num = 8;
+				ids = red_face_data.eye_r.get_ids();
+				iris_ids = red_face_data.iris_r.get_ids();
+			}
+			Polygon2D *eye_flat_polygon;
+			if(!eye_path.is_empty() && has_node(eye_path)){
+				eye_flat_polygon = Object::cast_to<Polygon2D>(get_node(eye_path));
+			}else{
+				continue;
+			}
+			PoolVector<Vector2>::Read eye_polygon_read = loaded_eye->get_polygon().read();
+			PoolVector<Vector2>::Read eye_blick_polygon_read = loaded_eye_blick->get_polygon().read();
+			PoolVector<Color>::Read eye_color_read = loaded_eye->get_vertex_colors().read();
+			int eye_polygon_size = loaded_eye->get_polygon().size();
+			int eye_blick_polygon_size = loaded_eye_blick->get_polygon().size();
+			float depth_size = loaded_eye->get_depth_size();
+			float depth_offset = loaded_eye->get_depth_offset();
+			float blick_depth_size = loaded_eye_blick->get_depth_size();
+			float blick_depth_offset = loaded_eye_blick->get_depth_offset();
+			int eye_max_x_id = 63;
+			float eye_len = ABS(eye_polygon_read[eye_max_x_id].x);
+			PoolVector<Vector3>::Read edited_read = edited_landmarks.read();
+
+			float eye_scale = eye_size * ABS((edited_read[ids[8]].x - edited_read[ids[0]].x) / (2.0 * eye_len));
+			Vector3 eyelids_position = Vector3(	edited_read[ids[0]].x + eye_offset.x * (edited_read[ids[8]].x - edited_read[ids[0]].x) - face_offset.x, 
+												edited_read[ids[12]].y + eye_offset.y * (edited_read[ids[4]].y - edited_read[ids[12]].y) - face_offset.y, 
+												2.0 * eye_offset.z * (face_scale.z * loaded_eye->get_depth_position() + eye_len * (face_scale.z - eye_scale)));
+			REDTransform *eye_transform = red::create_node<REDTransform>(face_transform, transform_name);
+			PoolVector2Array eye_offset = get_offsets(offsets_num);
+			PoolVector2Array::Read eye_offset_read = eye_offset.read();
+			Vector3 iris_offset_c = canonical_iris_landmarks_read[face_iris_center_id] + Vector3(eye_offset_read[0].x, eye_offset_read[0].y, 0.0);
+			Vector3 iris_offset_x = canonical_iris_landmarks_read[face_iris_r_id] + Vector3(eye_offset_read[1].x, eye_offset_read[1].y, 0.0);
+			Vector3 iris_offset_y = canonical_iris_landmarks_read[face_iris_center_id + 4] + Vector3(eye_offset_read[2].x, eye_offset_read[2].y, 0.0);
+			Vector3 eye_c_target = get_eye_target(iris_offset_c, eyelids_position, eye_len * eye_scale);
+
+			Transform eye_tr = Transform().looking_at(eye_c_target, Vector3(0, 1, 0));
+			eye_transform->set_custom_transform(eye_tr);
+			//eye_transform->set_rest_rotation_degrees(eye_transform->get_custom_rotation_degrees());
+			eye_transform->set_position(Point2(eyelids_position.x, eyelids_position.y));
+			eye_transform->set_depth_position(eyelids_position.z);
+			eye_transform->set_rest(Transform().translated(-eyelids_position));
+			// eye mesh init
 			{
-				Polygon2D *loaded_eye;
-				Polygon2D *loaded_eye_blick;
-				NodePath eye_path;
-				NodePath blick_path;
-				String eye_name;
-				String eye_blick_name;
-				String transform_name;
-				int face_iris_center_id;
-				int face_iris_r_id;
-				int offsets_num;
-				const int *ids;
-				const int *iris_ids;
-				if(i == 0){
-					eye_path = eye_l_path;
-					blick_path = blick_l_path;
-					loaded_eye = eye_l;
-					loaded_eye_blick = eye_blick_l;
-					eye_name = "eye_l";
-					eye_blick_name = "eye_blick_l";
-					transform_name = "eye_l_transform";
-					face_iris_center_id = 5;
-					face_iris_r_id = 8;
-					offsets_num = 7;
-					ids = red_face_data.eye_l.get_ids();
-					iris_ids = red_face_data.iris_l.get_ids();
+				Vector3 offseted_x = eye_tr.xform_inv(get_eye_target(iris_offset_x, eyelids_position, eye_len * eye_scale));
+				Vector3 offseted_y = eye_tr.xform_inv(get_eye_target(iris_offset_y, eyelids_position, eye_len * eye_scale));
+				float iris_len = eye_polygon_read[iris_ids[1]].x;
+				Vector2 iris_scale = Vector2(ABS(offseted_x.x / iris_len), ABS(offseted_y.y / iris_len));
+				if(parent->has_node(NodePath(eye_name))){
+					loaded_eye = Object::cast_to<Polygon2D>(parent->get_node(NodePath(eye_name)));
 				}else{
-					eye_path = eye_r_path;
-					blick_path = blick_r_path;
-					loaded_eye = eye_r;
-					loaded_eye_blick = eye_blick_r;
-					eye_name = "eye_r";
-					eye_blick_name = "eye_blick_r";
-					transform_name = "eye_r_transform";
-					face_iris_center_id = 0;
-					face_iris_r_id = 1;
-					offsets_num = 8;
-					ids = red_face_data.eye_r.get_ids();
-					iris_ids = red_face_data.iris_r.get_ids();
+					face_scene_instance->remove_child(loaded_eye);
+					parent->add_child(loaded_eye);
+					loaded_eye->set_owner(parent->get_owner());
 				}
-				Polygon2D *eye_flat_polygon;
-				if(!eye_path.is_empty() && has_node(eye_path)){
-					eye_flat_polygon = Object::cast_to<Polygon2D>(get_node(eye_path));
+				PoolVector<Vector2> eye_polygon;
+				eye_polygon.resize(eye_polygon_size);
+				PoolVector<Vector2>::Write eye_polygon_write = eye_polygon.write();
+				for (int i = 0; i < eye_polygon.size(); i++){
+					int found = 0;
+					for (int j = 0; j < 16; j++){
+						if (i == red_face_data.iris_smooth_ids[j]){
+							found = 1;
+							break;
+						}
+					}
+					for (int j = 0; j < 49; j++){
+						if (i == red_face_data.iris_ids[j]){
+							found = 2;
+							break;
+						}
+					}
+					Vector2 local_pos;
+					Vector2 eye_scale2(eye_scale, eye_scale);
+					switch (found)
+					{
+					case 1:
+						local_pos = eye_polygon_read[i] * (iris_scale + 0.75 * (eye_scale2 - iris_scale));
+						break;
+					case 2:
+						local_pos = eye_polygon_read[i] * iris_scale;
+						break;
+					default:
+						local_pos = eye_polygon_read[i] * eye_scale;
+						break;
+					}
+					eye_polygon_write[i] = local_pos;
+				}
+				loaded_eye->set_polygon(eye_polygon);
+				loaded_eye->set_depth_size(depth_size * eye_scale);
+				loaded_eye->set_texture(eye_flat_polygon->get_texture());
+				if (anchor == MEDIAPIPE_ANCHOR_CENTER){
+					loaded_eye->set_position(Point2(eyelids_position.x, eyelids_position.y));
 				}else{
-					continue;
-				}
-				
-				PoolVector<Vector2>::Read eye_polygon_read = loaded_eye->get_polygon().read();
-				PoolVector<Vector2>::Read eye_blick_polygon_read = loaded_eye_blick->get_polygon().read();
-				PoolVector<Color>::Read eye_color_read = loaded_eye->get_vertex_colors().read();
-				int eye_polygon_size = loaded_eye->get_polygon().size();
-				int eye_blick_polygon_size = loaded_eye_blick->get_polygon().size();
-				float depth_size = loaded_eye->get_depth_size();
-				float depth_offset = loaded_eye->get_depth_offset();
-				float blick_depth_size = loaded_eye_blick->get_depth_size();
-				float blick_depth_offset = loaded_eye_blick->get_depth_offset();
-				int eye_max_x_id = 63;
-				float eye_len = ABS(eye_polygon_read[eye_max_x_id].x);
-				PoolVector<Vector3>::Read edited_read = edited_landmarks.read();
-
-				float eye_scale = eye_size * ABS((edited_read[ids[8]].x - edited_read[ids[0]].x) / (2.0 * eye_len));
-				Vector3 eyelids_position = Vector3(	edited_read[ids[0]].x + eye_offset.x * (edited_read[ids[8]].x - edited_read[ids[0]].x) - face_offset.x, 
-													edited_read[ids[12]].y + eye_offset.y * (edited_read[ids[4]].y - edited_read[ids[12]].y) - face_offset.y, 
-													2.0 * eye_offset.z * (face_scale.z * loaded_eye->get_depth_position() + eye_len * (face_scale.z - eye_scale)));
-				REDTransform *eye_transform = red::create_node<REDTransform>(face_transform, transform_name);
-				PoolVector2Array eye_offset = get_offsets(offsets_num);
-				PoolVector2Array::Read eye_offset_read = eye_offset.read();
-				Vector3 iris_offset_c = canonical_iris_landmarks_read[face_iris_center_id] + Vector3(eye_offset_read[0].x, eye_offset_read[0].y, 0.0);
-				Vector3 iris_offset_x = canonical_iris_landmarks_read[face_iris_r_id] + Vector3(eye_offset_read[1].x, eye_offset_read[1].y, 0.0);
-				Vector3 iris_offset_y = canonical_iris_landmarks_read[face_iris_center_id + 4] + Vector3(eye_offset_read[2].x, eye_offset_read[2].y, 0.0);
-				Vector3 eye_c_target = get_eye_target(iris_offset_c, eyelids_position, eye_len * eye_scale);
-
-				Transform eye_tr = Transform().looking_at(eye_c_target, Vector3(0, 1, 0));
-				eye_transform->set_custom_transform(eye_tr);
-				eye_transform->set_position(Point2(eyelids_position.x, eyelids_position.y));
-				eye_transform->set_depth_position(eyelids_position.z);
-				// eye mesh init
-				{
-					Vector3 offseted_x = eye_tr.xform_inv(get_eye_target(iris_offset_x, eyelids_position, eye_len * eye_scale));
-					Vector3 offseted_y = eye_tr.xform_inv(get_eye_target(iris_offset_y, eyelids_position, eye_len * eye_scale));
-					float iris_len = eye_polygon_read[iris_ids[1]].x;
-					Vector2 iris_scale = Vector2(ABS(offseted_x.x / iris_len), ABS(offseted_y.y / iris_len));
-					if(target_object->has_node(NodePath(eye_name))){
-						loaded_eye = Object::cast_to<Polygon2D>(target_object->get_node(NodePath(eye_name)));
-					}else{
-						face_scene_instance->remove_child(loaded_eye);
-						target_object->add_child(loaded_eye);
-						loaded_eye->set_owner(target_object->get_owner());
-					}
-					PoolVector<Vector2> eye_polygon;
-					eye_polygon.resize(eye_polygon_size);
-					PoolVector<Vector2>::Write eye_polygon_write = eye_polygon.write();
-					for (int i = 0; i < eye_polygon.size(); i++){
-						int found = 0;
-						for (int j = 0; j < 16; j++){
-							if (i == red_face_data.iris_smooth_ids[j]){
-								found = 1;
-								break;
-							}
-						}
-						for (int j = 0; j < 49; j++){
-							if (i == red_face_data.iris_ids[j]){
-								found = 2;
-								break;
-							}
-						}
-						Vector2 local_pos;
-						Vector2 eye_scale2(eye_scale, eye_scale);
-						switch (found)
-						{
-						case 1:
-							local_pos = eye_polygon_read[i] * (iris_scale + 0.75 * (eye_scale2 - iris_scale));
-							break;
-						case 2:
-							local_pos = eye_polygon_read[i] * iris_scale;
-							break;
-						default:
-							local_pos = eye_polygon_read[i] * eye_scale;
-							break;
-						}
-						eye_polygon_write[i] = local_pos;
-					}
-					loaded_eye->set_polygon(eye_polygon);
-					loaded_eye->set_depth_size(depth_size * eye_scale);
-					loaded_eye->set_texture(eye_flat_polygon->get_texture());
 					loaded_eye->set_position(Point2(eyelids_position.x + face_offset.x, eyelids_position.y + face_offset.y));
-					loaded_eye->set_depth_position(eyelids_position.z + face_offset.z);
-					loaded_eye->set_custom_transform(loaded_eye->get_path_to(eye_transform));
 				}
-				Polygon2D *blick_flat_polygon;
-				if(!blick_path.is_empty() && has_node(blick_path)){
-					blick_flat_polygon = Object::cast_to<Polygon2D>(get_node(blick_path));
+				loaded_eye->set_depth_position(eye_transform->get_global_depth_position());
+				loaded_eye->set_custom_transform(loaded_eye->get_path_to(eye_transform));
+			}
+			Polygon2D *blick_flat_polygon;
+			if(!blick_path.is_empty() && has_node(blick_path)){
+				blick_flat_polygon = Object::cast_to<Polygon2D>(get_node(blick_path));
+			}else{
+				continue;
+			}
+			// eye blick mesh init
+			{
+				if(parent->has_node(NodePath(eye_blick_name))){
+					loaded_eye_blick = Object::cast_to<Polygon2D>(parent->get_node(NodePath(eye_blick_name)));
 				}else{
-					continue;
+					face_scene_instance->remove_child(loaded_eye_blick);
+					parent->add_child(loaded_eye_blick);
+					loaded_eye_blick->set_owner(parent->get_owner());
 				}
-				// eye blick mesh init
-				{
-					if(target_object->has_node(NodePath(eye_blick_name))){
-						loaded_eye_blick = Object::cast_to<Polygon2D>(target_object->get_node(NodePath(eye_blick_name)));
-					}else{
-						face_scene_instance->remove_child(loaded_eye_blick);
-						target_object->add_child(loaded_eye_blick);
-						loaded_eye_blick->set_owner(target_object->get_owner());
-					}
-					PoolVector<Vector2> eye_polygon;
-					eye_polygon.resize(eye_blick_polygon_size);
-					PoolVector<Vector2>::Write eye_polygon_write = eye_polygon.write();
-					for (int i = 0; i < eye_polygon.size(); i++)
-						eye_polygon_write[i] = eye_blick_polygon_read[i] * eye_scale;
-					loaded_eye_blick->set_polygon(eye_polygon);
-					loaded_eye_blick->set_depth_size(blick_depth_size * eye_scale);
-					loaded_eye_blick->set_texture(blick_flat_polygon->get_texture());
+				PoolVector<Vector2> eye_polygon;
+				eye_polygon.resize(eye_blick_polygon_size);
+				PoolVector<Vector2>::Write eye_polygon_write = eye_polygon.write();
+				for (int i = 0; i < eye_polygon.size(); i++)
+					eye_polygon_write[i] = eye_blick_polygon_read[i] * eye_scale;
+				loaded_eye_blick->set_polygon(eye_polygon);
+				loaded_eye_blick->set_depth_size(blick_depth_size * eye_scale);
+				loaded_eye_blick->set_texture(blick_flat_polygon->get_texture());
+				if (anchor == MEDIAPIPE_ANCHOR_CENTER){
+					loaded_eye_blick->set_position(Point2(eyelids_position.x, eyelids_position.y));
+				}else{
 					loaded_eye_blick->set_position(Point2(eyelids_position.x + face_offset.x, eyelids_position.y + face_offset.y));
-					loaded_eye_blick->set_depth_position(eyelids_position.z + face_offset.z);
-					loaded_eye_blick->set_custom_transform(loaded_eye->get_path_to(eye_transform));
 				}
+				loaded_eye_blick->set_depth_position(eye_transform->get_global_depth_position());
+				loaded_eye_blick->set_custom_transform(loaded_eye->get_path_to(eye_transform));
 			}
 		}
-		PoolVector<Vector3>::Read face_landmarks_read = edited_landmarks.read();
-		PoolVector<Vector3>::Read face_landmarks_rotated_read = edited_landmarks_rotated.read();
+		PoolVector<Vector3>::Read edited_landmarks_read = edited_landmarks.read();
+		PoolVector<Vector3>::Read edited_landmarks_rotated_read = edited_landmarks_rotated.read();
 		PoolVector<Vector2> polygon_new;
 		PoolVector<Vector2> uv_new;
 		PoolVector<Color> vc_new;
@@ -1511,24 +1565,32 @@ public:
 		PoolVector<Vector2>::Write uv_new_write = uv_new.write();
 		PoolVector<Color>::Write vc_new_write = vc_new.write();
 
-		float min_depth = face_landmarks_read[0].z;
-		float max_depth = face_landmarks_read[0].z;
+		float min_depth = edited_landmarks_read[0].z;
+		float max_depth = edited_landmarks_read[0].z;
 		for (int i = 1; i < face_landmarks.size(); i++) {
-			float z = face_landmarks_read[i].z;
+			float z = edited_landmarks_read[i].z;
 			if (z > max_depth) 
 				max_depth = z; 
 			else if (z < min_depth) 
 				min_depth = z;
 		}
 		float real_depth = ABS(max_depth - min_depth);
-
+		if(anchor == Mediapipe::MEDIAPIPE_ANCHOR_CENTER){
+			max_depth -= face_offset.z;
+			min_depth -= face_offset.z;
+		}
 		for (int i = 0; i < face_landmarks.size(); i++) {
-			Vector3 vtx = face_landmarks_read[i];
-			Vector3 vtx_rotated = face_landmarks_rotated_read[i];
+			Vector3 vtx = edited_landmarks_read[i];
+			Vector3 vtx_rotated = edited_landmarks_rotated_read[i];
+			if(anchor == Mediapipe::MEDIAPIPE_ANCHOR_CENTER){
+				vtx -= face_offset;
+			}
 			polygon_new_write[i] = Vector2(vtx.x, vtx.y);
 			uv_new_write[i] = Vector2(vtx_rotated.x / polygon_size.x, vtx_rotated.y / polygon_size.y);
 			vc_new_write[i] = Color(1.0, 1.0, 1.0, (vtx.z - min_depth) / real_depth);
 		}
+		target_object->set_custom_transform(target_object->get_path_to(face_transform));
+		target_object->set_depth_position(source_object->get_depth_position());
 		target_object->set_texture(source_object->get_texture());
 		target_object->set_polygon(polygon_new);
 		target_object->set_vertex_colors(vc_new);
@@ -1569,11 +1631,12 @@ public:
 	bool reset_polygons(bool force=false){
 		bool success = true;
 		for (int i = 0; i < red_face_data.parts_size; i++){
-			if (red_face_data[i]->polygon.size() != red_face_data[i]->bones_count || force) 
+			if (red_face_data[i]->polygon.size() != red_face_data[i]->bones_count || force) {
 				_set_polygon(PoolVector<Vector2>(), i);
+			}
 		}
 		for (int i = 0; i < red_face_data.parts_size - 2; i++){
-			if (!red_face_data[i]->polygon.size() != red_face_data[i]->bones_count) {
+			if (red_face_data[i]->polygon.size() != red_face_data[i]->bones_count) {
 				success = false;
 				break;
 			}
@@ -1615,95 +1678,6 @@ public:
 		return graph->out_display();
 	}
 	
-	// delete not needed
-	void give_depth(const NodePath &path) {
-		// Polygon2D *polygon_object = (Polygon2D *)get_node(path);
-		// ERR_FAIL_COND_MSG(polygon_object == nullptr, "Wrong polygon");
-		// ERR_FAIL_COND_MSG(landmarks_depth.size() == 0, "No depth");
-		// PoolVector<Color> colors;
-
-		// PoolVector<float>::Read landmarks_depth_read = landmarks_depth.read();
-		// landmarks_max_depth = landmarks_depth_read[0];
-		// landmarks_min_depth = landmarks_depth_read[0];
-		// for (int i = 1; i < landmarks_depth.size(); i++) {
-		// 	float d = landmarks_depth_read[i];
-		// 	if (d > landmarks_max_depth) {
-		// 		landmarks_max_depth = d;
-		// 	} else if (d < landmarks_min_depth) {
-		// 		landmarks_min_depth = d;
-		// 	}
-		// }
-		// {
-		// 	colors.resize(landmarks_depth.size());
-		// 	PoolVector<Color>::Write colors_w = colors.write();
-		// 	float depth_size = landmarks_max_depth - landmarks_min_depth;
-		// 	for (int i = 0; i < landmarks_depth.size(); i++) {
-		// 		Color color(1.0, 1.0, 1.0, 1.0);
-		// 		color.a = (landmarks_depth_read[i] - landmarks_min_depth) / depth_size;
-		// 		colors_w[i] = color;
-		// 	}
-		// }
-		// polygon_object->set_vertex_colors(colors);
-		// polygon_object->set_depth_size((landmarks_max_depth - landmarks_min_depth));
-		// polygon_object->set_depth_offset(0.0);
-
-		// Array polygons_array;
-		// for (int i = 0; i < face_data.index_buffer_size; i+=3)
-		// {
-		// 	Array polygons_current;
-		// 	for (int j = 0; j < 3; j++)
-		// 		polygons_current.push_back(face_data.index_buffer[i+j]);
-		// 	polygons_array.push_back(polygons_current);
-		// }
-		// polygon_object->set_polygons(polygons_array);
-
-	}
-	// delete not needed
-	bool out_polygon(const Size2 &size = Size2(1, 1)) {
-		// ERR_FAIL_COND_V_MSG(!_init(), false, "Graph initialization error");
-		// float *polygon_in;
-		// int *polygons_in;
-		// float *transform_matrix;
-		// int polygon_count = 0;
-		// int polygons_size = 0;
-		// ERR_FAIL_COND_V_MSG_CUSTOM(!graph->out_polygon(&polygon_in, &polygons_in, &polygon_count, &polygons_size, &transform_matrix), false, "Failed to get polygon data");
-		// ERR_FAIL_COND_V_MSG_CUSTOM(polygon_count == 0 || polygons_size == 0, false, "polygon data has 0 size");
-
-		// int real_polygon_size = polygon_count / 5;
-		// polygon.resize(real_polygon_size);
-		// uv.resize(real_polygon_size);
-		// polygon_depth.resize(real_polygon_size);
-		// polygons.resize(polygons_size);
-		// PoolVector<Vector2>::Write polygon_w = polygon.write();
-		// PoolVector<Vector2>::Write uv_r = uv.write();
-		// PoolVector<float>::Write polygon_depth_w = polygon_depth.write();
-		// int j = 0;
-		// canonical_pose_transform = Transform(	transform_matrix[0], transform_matrix[1], transform_matrix[2],
-		// 							transform_matrix[4], transform_matrix[5], transform_matrix[6],
-		// 							transform_matrix[8], transform_matrix[9], transform_matrix[10],
-		// 							transform_matrix[12], transform_matrix[13], transform_matrix[14]);
-		// //canonical_pose_transform = canonical_pose_transform.affine_inverse();
-		// Vector3 rotation = canonical_pose_transform.basis.get_euler_xyz();
-		// canonical_pose_transform.basis.set_euler_xyz(Vector3(rotation.x, -rotation.y, rotation.z));
-		// // polygon_max_depth = 1;
-		// // for (int i = 0; i < real_polygon_size; i++) {
-		// 	//uv_r[i] = Vector2(polygon_in[j + 3], polygon_in[j + 4]);
-		// 	//Vector3 v3 = (matrix.xform(Vector3(polygon_in[j] * size.x, -polygon_in[j + 1] * size.y, -polygon_in[j + 2])));
-		// 	//polygon_w[i] = Vector2(v3.x, v3.y);
-		// 	//polygon_depth_w[i] = v3.z;
-		// 	//polygon_w[i] = Vector2(polygon_in[j] * size.x, -polygon_in[j + 1] * size.y);
-		// 	// if (v3.z > polygon_max_depth) {
-		// 	// 	polygon_max_depth = v3.z;
-		// 	// }
-		// // 	j += 5;
-		// // }
-
-		// delete polygon_in;
-		// delete polygons_in;
-		// delete transform_matrix;
-		return false;
-	}
-
 	Transform get_pose_transform() {
 		calculate_canonical_pose_transform();
 		return canonical_pose_transform;
@@ -1727,5 +1701,7 @@ public:
 	Mediapipe();
 	~Mediapipe();
 };
+
+VARIANT_ENUM_CAST(Mediapipe::Anchor)
 
 #endif // MEDIAPIPE

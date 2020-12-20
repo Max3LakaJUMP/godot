@@ -20,6 +20,74 @@
 #include "scene/scene_string_names.h"
 #include "core/math/math_funcs.h"
 
+#ifdef TOOLS_ENABLED
+Dictionary REDShape::_edit_get_state() const {
+	Dictionary state = Node2D::_edit_get_state();
+	state["offset"] = offset;
+	return state;
+}
+
+void REDShape::_edit_set_state(const Dictionary &p_state) {
+	Node2D::_edit_set_state(p_state);
+	set_offset(p_state["offset"]);
+}
+
+void REDShape::_edit_set_pivot(const Point2 &p_pivot) {
+	set_position(get_transform().xform(p_pivot));
+	set_offset(get_offset() - p_pivot);
+
+	//PoolVector<Vector2>::Write w = polygon.write();
+	//for (int i = 0; i < polygon.size(); i++)
+	//{
+	//	w[i] -= p_pivot;
+	//}
+	//set_position(get_transform().xform(p_pivot));
+	//for (int i = 0; i < get_child_count(); i++)
+	//{
+	//	Node2D *node = Object::cast_to<Node2D>(get_child(i));
+	//	if (node)
+	//		node->set_position(node->get_position()-p_pivot);
+	//}
+}
+
+Point2 REDShape::_edit_get_pivot() const {
+	return Vector2();
+}
+
+
+bool REDShape::_edit_use_pivot() const {
+	return true;
+}
+
+Rect2 REDShape::_edit_get_rect() const {
+	if (rect_cache_dirty) {
+		int l = polygon.size();
+		PoolVector<Vector2>::Read r = polygon.read();
+		item_rect = Rect2();
+		for (int i = 0; i < l; i++) {
+			Vector2 pos = r[i] + offset;
+			if (i == 0)
+				item_rect.position = pos;
+			else
+				item_rect.expand_to(pos);
+		}
+		rect_cache_dirty = false;
+	}
+
+	return item_rect;
+}
+
+bool REDShape::_edit_use_rect() const {
+	return polygon.size() > 0;
+}
+
+bool REDShape::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	Vector<Vector2> REDShape = Variant(polygon);
+	return Geometry::is_point_in_polygon(p_point - get_offset(), REDShape);
+}
+#endif
+
 void REDShape::_move_points(const float deltatime){
 	int count = get_polygon().size();
 	RandomPCG randbase;
@@ -514,72 +582,6 @@ void REDShape::set_width_list(const PoolVector<float> &p_width_list) {
 
 PoolVector<float> REDShape::get_width_list() const {
     return width_list;
-}
-
-Dictionary REDShape::_edit_get_state() const {
-	Dictionary state = Node2D::_edit_get_state();
-	state["offset"] = offset;
-	return state;
-}
-
-void REDShape::_edit_set_state(const Dictionary &p_state) {
-	Node2D::_edit_set_state(p_state);
-	set_offset(p_state["offset"]);
-}
-
-void REDShape::_edit_set_pivot(const Point2 &p_pivot) {
-	set_position(get_transform().xform(p_pivot));
-	set_offset(get_offset() - p_pivot);
-
-	//PoolVector<Vector2>::Write w = polygon.write();
-	//for (int i = 0; i < polygon.size(); i++)
-	//{
-	//	w[i] -= p_pivot;
-	//}
-	//set_position(get_transform().xform(p_pivot));
-	//for (int i = 0; i < get_child_count(); i++)
-	//{
-	//	Node2D *node = Object::cast_to<Node2D>(get_child(i));
-	//	if (node)
-	//		node->set_position(node->get_position()-p_pivot);
-	//}
-}
-
-Point2 REDShape::_edit_get_pivot() const {
-	return Vector2();
-}
-
-
-bool REDShape::_edit_use_pivot() const {
-	return true;
-}
-
-Rect2 REDShape::_edit_get_rect() const {
-	if (rect_cache_dirty) {
-		int l = polygon.size();
-		PoolVector<Vector2>::Read r = polygon.read();
-		item_rect = Rect2();
-		for (int i = 0; i < l; i++) {
-			Vector2 pos = r[i] + offset;
-			if (i == 0)
-				item_rect.position = pos;
-			else
-				item_rect.expand_to(pos);
-		}
-		rect_cache_dirty = false;
-	}
-
-	return item_rect;
-}
-
-bool REDShape::_edit_use_rect() const {
-	return polygon.size() > 0;
-}
-
-bool REDShape::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
-
-	Vector<Vector2> REDShape = Variant(polygon);
-	return Geometry::is_point_in_polygon(p_point - get_offset(), REDShape);
 }
 
 void REDShape::set_polygon(const PoolVector<Vector2> &p_polygon) {

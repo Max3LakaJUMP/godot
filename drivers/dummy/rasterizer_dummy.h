@@ -472,7 +472,9 @@ public:
 
 	RID custom_transform_create() { return RID(); }
 	void custom_transform_set(RID p_custom_transform, const Transform &p_transform) {}
-	void custom_transform_set_global(RID p_custom_transform, const Transform &p_global, const Transform &p_offset, const Transform &p_global_offset) {}
+	void custom_transform_set_global(RID p_custom_transform, const Transform &p_transform) {}
+	void custom_transform_set_old(RID p_custom_transform, const Transform &p_transform) {}
+	void physics_strength_set(RID p_custom_transform, float p_physics_strength) {}
 	
 	/*DEFORM API */
 

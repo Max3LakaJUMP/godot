@@ -3689,12 +3689,22 @@ void RasterizerStorageGLES2::custom_transform_set(RID p_custom_transform, const 
 	custom_transform->transform = p_transform;
 }
 
-void RasterizerStorageGLES2::custom_transform_set_global(RID p_custom_transform, const Transform &p_global, const Transform &p_offset, const Transform &p_global_offset) {
+void RasterizerStorageGLES2::custom_transform_set_global(RID p_custom_transform, const Transform &p_transform) {
 	CustomTransform *custom_transform = custom_transform_owner.getornull(p_custom_transform);
 	ERR_FAIL_COND(!custom_transform);
-	custom_transform->global = p_global;
-	custom_transform->offset = p_offset;
-	custom_transform->global_offset = p_global_offset;
+	custom_transform->root_transform = p_transform;
+}
+
+void RasterizerStorageGLES2::custom_transform_set_old(RID p_custom_transform, const Transform &p_transform) {
+	CustomTransform *custom_transform = custom_transform_owner.getornull(p_custom_transform);
+	ERR_FAIL_COND(!custom_transform);
+	custom_transform->old_transform = p_transform;
+}
+
+void RasterizerStorageGLES2::physics_strength_set(RID p_custom_transform, float p_physics_strength) {
+	CustomTransform *custom_transform = custom_transform_owner.getornull(p_custom_transform);
+	ERR_FAIL_COND(!custom_transform);
+	custom_transform->physics_strength = p_physics_strength;
 }
 
 /* SKELETON API */

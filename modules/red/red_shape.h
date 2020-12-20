@@ -94,6 +94,17 @@ protected:
 	bool outline_dirty;
 
 public:
+#ifdef TOOLS_ENABLED
+	virtual Dictionary _edit_get_state() const;
+	virtual void _edit_set_state(const Dictionary &p_state);
+
+	virtual void _edit_set_pivot(const Point2 &p_pivot);
+	virtual Point2 _edit_get_pivot() const;
+	virtual bool _edit_use_pivot() const;
+	virtual Rect2 _edit_get_rect() const;
+	virtual bool _edit_use_rect() const;
+	virtual bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const;
+#endif
 	// Deformation
 	void _move_points(const float deltatime);
 	void set_deformation_enable(bool p_deformate);
@@ -108,16 +119,6 @@ public:
 	float get_deformation_width_max() const;
 	
 	void get_points(Vector<Vector2> &p_points) const;
-	virtual Dictionary _edit_get_state() const;
-	virtual void _edit_set_state(const Dictionary &p_state);
-
-	virtual void _edit_set_pivot(const Point2 &p_pivot);
-	virtual Point2 _edit_get_pivot() const;
-	virtual bool _edit_use_pivot() const;
-	virtual Rect2 _edit_get_rect() const;
-	virtual bool _edit_use_rect() const;
-
-	virtual bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const;
 	void _draw_outline(Vector<Vector2> &p_points);
 
 

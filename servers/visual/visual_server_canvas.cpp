@@ -987,6 +987,14 @@ void VisualServerCanvas::canvas_item_custom_transform_set_depth_offset(RID p_ite
 	canvas_item->depth_offset = p_depth;
 }
 
+void VisualServerCanvas::canvas_item_custom_transform_set_soft_body(RID p_item, float p_soft_body) {
+
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->soft_body = p_soft_body;
+}
+
 void VisualServerCanvas::canvas_item_clipper_top(RID p_item, bool b_top) {
 
 	Item *canvas_item = canvas_item_owner.getornull(p_item);

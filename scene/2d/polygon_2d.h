@@ -82,11 +82,12 @@ class Polygon2D : public Node2D {
 	float depth_position;
 	float depth_size;
 	float depth_offset;
+	float soft_body;
 	float object_rotation;
 	float uv_origin;
 	Vector2 scale_center;
 	Vector2 wind_strength;
-	Vector2 elasticity;
+	Vector2 wave;
 	float time_offset;
 
 protected:
@@ -180,16 +181,18 @@ public:
 	float get_depth_size() const;
 	void set_depth_offset(float p_depth);
 	float get_depth_offset() const;
+	void set_soft_body(float p_soft_body);
+	float get_soft_body() const;
 	void set_object_rotation(float p_object_rotation);
 	float get_object_rotation() const;
 	void set_uv_origin(float p_uv_origin);
 	float get_uv_origin() const;
 	Vector2 get_scale_center() const;
-	void set_scale_center(Vector2 p_scale_center);
+	void set_scale_center(const Vector2 &p_scale_center);
 	Vector2 get_wind_strength() const;
-	void set_wind_strength(Vector2 p_wind_strength);
-	Vector2 get_elasticity() const;
-	void set_elasticity(Vector2 p_elasticity);
+	void set_wind_strength(const Vector2 &p_wind_strength);
+	Vector2 get_wave() const;
+	void set_wave(const Vector2 &p_wave);
 	void set_time_offset(float p_time_offset);
 	float get_time_offset() const;
 	PoolVector<Vector2> _get_absolute_uv() const;

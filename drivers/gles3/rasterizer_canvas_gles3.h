@@ -83,14 +83,21 @@ public:
 		bool using_deform;
 
 		Transform custom_transform;
+		Transform old_custom_transform;
+		Transform custom_transform_root;
+		float soft_body;
 		float depth_size;
 		float depth_offset;
-		
+		float depth_position;
+
 		Vector3 clipper_calc1;
 		Vector3 clipper_calc2;
 		Vector3 clipper_calc3;
 		Vector3 clipper_calc4;
 		
+		Transform deform_object_matrix;
+		Transform deform_object_matrix_inverse;
+		Transform deform_wind_matrix;
 		float object_rotation;
 		float uv_origin;
 		Vector2 scale_center;

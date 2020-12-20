@@ -60,13 +60,14 @@ String REDJSON::_print_var(const Variant &p_var, const String &p_indent, int p_c
 
 	String colon = ":";
 	String end_statement = "";
+	int t = p_var.get_type();
 
 	if (!p_indent.empty()) {
 		colon += " ";
 		end_statement += "\n";
 	}
 
-	switch (p_var.get_type()) {
+	switch (t) {
 		case Variant::NIL: return "null";
 		case Variant::BOOL: return p_var.operator bool() ? "true" : "false";
 		case Variant::REAL: return rtos(p_var);
@@ -75,7 +76,7 @@ String REDJSON::_print_var(const Variant &p_var, const String &p_indent, int p_c
 			String s = "{";
 			s += end_statement;
 			Vector2 var = p_var;
-			s += _make_indent(p_indent, p_cur_indent + 1) + "\"type\"" + colon + _print_var(Variant::VECTOR2, p_indent, p_cur_indent + 1, p_sort_keys) + "," + end_statement;
+			s += _make_indent(p_indent, p_cur_indent + 1) + "\"type\"" + colon + _print_var(t, p_indent, p_cur_indent + 1, p_sort_keys) + "," + end_statement;
 			s += _make_indent(p_indent, p_cur_indent + 1) + "\"x\"" + colon + rtos(var.x) + "," + end_statement;
 			s += _make_indent(p_indent, p_cur_indent + 1) + "\"y\"" + colon + rtos(var.y) + end_statement;
 			s += _make_indent(p_indent, p_cur_indent) + "}";
@@ -85,7 +86,7 @@ String REDJSON::_print_var(const Variant &p_var, const String &p_indent, int p_c
 			String s = "{";
 			s += end_statement;
 			Vector3 var = p_var;
-			s += _make_indent(p_indent, p_cur_indent + 1) + "\"type\"" + colon + _print_var(Variant::VECTOR3, p_indent, p_cur_indent + 1, p_sort_keys) + "," + end_statement;
+			s += _make_indent(p_indent, p_cur_indent + 1) + "\"type\"" + colon + _print_var(t, p_indent, p_cur_indent + 1, p_sort_keys) + "," + end_statement;
 			s += _make_indent(p_indent, p_cur_indent + 1) + "\"x\"" + colon + rtos(var.x) + "," + end_statement;
 			s += _make_indent(p_indent, p_cur_indent + 1) + "\"y\"" + colon + rtos(var.y) + "," + end_statement;
 			s += _make_indent(p_indent, p_cur_indent + 1) + "\"z\"" + colon + rtos(var.z) + end_statement;
@@ -96,7 +97,7 @@ String REDJSON::_print_var(const Variant &p_var, const String &p_indent, int p_c
 			String s = "{";
 			s += end_statement;
 			Color var = p_var;
-			s += _make_indent(p_indent, p_cur_indent + 1) + "\"type\"" + colon + _print_var(Variant::COLOR, p_indent, p_cur_indent + 1, p_sort_keys) + "," + end_statement;
+			s += _make_indent(p_indent, p_cur_indent + 1) + "\"type\"" + colon + _print_var(t, p_indent, p_cur_indent + 1, p_sort_keys) + "," + end_statement;
 			s += _make_indent(p_indent, p_cur_indent + 1) + "\"r\"" + colon + rtos(var.r) + "," +end_statement;
 			s += _make_indent(p_indent, p_cur_indent + 1) + "\"g\"" + colon + rtos(var.g) + "," +end_statement;
 			s += _make_indent(p_indent, p_cur_indent + 1) + "\"b\"" + colon + rtos(var.b) + "," +end_statement;
@@ -113,7 +114,6 @@ String REDJSON::_print_var(const Variant &p_var, const String &p_indent, int p_c
 		//case Variant::POOL_VECTOR3_ARRAY:
 		case Variant::POOL_COLOR_ARRAY:
 		{	
-			int t = p_var.get_type();
 			String s = "{";
 			s += end_statement;
 			s += _make_indent(p_indent, p_cur_indent + 1) + "\"type\"" + colon + _print_var(t, p_indent, p_cur_indent + 1, p_sort_keys) + "," + end_statement;
@@ -133,6 +133,47 @@ String REDJSON::_print_var(const Variant &p_var, const String &p_indent, int p_c
 			s += end_statement + _make_indent(p_indent, p_cur_indent) + "}";
 			return s;
 		}
+		case Variant::TRANSFORM: {
+			String s = "{";
+			s += end_statement;
+			s += _make_indent(p_indent, p_cur_indent + 1) + "\"type\"" + colon + _print_var(t, p_indent, p_cur_indent + 1, p_sort_keys) + "," + end_statement;
+			s += _make_indent(p_indent, p_cur_indent + 1) + "\"d\"" + colon;
+			s += "[";
+			Transform a = p_var;
+			s += rtos(a.basis[0].x) + ", ";
+			s += rtos(a.basis[0].y) + ", ";
+			s += rtos(a.basis[0].z) + ", ";
+			s += rtos(a.basis[1].x) + ", ";
+			s += rtos(a.basis[1].y) + ", ";
+			s += rtos(a.basis[1].z) + ", ";
+			s += rtos(a.basis[2].x) + ", ";
+			s += rtos(a.basis[2].y) + ", ";
+			s += rtos(a.basis[2].z) + ", ";
+			s += rtos(a.origin.x) + ", ";
+			s += rtos(a.origin.y) + ", ";
+			s += rtos(a.origin.z);
+			s += "]";
+			s += end_statement + _make_indent(p_indent, p_cur_indent) + "}";
+			return s;
+		};
+		case Variant::TRANSFORM2D: {
+			String s = "{";
+			s += end_statement;
+			Color var = p_var;
+			s += _make_indent(p_indent, p_cur_indent + 1) + "\"type\"" + colon + _print_var(t, p_indent, p_cur_indent + 1, p_sort_keys) + "," + end_statement;
+			s += _make_indent(p_indent, p_cur_indent + 1) + "\"d\"" + colon;
+			s += "[";
+			Transform2D a = p_var;
+			s += rtos(a[0].x) + ", ";
+			s += rtos(a[0].y) + ", ";
+			s += rtos(a[1].x) + ", ";
+			s += rtos(a[1].y) + ", ";
+			s += rtos(a[2].x) + ", ";
+			s += rtos(a[2].y);
+			s += "]";
+			s += end_statement + _make_indent(p_indent, p_cur_indent) + "}";
+			return s;
+		};
 		case Variant::ARRAY: {
 
 			String s = "[";
@@ -406,6 +447,22 @@ Error REDJSON::_parse_value(Variant &value, Token &token, const CharType *p_str,
 				case Variant::POOL_REAL_ARRAY: {
 					Array a = d["pool_data"];
 					value = red::pool_real_array(a);
+					return OK;
+				};	
+				case Variant::TRANSFORM: {
+					Array a = d["d"];
+					if(a.size() >= 12)
+						value = Transform(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11]);
+					else
+						value = Transform();
+					return OK;
+				};		
+				case Variant::TRANSFORM2D: {
+					Array a = d["d"];
+					if(a.size() >= 6)
+						value = Transform2D(a[0], a[1], a[2], a[3], a[4], a[5]);
+					else
+						value = Transform2D();
 					return OK;
 				};	
 				default: break;

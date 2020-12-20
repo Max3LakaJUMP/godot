@@ -18,6 +18,73 @@ class REDFrame;
 class REDControllerBase;
 class Polygon2D;
 
+class TransformC : public Transform{
+	bool _xform_dirty;
+	Vector3 rotation;
+	Vector3 scale;
+public:
+	void _update_xform_values() {
+		rotation = get_basis().get_rotation();
+		scale = get_basis().get_scale();
+		_xform_dirty = false;
+	}
+
+	void set_transform(const Transform &p_transform) {
+		set_basis(p_transform.basis);
+		set_origin(p_transform.origin);
+		_xform_dirty = true;
+	}
+
+	void set_rotation(const Vector3 &p_radians) {
+		if (_xform_dirty)
+			((TransformC *)this)->_update_xform_values();
+		rotation = p_radians;
+		basis.set_euler_scale(rotation, scale);
+	}
+
+	Vector3 get_rotation() const {
+		if (_xform_dirty)
+			((TransformC *)this)->_update_xform_values();
+
+		return rotation;
+	}
+
+	void set_scale(const Vector3 &p_scale) {
+
+		if (_xform_dirty)
+			((TransformC *)this)->_update_xform_values();
+		Vector3 temp(p_scale);
+		if (temp.x == 0)
+			temp.x = CMP_EPSILON;
+		if (temp.y == 0)
+			temp.y = CMP_EPSILON;
+		basis.scale(temp / scale);
+		scale = p_scale;
+	}
+
+	Vector3 get_scale() const {
+		if (_xform_dirty)
+			((TransformC *)this)->_update_xform_values();
+
+		return scale;
+	}
+
+	void set_rotation_degrees(const Vector3 &p_degrees) {
+		set_rotation(Vector3(Math::deg2rad(p_degrees.x), Math::deg2rad(p_degrees.y), Math::deg2rad(p_degrees.z)));
+	}
+
+	Vector3 get_rotation_degrees() const {
+		Vector3 r = get_rotation();
+		return Vector3(Math::rad2deg(r.x), Math::rad2deg(r.y), Math::rad2deg(r.z));
+	}
+
+	TransformC(const Transform &p_transform) : Transform(p_transform)  {_xform_dirty = true;}
+	TransformC() {
+		rotation = Vector3(0, 0, 0);
+		scale = Vector3(1, 1, 1);
+	}
+};
+
 namespace red {
 enum t {
 	STORY,
@@ -26,11 +93,12 @@ enum t {
 	PAGE,
 	FRAME
 };
-Ref<BitMap> read_bitmap(Ref<Image> p_img, float p_threshold, Size2 max_size);
+
+Ref<BitMap> read_bitmap(Ref<Image> p_img, float p_threshold=0.1f, Size2 max_size=Size2(128.0f, 128.0f));
 PoolColorArray get_normals(PoolVector2Array vtxs);
 Vector<Polygon2D*> bitmap_to_polygon2d(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=1.0, float epsilon=4.0, bool single=false, bool normals_to_colors=false, Rect2 &crop_rect=Rect2());
 Ref<Image> merge_images(Ref<Image> main_image, Vector<Ref<Image> > &additional_images, Vector<Vector2> &offsets);
-Vector<Vector2> ramer_douglas_peucker(Vector<Vector2> &pointList, double epsilon=2.0, bool is_closed=false);
+Vector<Vector2> ramer_douglas_peucker(const Vector<Vector2> &p_point_list, double epsilon=2.0, bool is_closed=false);
 Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=0, float epsilon=4.0, bool single=true, Rect2 &crop_rect=Rect2());
 
 PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> new_polygon, PoolVector<Vector2> old_uv, Size2 poly_size, Size2 uv_size);

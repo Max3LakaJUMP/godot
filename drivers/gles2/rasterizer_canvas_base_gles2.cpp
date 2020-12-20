@@ -374,8 +374,13 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::INV_WORLD_MATRIX, state.uniforms.inv_world_matrix);
 	if (state.using_custom_transform) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX, state.custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::OLD_CUSTOM_MATRIX, state.old_custom_transform);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX_ROOT, state.custom_transform_root);
+		//state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX_ROOT_INVERSE, state.custom_transform_root.affine_inverse());
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::SOFT_BODY, state.soft_body);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_SIZE, state.depth_size);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_OFFSET, state.depth_offset);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_POSITION, state.depth_position);
 	}
 	if (state.using_clipper) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC1, state.clipper_calc1);
@@ -384,6 +389,8 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CLIPPER_CALC4, state.clipper_calc4);
 	}
 	if (state.using_deform) {
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEFORM_OBJECT_MATRIX, state.deform_object_matrix);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEFORM_OBJECT_MATRIX_INVERSE, state.deform_object_matrix_inverse);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::OBJECT_ROTATION, state.object_rotation);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::UV_ORIGIN, state.uv_origin);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SCALE_CENTER, state.scale_center);
@@ -391,6 +398,7 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::ELASTICITY, state.elasticity);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::TIME_OFFSET, state.time_offset);
 
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_ROTATION, state.wind_rotation);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_OFFSET, state.wind_offset);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::WIND_TIME, state.wind_time);

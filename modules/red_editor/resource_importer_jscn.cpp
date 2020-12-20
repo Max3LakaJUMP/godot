@@ -221,27 +221,6 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 				material->set_shader(shader);
 				node->set(name, material);
 			}else if (name == "bones"){
-				/*if (type=="REDPolygon"){
-					REDPolygon *polygon = (REDPolygon*)node;
-					Array bones = serialized[name];
-					for (int i = 0; i < bones.size(); i++){
-						bool found=false;
-						Dictionary bone = bones[i];
-						String path = bone["path"];
-						PoolVector<float> weights = bone["weights"];
-						NodePath bone_path(path.replace_first("/", ""));
-						for (int j = 0; j < polygon->get_bone_count(); j++){
-							if (polygon->get_bone_path(j) == bone_path){
-								polygon->set_bone_weights(j, weights);
-								found=true;
-								break;
-							}
-						}
-						if (!found){
-							polygon->add_bone(bone_path, weights);
-						}
-					}
-				} else */
 				if (type=="Polygon2D"){
 					Polygon2D *polygon = (Polygon2D*)node;
 					Array bones = serialized[name];
@@ -254,7 +233,7 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 						for (int j = 0; j < polygon->get_bone_count(); j++){
 							if (polygon->get_bone_path(j) == bone_path){
 								polygon->set_bone_weights(j, weights);
-								found=true;
+								found = true;
 								break;
 							}
 						}

@@ -66,16 +66,12 @@ class REDBubble : public Node2D {
 	NodePath skeleton;
 	ObjectID current_skeleton_id;
 
-	Array _get_bones() const;
-	void _set_bones(const Array &p_bones);
-
-	void _skeleton_bone_setup_changed();
-
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 
 public:
+#ifdef TOOLS_ENABLED
 	virtual Dictionary _edit_get_state() const;
 	virtual void _edit_set_state(const Dictionary &p_state);
 
@@ -86,6 +82,7 @@ public:
 	virtual bool _edit_use_rect() const;
 
 	virtual bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const;
+#endif
 
 	void set_polygon(const PoolVector<Vector2> &p_polygon);
 	PoolVector<Vector2> get_polygon() const;

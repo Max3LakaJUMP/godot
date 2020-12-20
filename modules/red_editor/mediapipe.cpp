@@ -72,41 +72,32 @@ bool Mediapipe::_init(){
 }
 
 bool Mediapipe::_texture_init(){
+	if(!calculate_face_texture()){
+		return false;
+	}
 	bool render_target_is_valid = render_target.is_valid() && render_target->get_size().x > 0;
-	if (canonical_face_landmarks.size() == 0 || reinit || in_texture_dirty || (render_target_dirty && render_target_is_valid)){
-		if(render_target_is_valid){
-			if (!in_texture(render_target->get_data()))
-				return false;
-			if(render_target_dirty){
-				render_target_dirty = false;
-			}
-			render_target_polygon_dirty = true;
-		}else {
-			if(face_path.is_empty())
-				return false;
-			Polygon2D *polygon_object = Object::cast_to<Polygon2D>(get_node(face_path));
-			if (!polygon_object){
-				return false;
-			}
-			Ref<Texture> texture = polygon_object->get_texture();
-			if (texture.is_valid() && texture->get_size().x > 0){
-				if (!in_texture(texture->get_data()))
-					return false;
-			}
-		}
-		if(!calculate_canonical_face_landmarks())
+	if(!render_target_is_valid){
+		return false;
+	}
+	if (canonical_face_landmarks.size() == 0 || in_render_target_dirty || reinit){
+		if (!in_texture(render_target->get_data()))
 			return false;
+		if(in_render_target_dirty){
+			in_render_target_dirty = false;
+		}
+		render_target_polygon_dirty = true;
 		if(!calculate_canonical_iris_landmarks())
 			return false;
-		if(!calculate_canonical_pose_transform())
+		if(!calculate_face_landmarks())
 			return false;
 		if (display)
 			out_display();
 	}
 	if(render_target_polygon_dirty && _force_reset_polygon){
-		reset_polygons(true);
-		render_target_polygon_dirty = false;
-		_force_reset_polygon = false;
+		if (reset_polygons(true)){
+			render_target_polygon_dirty = false;
+			_force_reset_polygon = false;
+		}
 	}
 	return true;
 }
@@ -126,7 +117,6 @@ bool Mediapipe::_draw(){
 	if(!_texture_init())
 		return false;
 	_polygon_init();
-
 	if(!calculate_parent())
 		return false;
 	return true;
@@ -158,7 +148,6 @@ void Mediapipe::_notification(int p_what) {
 }
 
 void Mediapipe::_bind_methods() {
-	//Line
 	ClassDB::bind_method(D_METHOD("set_reinit", "reinit"), &Mediapipe::set_reinit);
     ClassDB::bind_method(D_METHOD("get_reinit"), &Mediapipe::get_reinit);
 	ClassDB::bind_method(D_METHOD("set_display", "display"), &Mediapipe::set_display);
@@ -173,6 +162,8 @@ void Mediapipe::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_eye_size"), &Mediapipe::get_eye_size);
 	ClassDB::bind_method(D_METHOD("set_eye_offset", "eye_offset"), &Mediapipe::set_eye_offset);
     ClassDB::bind_method(D_METHOD("get_eye_offset"), &Mediapipe::get_eye_offset);
+	ClassDB::bind_method(D_METHOD("set_anchor", "eye_anchor"), &Mediapipe::set_anchor);
+    ClassDB::bind_method(D_METHOD("get_anchor"), &Mediapipe::get_anchor);
 
 	ClassDB::bind_method(D_METHOD("set_face_path", "path"), &Mediapipe::set_face_path);
     ClassDB::bind_method(D_METHOD("get_face_path"), &Mediapipe::get_face_path);
@@ -220,7 +211,6 @@ void Mediapipe::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("in_camera"), &Mediapipe::in_camera);
 	ClassDB::bind_method(D_METHOD("in_texture"), &Mediapipe::in_texture);
 	ClassDB::bind_method(D_METHOD("out_display"), &Mediapipe::out_display);
-	ClassDB::bind_method(D_METHOD("out_polygon", "size"), &Mediapipe::out_polygon);
 
 	ClassDB::bind_method(D_METHOD("is_started"), &Mediapipe::is_started);
 	ClassDB::bind_method(D_METHOD("is_key_pressed"), &Mediapipe::is_key_pressed);
@@ -229,7 +219,6 @@ void Mediapipe::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("send_name"), &Mediapipe::send_name);
 	ClassDB::bind_method(D_METHOD("get_landmarks"), &Mediapipe::get_landmarks);
 	ClassDB::bind_method(D_METHOD("get_pose_transform"), &Mediapipe::get_pose_transform);
-	ClassDB::bind_method(D_METHOD("give_depth", "polygon_path"), &Mediapipe::give_depth);
 	ClassDB::bind_method(D_METHOD("reset_polygon", "force"), &Mediapipe::reset_polygon);
 	ClassDB::bind_method(D_METHOD("_render_target_rendered"), &Mediapipe::_render_target_rendered);
 	
@@ -240,14 +229,16 @@ void Mediapipe::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_canonical_pose_transform", "transform"), &Mediapipe::set_canonical_pose_transform);
 	ClassDB::bind_method(D_METHOD("get_canonical_pose_transform"), &Mediapipe::get_canonical_pose_transform);
 	
+	ADD_GROUP("Mediapipe", "");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "reinit"), "set_reinit", "get_reinit");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "display"), "set_display", "get_display");
 	//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "front_view"), "set_front_view", "get_front_view");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "edit_uv"), "set_edit_uv", "get_edit_uv");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "polygon_size"), "set_polygon_size", "get_polygon_size");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "face_scene", PROPERTY_HINT_RESOURCE_TYPE, "PackedScene"), "set_face_scene", "get_face_scene");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "graph_path"), "set_graph_path", "get_graph_path");
-
+	ADD_GROUP("Face", "");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "face_scene", PROPERTY_HINT_RESOURCE_TYPE, "PackedScene"), "set_face_scene", "get_face_scene");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "polygon_size"), "set_polygon_size", "get_polygon_size");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "anchor", PROPERTY_HINT_ENUM, "Center, Top left"), "set_anchor", "get_anchor");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "edit_uv"), "set_edit_uv", "get_edit_uv");
 	ADD_GROUP("Eye", "eye_");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "eye_size"), "set_eye_size", "get_eye_size");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "eye_offset"), "set_eye_offset", "get_eye_offset");
@@ -273,6 +264,8 @@ void Mediapipe::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR3_ARRAY, "canonical_face_landmarks", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_canonical_face_landmarks", "get_canonical_face_landmarks");
 	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR3_ARRAY, "canonical_iris_landmarks", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_canonical_iris_landmarks", "get_canonical_iris_landmarks");
 	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR3_ARRAY, "canonical_pose_transform", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_canonical_pose_transform", "get_canonical_pose_transform");
+	BIND_ENUM_CONSTANT(MEDIAPIPE_ANCHOR_CENTER);
+	BIND_ENUM_CONSTANT(MEDIAPIPE_ANCHOR_TOP_LEFT);
 }
 
 Mediapipe::Mediapipe() {
@@ -280,6 +273,7 @@ Mediapipe::Mediapipe() {
 	eye_size = 1.5;
 	eye_offset = Vector3(0.35f, 0.5f, 0.5f);
 
+	anchor = MEDIAPIPE_ANCHOR_CENTER;
 	reinit = false;
 	display = true; // todo out of memory
 	front_view = true; // todo broken
@@ -292,7 +286,7 @@ Mediapipe::Mediapipe() {
 	render_target_polygon_dirty = false;
 
 	polygon_size = Size2(100, 100);
-	render_target_dirty = true;
+	in_render_target_dirty = true;
 	in_texture_dirty = true;
 	face_texture_dirty = true;
 	canonical_face_landmarks_dirty = true;

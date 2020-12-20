@@ -398,7 +398,9 @@ public:
 
 	virtual RID custom_transform_create() = 0;
 	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform) = 0;
-	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_global, const Transform &p_offset, const Transform &p_global_offset) = 0;
+	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_transform) = 0;
+	virtual void custom_transform_set_old(RID p_custom_transform, const Transform &p_transform) = 0;
+	virtual void physics_strength_set(RID p_custom_transform, float p_physics_strength) = 0;
 
 	/*DEFORM API */
 
@@ -956,6 +958,7 @@ public:
 	virtual void canvas_item_custom_transform_set_depth_position(RID p_item, float p_depth) = 0;
 	virtual void canvas_item_custom_transform_set_depth_size(RID p_item, float p_depth) = 0;
 	virtual void canvas_item_custom_transform_set_depth_offset(RID p_item, float p_depth) = 0;
+	virtual void canvas_item_custom_transform_set_soft_body(RID p_item, float p_soft_body) = 0;
 	virtual void canvas_item_attach_clipper(RID p_item, RID p_clipper) = 0;
 	virtual void canvas_item_clipper_top(RID p_item, bool b_top) = 0;
 	virtual void canvas_item_attach_deform(RID p_item, RID p_deform) = 0;

@@ -914,6 +914,9 @@ public:
 
 		bool enable;
 		Transform transform;
+		Transform root_transform;
+		Transform old_transform;
+		float physics_strength;
 		Transform global;
 		Transform offset;
 		Transform global_offset;
@@ -921,7 +924,9 @@ public:
 	mutable RID_Owner<CustomTransform> custom_transform_owner;
 	virtual RID custom_transform_create();
 	virtual void custom_transform_set(RID p_custom_transform, const Transform &p_transform);
-	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_global, const Transform &p_offset, const Transform &p_global_offset);
+	virtual void custom_transform_set_global(RID p_custom_transform, const Transform &p_transform);
+	virtual void custom_transform_set_old(RID p_custom_transform, const Transform &p_transform);
+	virtual void physics_strength_set(RID p_custom_transform, float p_physics_strength);
 
 	/*DEFORM API */
 	struct Deform : RID_Data {
