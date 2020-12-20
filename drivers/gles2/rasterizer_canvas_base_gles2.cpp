@@ -156,6 +156,9 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 	}
 
 	state.using_texture_rect = false;
+	state.using_custom_transform = false;
+	state.using_clipper = false;
+	state.using_deform = false;
 	state.using_skeleton = false;
 	state.using_custom_transform = false;
 	state.using_clipper = false;

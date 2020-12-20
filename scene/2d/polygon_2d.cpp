@@ -1036,7 +1036,6 @@ void Polygon2D::_bind_methods() {
 }
 
 Polygon2D::Polygon2D() {
-
 	clipper_top = true;
 	depth_position = 0.0f;
 	depth_size = 0.0;
