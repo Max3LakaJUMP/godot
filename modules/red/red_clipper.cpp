@@ -8,54 +8,19 @@
 #include "red_engine.h"
 #include "red.h"
 #include "red_issue.h"
+#include "red_shape.h"
 
 #include "core/math/geometry.h"
-#include "red_line.h"
 
-#include "red_line_builder.h"
 #include "core/math/math_funcs.h"
 #include "core/core_string_names.h"
 #include <string>
 #include "scene/animation/animation_tree.h"
 #include "scene/scene_string_names.h"
-#include "core/math/random_pcg.h"
-
-void REDClipper::_update_materials() {
-	int count = material_objects.size();
-	cached_materials.clear();
-	for (int i = 0; i < count; i++)
-	{
-		if (has_node(material_objects[i])){
-			CanvasItem *c = (CanvasItem*)get_node(material_objects[i]);
-			if (c != nullptr){
-				Ref<ShaderMaterial> mat = Ref<ShaderMaterial>(c->get_material());
-				if (mat.is_valid())
-					cached_materials.push_back(mat);
-			}
-		}
-	}
-	second_split_start_material_id = cached_materials.size();
-	count = material_objects2.size();
-	for (int i = 0; i < count; i++)
-	{
-		if (has_node(material_objects2[i])){
-			CanvasItem *c = (CanvasItem*)get_node(material_objects2[i]);
-			if (c != nullptr){
-				Ref<ShaderMaterial> mat = Ref<ShaderMaterial>(c->get_material());
-				if (mat.is_valid())
-					cached_materials.push_back(mat);
-			}
-		}
-	}
-}
-
-RID REDClipper::get_ci() const{
-	return ci;
-}
-
+#include "red_parallax_folder.h"
+#include "red_target.h"
 
 void REDClipper::_send_stencil() {
-
 	if (!(send_stencil_dirty && clip_enable && is_inside_tree()))
 		return;
 	int pos_count = screen_coords.size();
@@ -84,8 +49,6 @@ void REDClipper::_send_stencil() {
 	}
 	send_stencil_dirty = false;
 	/*
-	
-	
 	int count = cached_materials.size();
 	int pos_count = screen_coords.size();
 	for (int i = 0; i < count; i++){
@@ -143,10 +106,11 @@ void REDClipper::_send_stencil() {
 	}*/
 }
 
-void REDClipper::_update_stencil(const Vector<Vector2> &p_points) {
+void REDClipper::_update_stencil() {
+	ERR_FAIL_COND_MSG(!shape, "No parent REDshape found!");
 	if (!(stencil_dirty && clip_enable && is_inside_tree()))
 		return;
-	int polygon_size = p_points.size();
+	int polygon_size = shape->real_polygon.size();
 	if (polygon_size != 3 && polygon_size != 4 && polygon_size != 8)
 		return;
 
@@ -164,7 +128,7 @@ void REDClipper::_update_stencil(const Vector<Vector2> &p_points) {
 		tr = get_transform();
 	}
 	for (int i = 0; i < polygon_size; i++) {
-		screen_coords.write[i] = tr.xform(p_points[i]);
+		screen_coords.write[i] = tr.xform(shape->real_polygon[i]);
 	}
 
 	if (space == CLIPPER_SPACE_SCREEN){
@@ -307,73 +271,6 @@ void REDClipper::_update_stencil(const Vector<Vector2> &p_points) {
 	send_stencil_dirty = true;
 }
 
-void REDClipper::_notification(int p_what) {
-	switch (p_what) {
-		case NOTIFICATION_TRANSFORM_CHANGED:{
-			if (material_objects.size()>0 && is_inside_tree()){
-				if (clip_enable){
-					Vector<Vector2> points;
-					get_points(points);
-					_update_stencil(points);
-					_send_stencil();
-				}
-			}
-		} break;
-		case NOTIFICATION_ENTER_TREE: {
-			set_notify_transform(clip_enable);
-		} break;
-		case NOTIFICATION_READY: {
-			_update_materials();
-		} break;
-		case NOTIFICATION_DRAW: {
-			VisualServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), clip_rect_enable && get_use_outline());
-			if (clip_enable || get_use_outline()){
-				Vector<Vector2> points;
-				get_points(points);
-				_update_stencil(points);
-				_send_stencil();
-				_draw_outline(points);
-			}
-		} break;
-	}
-}
-
-void REDClipper::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_clip_enable", "clip_enable"), &REDClipper::set_clip_enable);
-    ClassDB::bind_method(D_METHOD("get_clip_enable"), &REDClipper::get_clip_enable);
-	ClassDB::bind_method(D_METHOD("set_clip_rect_enable", "clip_rect_enable"), &REDClipper::set_clip_rect_enable);
-    ClassDB::bind_method(D_METHOD("get_clip_rect_enable"), &REDClipper::get_clip_rect_enable);
-
-	ClassDB::bind_method(D_METHOD("set_split", "split"), &REDClipper::set_split);
-    ClassDB::bind_method(D_METHOD("get_split"), &REDClipper::get_split);
-
-	ClassDB::bind_method(D_METHOD("set_split_angle", "split_angle"), &REDClipper::set_split_angle);
-    ClassDB::bind_method(D_METHOD("get_split_angle"), &REDClipper::get_split_angle);
-
-	ClassDB::bind_method(D_METHOD("set_split_offset", "split_offset"), &REDClipper::set_split_offset);
-    ClassDB::bind_method(D_METHOD("get_split_offset"), &REDClipper::get_split_offset);
-
-	ClassDB::bind_method(D_METHOD("set_space", "space"), &REDClipper::set_space);
-    ClassDB::bind_method(D_METHOD("get_space"), &REDClipper::get_space);
-	
-	ClassDB::bind_method(D_METHOD("update_stencil"), &REDClipper::_update_stencil);
-	ClassDB::bind_method(D_METHOD("send_stencil"), &REDClipper::_send_stencil);
-
-
-	
-	ADD_GROUP("Clipper", "");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_enable"), "set_clip_enable", "get_clip_enable");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_rect_enable"), "set_clip_rect_enable", "get_clip_rect_enable");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "split"), "set_split", "get_split");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "split_angle"), "set_split_angle", "get_split_angle");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "split_offset"), "set_split_offset", "get_split_offset");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "space", PROPERTY_HINT_ENUM, "World, Local, Screen"), "set_space", "get_space");
-
-	BIND_ENUM_CONSTANT(CLIPPER_SPACE_WORLD);
-	BIND_ENUM_CONSTANT(CLIPPER_SPACE_LOCAL);
-	BIND_ENUM_CONSTANT(CLIPPER_SPACE_SCREEN);
-}
-
 void REDClipper::set_split(bool p_split){
 	split = p_split;
 	if (clip_enable){
@@ -393,6 +290,7 @@ void REDClipper::set_split_angle(float p_split_angle){
 		update();
 	}
 }
+
 float REDClipper::get_split_angle() const{
 	return split_angle;
 }
@@ -426,7 +324,7 @@ void REDClipper::set_clip_rect_enable(bool p_clip_rect_enable){
 	if (clip_rect_enable == p_clip_rect_enable)
 		return;
 	clip_rect_enable = p_clip_rect_enable;
-	update();
+	VisualServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), clip_rect_enable);
 }
 
 bool REDClipper::get_clip_rect_enable() const{
@@ -445,77 +343,105 @@ REDClipper::Space REDClipper::get_space() const{
 	return space;
 }
 
-void REDClipper::set_material_objects(const Array &p_material_objects) {
-	int old_count = cached_materials.size();
-	int count = p_material_objects.size();
-	material_objects.resize(count);
-	for (int i = 0; i < count; i++) {
-		material_objects.write[i] = p_material_objects[i];
+RID REDClipper::get_ci() const{
+	return ci;
+}
+
+void REDClipper::_draw() {
+	VisualServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), clip_rect_enable);
+	ERR_FAIL_COND_MSG(!shape, "No parent REDshape found!");
+	Vector<Color> colors;
+	if (colors.size() == shape->real_polygon.size()) {
+		colors.push_back(Color(1, 1, 1, 1));
+	} else {
+		colors.push_back(Color(1, 1, 1, 1));
 	}
+	VS::get_singleton()->canvas_item_add_polygon(get_canvas_item(), shape->real_polygon, colors);
+	if (clip_enable){
+		stencil_dirty = true;
+		_update_stencil();
+		_send_stencil();
+	}
+}
+
+void REDClipper::_notification(int p_what) {
+	switch (p_what) {
+		case NOTIFICATION_DRAW: {
+			_draw();
+		}
+		case NOTIFICATION_ENTER_TREE: {
+			Node *parent = get_parent();
+			for (int i = 0; i < 10; i++){
+				shape = Object::cast_to<REDShape>(parent);
+				if (shape){
+					shape->set_content(this);
+					break;
+				}
+				parent = get_parent();
+			}
+			call_deferred("_update_points");
+		} break;
+		case NOTIFICATION_EXIT_TREE: {
+			if (shape){
+				shape->set_content(NULL);
+			}
+			shape = NULL;
+		} break;
+		case NOTIFICATION_TRANSFORM_CHANGED:{
+			if (is_inside_tree()){
+				stencil_dirty = true;
+				send_stencil_dirty = true;
+				if (clip_enable){
+					_update_stencil();
+					_send_stencil();
+				}
+			}
+		} break;
+	}
+}
+
+void REDClipper::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("update_stencil"), &REDClipper::_update_stencil);
+	ClassDB::bind_method(D_METHOD("send_stencil"), &REDClipper::_send_stencil);
+	ClassDB::bind_method(D_METHOD("set_clip_enable", "clip_enable"), &REDClipper::set_clip_enable);
+    ClassDB::bind_method(D_METHOD("get_clip_enable"), &REDClipper::get_clip_enable);
+	ClassDB::bind_method(D_METHOD("set_clip_rect_enable", "clip_rect_enable"), &REDClipper::set_clip_rect_enable);
+    ClassDB::bind_method(D_METHOD("get_clip_rect_enable"), &REDClipper::get_clip_rect_enable);
+	ClassDB::bind_method(D_METHOD("set_space", "space"), &REDClipper::set_space);
+    ClassDB::bind_method(D_METHOD("get_space"), &REDClipper::get_space);
+
+	ClassDB::bind_method(D_METHOD("set_split", "split"), &REDClipper::set_split);
+    ClassDB::bind_method(D_METHOD("get_split"), &REDClipper::get_split);
+	ClassDB::bind_method(D_METHOD("set_split_angle", "split_angle"), &REDClipper::set_split_angle);
+    ClassDB::bind_method(D_METHOD("get_split_angle"), &REDClipper::get_split_angle);
+	ClassDB::bind_method(D_METHOD("set_split_offset", "split_offset"), &REDClipper::set_split_offset);
+    ClassDB::bind_method(D_METHOD("get_split_offset"), &REDClipper::get_split_offset);
 	
-	if (is_inside_tree() && count>0){
-		send_stencil_dirty = true;
-		_update_materials();
-		if (old_count == 0)
-			stencil_dirty = true;
-		update();
-	}
-}
-
-Array REDClipper::get_material_objects() const {
-    Array material_objects_temp;
-	int count = material_objects.size();
-    material_objects_temp.resize(count);
-    for (int i = 0; i < count; i++) {
-        material_objects_temp[i] = material_objects[i];
-    }
-    return material_objects_temp;
-}
-
-void REDClipper::set_material_objects2(const Array &p_material_objects2) {
-	int old_count = cached_materials.size();
-	int count = p_material_objects2.size();
-	material_objects2.resize(count);
-	for (int i = 0; i < count; i++) {
-		material_objects2.write[i] = p_material_objects2[i];
-	}
-	if (is_inside_tree() && count>0){
-		send_stencil_dirty = true;
-		_update_materials();
-		if (old_count == 0)
-			stencil_dirty = true;
-		update();
-	}
-}
-Array REDClipper::get_material_objects2() const {
-    Array material_objects_temp;
-	int count = material_objects2.size();
-    material_objects_temp.resize(count);
-    for (int i = 0; i < count; i++) {
-        material_objects_temp[i] = material_objects2[i];
-    }
-    return material_objects_temp;
-}
-
-Vector<Ref<ShaderMaterial> > REDClipper::get_cached_materials() const {
-    return cached_materials;
+	ADD_GROUP("Clipper", "");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_enable"), "set_clip_enable", "get_clip_enable");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clip_rect_enable"), "set_clip_rect_enable", "get_clip_rect_enable");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "space", PROPERTY_HINT_ENUM, "World, Local, Screen"), "set_space", "get_space");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "split"), "set_split", "get_split");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "split_angle"), "set_split_angle", "get_split_angle");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "split_offset"), "set_split_offset", "get_split_offset");
+	BIND_ENUM_CONSTANT(CLIPPER_SPACE_WORLD);
+	BIND_ENUM_CONSTANT(CLIPPER_SPACE_LOCAL);
+	BIND_ENUM_CONSTANT(CLIPPER_SPACE_SCREEN);
 }
 
 REDClipper::REDClipper() {
+	// Clipper
 	ci = VS::get_singleton()->clipper_create();
-	outline_dirty = true;
-	stencil_dirty = true;
-	send_stencil_dirty = true;
-
 	clip_enable = true;
-	clip_rect_enable = true;
+	clip_rect_enable = false;
+	space = CLIPPER_SPACE_WORLD;
 	split = false;
 	split_angle = 0;
 	split_offset = Vector2(0, 0);
-	space = CLIPPER_SPACE_WORLD;
-	materials_dirty = true;
+	stencil_dirty = true;
+	send_stencil_dirty = true;
+	set_notify_transform(true);
 }
 REDClipper::~REDClipper() {
-
 	VS::get_singleton()->free(ci);
 }

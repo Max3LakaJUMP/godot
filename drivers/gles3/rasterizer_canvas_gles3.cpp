@@ -120,7 +120,7 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			_copy_texscreen(p_ci->copy_back_buffer->rect);
 		}
 	}
-	
+
 	Transform2D world_pos = r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform;
 	RasterizerStorageGLES3::Clipper *clipper = NULL;
 	{
@@ -150,7 +150,6 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			state.using_clipper = false;
 		}
 	}
-
 	RasterizerStorageGLES3::CustomTransform *custom_transform = NULL;
 	{
 		//custom_transform
@@ -205,7 +204,6 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			state.using_custom_transform = false;
 		}
 	}
-	
 	RasterizerStorageGLES3::Deform *deform = NULL;
 	{
 		//deform
@@ -474,7 +472,7 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 
 	state.final_transform = p_ci->final_transform;
 	state.extra_matrix = Transform2D();
-	state.world_transform = r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform;
+	state.world_transform = world_pos;
 	state.inv_world_transform = state.world_transform.affine_inverse();
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_transform);
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_transform);
@@ -627,7 +625,6 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
-
 
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
@@ -1462,7 +1459,7 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 			_copy_texscreen(p_ci->copy_back_buffer->rect);
 		}
 	}
-	
+
 	Transform2D world_pos = r_ris.item_group_base_transform.affine_inverse() * p_ci->final_transform;
 	RasterizerStorageGLES3::Clipper *clipper = NULL;
 	{
@@ -1824,10 +1821,14 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 		state.final_transform = Transform2D();
 		// final_modulate will be baked per item ref so the final_modulate can be an identity color
 		state.canvas_item_modulate = Color(1, 1, 1, 1);
+		state.world_transform = Transform2D();
+		state.inv_world_transform = Transform2D();
 	} else {
 		state.final_transform = p_ci->final_transform;
 		// could use the stored version of final_modulate in item ref? Test which is faster NYI
 		state.canvas_item_modulate = unshaded ? p_ci->final_modulate : (p_ci->final_modulate * r_ris.item_group_modulate);
+		state.world_transform = world_pos;
+		state.inv_world_transform = state.world_transform.affine_inverse();
 	}
 	state.extra_matrix = Transform2D();
 
@@ -1835,7 +1836,6 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM, state.skeleton_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM_INVERSE, state.skeleton_transform_inverse);
 	}
-
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE, state.canvas_item_modulate);
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX, state.final_transform);
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX, state.extra_matrix);
@@ -1865,7 +1865,6 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
-
 
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
@@ -1963,6 +1962,8 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM, state.skeleton_transform);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::SKELETON_TRANSFORM_INVERSE, state.skeleton_transform_inverse);
 					}
+					state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_transform);
+					state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_transform);
 					if (state.using_custom_transform) {
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::OLD_CUSTOM_MATRIX, state.old_custom_transform);
@@ -1987,7 +1988,6 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_STRENGTH_OBJECT, state.wind_strength_object);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::ELASTICITY, state.elasticity);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::TIME_OFFSET, state.time_offset);
-
 
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::DEFORM_WIND_MATRIX, state.deform_wind_matrix);
 						state.canvas_shader.set_uniform(CanvasShaderGLES3::WIND_ROTATION, state.wind_rotation);
@@ -2140,13 +2140,11 @@ bool RasterizerCanvasGLES3::try_join_item(Item *p_ci, RenderItemState &r_ris, bo
 		if (p_ci->clipper.is_valid() && storage->clipper_owner.owns(p_ci->clipper)) {
 			clipper = storage->clipper_owner.get(p_ci->clipper);
 		}
-		bool skeleton_prevent_join = false;
 		bool use_clipper = clipper != NULL;
 		if (r_ris.prev_use_clipper != use_clipper) {
 			r_ris.rebind_shader = true;
 			r_ris.prev_use_clipper = use_clipper;
 			join = false;
-			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CLIPPER, use_clipper);
 		}
 
 		if (clipper) {
@@ -2156,21 +2154,17 @@ bool RasterizerCanvasGLES3::try_join_item(Item *p_ci, RenderItemState &r_ris, bo
 			state.using_clipper = false;
 		}
 	}
-	
 	RasterizerStorageGLES3::CustomTransform *custom_transform = NULL;
-	
 	{
 		//custom_transform
 		if (p_ci->custom_transform.is_valid() && storage->custom_transform_owner.owns(p_ci->custom_transform)) {
 			custom_transform = storage->custom_transform_owner.get(p_ci->custom_transform);
 		}
-		bool skeleton_prevent_join = false;
 		bool use_custom_transform = custom_transform != NULL;
 		if (r_ris.prev_use_custom_transform != use_custom_transform) {
 			r_ris.rebind_shader = true;
 			r_ris.prev_use_custom_transform = use_custom_transform;
 			join = false;
-			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
 		}
 
 		if (custom_transform) {
@@ -2193,7 +2187,6 @@ bool RasterizerCanvasGLES3::try_join_item(Item *p_ci, RenderItemState &r_ris, bo
 			r_ris.rebind_shader = true;
 			r_ris.prev_use_deform = deform;
 			join = false;
-			//state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_CUSTOM_TRANSFORM, use_custom_transform);
 		}
 
 		if (deform) {
@@ -2492,6 +2485,7 @@ void RasterizerCanvasGLES3::canvas_render_items_implementation(Item *p_item_list
 	}
 
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_SKELETON, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_CLIPPER, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_CUSTOM_TRANSFORM, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_DEFORM, false);
 }

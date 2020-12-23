@@ -1,34 +1,15 @@
 #ifndef RED_CLIPPER_H
 #define RED_CLIPPER_H
 
-#include "red_shape.h"
+#include "scene/2d/polygon_2d.h"
 #include "core/node_path.h"
 #include "scene/animation/animation_node_state_machine.h"
 
-class REDClipper : public REDShape {
-	GDCLASS(REDClipper, REDShape);
-	Vector<float> multiple;
-	Vector<float> constant;
-	Vector<Vector2> screen_coords;
-	bool clip_enable;
-	bool clip_rect_enable;
-	RID ci;
-	bool split;
-	float split_angle;
-	Vector2 split_offset;
-	bool send_stencil_dirty;
+class REDShape;
 
-	//Delete
-	Vector<NodePath> material_objects;
-	Vector<NodePath> material_objects2;
-	Vector<Ref<ShaderMaterial> > cached_materials;
-	int second_split_start_material_id;
-	bool materials_dirty;
-
-protected:
-	void _notification(int p_what);
-    static void _bind_methods();
-
+class REDClipper : public Node2D {
+	GDCLASS(REDClipper, Node2D);
+	// Clipper
 public:
 	enum Space{
 		CLIPPER_SPACE_WORLD,
@@ -36,11 +17,25 @@ public:
 		CLIPPER_SPACE_SCREEN
 	};
 private:
+	REDShape *shape;
+	bool clip_enable;
+	bool clip_rect_enable;
+	bool split;
+
+	Vector<float> multiple;
+	Vector<float> constant;
+	Vector<Vector2> screen_coords;
+	float split_angle;
+	Vector2 split_offset;
+	RID ci;
 	Space space;
+
+	mutable bool send_stencil_dirty;
+	mutable bool stencil_dirty;
 public:
-	RID get_ci() const;
-	void _update_stencil(const Vector<Vector2> &p_points) ;
+	void _update_stencil();
 	void _send_stencil();
+	
 	void set_split(bool p_split);
 	bool get_split() const;
 	void set_split_angle(float p_split_angle);
@@ -53,19 +48,13 @@ public:
 	bool get_clip_rect_enable() const;
 	void set_space(Space p_space);
 	Space get_space() const;
-
-	void _update_materials();
-	void _send_rotation();
-	void set_material_objects(const Array &p_material_objects);
-	Array get_material_objects() const;
-	void set_material_objects2(const Array &p_material_objects2);
-	Array get_material_objects2() const;
-	
-	Vector<Ref<ShaderMaterial> > get_cached_materials() const;
-
+	RID get_ci() const;
+	void _draw();
 	REDClipper();
 	~REDClipper();
+protected:
+	void _notification(int p_what);
+    static void _bind_methods();
 };
-
 VARIANT_ENUM_CAST(REDClipper::Space);
 #endif // RED_CLIPPER_H

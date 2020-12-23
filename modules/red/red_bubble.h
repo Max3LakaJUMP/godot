@@ -32,7 +32,8 @@
 #define RED_BUBBLE_H
 
 #include "scene/2d/node_2d.h"
-#include "red_line.h"
+
+class Line2D;
 
 class REDBubble : public Node2D {
 
@@ -42,13 +43,6 @@ class REDBubble : public Node2D {
 	PoolVector<Vector2> polygon_tail;
 	PoolVector<Vector2> uv;
 	PoolVector<Color> vertex_colors;
-
-	struct Bone {
-		NodePath path;
-		PoolVector<float> weights;
-	};
-
-	Vector<Bone> bone_weights;
 
 	Color color;
 	Ref<Texture> texture;
@@ -125,7 +119,7 @@ public:
     };
 
 private:
-    REDLine *outline_node;
+    Line2D *outline_node;
     bool edit_tail;
 	int smooth;
 	int tale_smooth;

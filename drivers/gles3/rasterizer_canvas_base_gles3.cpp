@@ -177,12 +177,17 @@ void RasterizerCanvasBaseGLES3::canvas_begin() {
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_ATTRIB_LARGE_VERTEX, false);
 
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_SKELETON, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_CLIPPER, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_CUSTOM_TRANSFORM, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_DEFORM, false);
 
 	state.canvas_shader.set_custom_shader(0);
 	state.canvas_shader.bind();
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE, Color(1, 1, 1, 1));
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX, Transform2D());
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX, Transform2D());
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, Transform());
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, Transform());
 	if (storage->frame.current_rt) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0 / storage->frame.current_rt->width, 1.0 / storage->frame.current_rt->height));
 	} else {
@@ -203,8 +208,8 @@ void RasterizerCanvasBaseGLES3::canvas_begin() {
 	state.using_large_vertex = false;
 
 	state.using_skeleton = false;
-	state.using_custom_transform = false;
 	state.using_clipper = false;
+	state.using_custom_transform = false;
 	state.using_deform = false;
 }
 
@@ -345,6 +350,8 @@ void RasterizerCanvasBaseGLES3::_set_texture_rect_mode(bool p_enable, bool p_nin
 	state.using_light_angle = p_light_angle;
 	state.using_modulate = p_modulate;
 	state.using_large_vertex = p_large_vertex;
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_transform);
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_transform);
 	if (state.using_custom_transform) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::OLD_CUSTOM_MATRIX, state.old_custom_transform);

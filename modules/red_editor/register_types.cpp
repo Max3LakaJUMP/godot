@@ -11,7 +11,7 @@
 #include "mediapipe_editor_plugin.h"
 #include "red_frame_editor_plugin.h"
 #include "red_bubble_editor_plugin.h"
-#include "red_line_editor.h"
+//#include "red_line_editor.h"
 #include "red_transform_editor_plugin.h"
 //#include "red_polygon_editor_plugin.h"
 #include "editor/editor_node.h"
@@ -36,7 +36,7 @@ void register_red_editor_types() {
     EditorPlugins::add_by_type<MediapipeEditorPlugin>();
     EditorPlugins::add_by_type<REDFrameEditorPlugin>();
 	EditorPlugins::add_by_type<REDBubbleEditorPlugin>();
-	EditorPlugins::add_by_type<REDLineEditorPlugin>();
+	//EditorPlugins::add_by_type<REDLineEditorPlugin>();
 	EditorPlugins::add_by_type<SceneExportEditorPlugin>();
 	EditorPlugins::add_by_type<REDTransformEditorPlugin>();
 	import_jscn.instance();

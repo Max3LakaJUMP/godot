@@ -48,6 +48,7 @@ Line2D::Line2D() {
 	_sharp_limit = 2.f;
 	_round_precision = 8;
 	_antialiased = false;
+    _closed=false;
 }
 
 #ifdef TOOLS_ENABLED
@@ -301,6 +302,17 @@ void Line2D::_draw() {
 	lb.sharp_limit = _sharp_limit;
 	lb.width = _width;
 	lb.curve = *_curve;
+    lb.closed = _closed;
+    Vector<float> width_list_vector;
+	int width_len = width_list.size();
+	if(width_len > 0 && width_len == len){
+        width_list_vector.resize(len);
+        PoolVector<float>::Read width_list_read = width_list.read();
+        for (int i = 0; i < len; i++) {
+            width_list_vector.write[i] = width_list_read[i];
+        }
+	}
+    lb.width_list = width_list_vector;
 
 	RID texture_rid;
 	if (_texture.is_valid()) {
@@ -349,8 +361,31 @@ void Line2D::_curve_changed() {
 	update();
 }
 
+void Line2D::set_closed(const bool p_closed) {
+    _closed = p_closed;
+    update();
+}
+
+bool Line2D::get_closed() const{
+    return _closed;
+}
+
+void Line2D::set_width_list(const PoolVector<float> &p_width_list) {
+    width_list = p_width_list;
+    update();
+}
+
+PoolVector<float> Line2D::get_width_list() const {
+    return width_list;
+}
+
 // static
 void Line2D::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("set_closed", "_closed"), &Line2D::set_closed);
+    ClassDB::bind_method(D_METHOD("get_closed"), &Line2D::get_closed);
+
+    ClassDB::bind_method(D_METHOD("set_width_list", "width_list"), &Line2D::set_width_list);
+    ClassDB::bind_method(D_METHOD("get_width_list"), &Line2D::get_width_list);
 
 	ClassDB::bind_method(D_METHOD("set_points", "points"), &Line2D::set_points);
 	ClassDB::bind_method(D_METHOD("get_points"), &Line2D::get_points);
@@ -401,8 +436,10 @@ void Line2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_antialiased", "antialiased"), &Line2D::set_antialiased);
 	ClassDB::bind_method(D_METHOD("get_antialiased"), &Line2D::get_antialiased);
 
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "_closed"), "set_closed", "get_closed");
 	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR2_ARRAY, "points"), "set_points", "get_points");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "width"), "set_width", "get_width");
+    ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "width_list"), "set_width_list", "get_width_list");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "width_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_curve", "get_curve");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "default_color"), "set_default_color", "get_default_color");
 	ADD_GROUP("Fill", "");

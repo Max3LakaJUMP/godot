@@ -32,9 +32,8 @@
 
 #include "core/math/geometry.h"
 #include "scene/2d/skeleton_2d.h"
-#include "red_line.h"
 
-#include "red_line_builder.h"
+#include "scene/2d/line_builder.h"
 #include "core/math/math_funcs.h"
 #include "core/core_string_names.h"
 #include <string>
@@ -256,17 +255,17 @@ void REDBubble::_draw_outline(Vector<Vector2> &p_points) {
 	print_line(std::to_string(new_thickness.size()).c_str());
 	new_thickness.resize(p_points.size());
 	// TODO Maybe have it as member rather than copying parameters and allocating memory?
-	REDLineBuilder lb;
+	LineBuilder lb;
 	lb.points = p_points;
 	lb.default_color = _default_color;
 	lb.gradient = *_gradient;
-	lb.texture_mode = static_cast<REDLine::LineTextureMode>(_texture_mode);
-	lb.joint_mode = static_cast<REDLine::LineJointMode>(_joint_mode);
+	lb.texture_mode = static_cast<Line2D::LineTextureMode>(_texture_mode);
+	lb.joint_mode = static_cast<Line2D::LineJointMode>(_joint_mode);
 	lb.round_precision = _round_precision;
 	lb.sharp_limit = _sharp_limit;
 	lb.width = _width;
-	lb.width_curve = *_width_curve;
-    lb.is_closed = true;
+	lb.curve = *_width_curve;
+    lb.closed = true;
     lb.width_list = new_thickness;
 
 	RID texture_rid;

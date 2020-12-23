@@ -1,12 +1,12 @@
 /*************************************************************************/
-/*  parallax_layer.h                                                     */
+/*  line_2d.cpp                                                          */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -28,73 +28,71 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef RED_PARALLAX_FOLDER_H
-#define RED_PARALLAX_FOLDER_H
+#include "red_outline.h"
+#include "red_shape.h"
+#include "red.h"
+#include "scene/2d/line_builder.h"
 
-#include "scene/2d/node_2d.h"
+void REDOutline::_draw() {
+	ERR_FAIL_COND_MSG(!shape, "No parent REDshape found!");
+	LineBuilder lb;
+	lb.points = shape->real_polygon;
+	lb.default_color = shape->line_color;
+	//lb.gradient = *_gradient;
+	lb.texture_mode = shape->texture_mode;
+	lb.joint_mode = shape->joint_mode;
+	//lb.begin_cap_mode = _begin_cap_mode;
+	//lb.end_cap_mode = _end_cap_mode;
+	lb.round_precision = 8;
+	lb.sharp_limit = 1000.f;
+	lb.width = shape->width + shape->outline_width_zoom_const * ((shape->width * shape->get_camera_zoom().x / get_scale().x) - shape->width);
+	//lb.curve = *_curve;
+    lb.closed = true;
+    lb.width_list = shape->real_width_list;
+	RID texture_rid;
+	if (shape->texture.is_valid()) {
+		texture_rid = shape->texture->get_rid();
+		lb.tile_aspect = shape->texture->get_size().aspect();
+	}
+	lb.build();
+	VS::get_singleton()->canvas_item_add_triangle_array(
+			get_canvas_item(),
+			lb.indices,
+			lb.vertices,
+			lb.colors,
+			lb.uvs, Vector<int>(), Vector<float>(),
+			texture_rid, -1, RID(),
+			shape->antialiased, true);
+}
 
-class REDFrame;
+void REDOutline::_notification(int p_what) {
+	switch (p_what) {
+		case NOTIFICATION_DRAW: {
+			_draw();
+		}
+		case NOTIFICATION_ENTER_TREE: {
+			Node *parent = get_parent();
+			for (int i = 0; i < 10; i++){
+				shape = Object::cast_to<REDShape>(parent);
+				if (shape){
+					shape->set_outline(this);
+					break;
+				}
+				parent = get_parent();
+			}
+		} break;
+		case NOTIFICATION_EXIT_TREE: {
+			if (shape){
+				shape->set_outline(NULL);
+			}
+			shape = NULL;
+		} break;
+	}
+}
+void REDOutline::_bind_methods() {
 
-class REDParallaxFolder : public Node2D {
+}
 
-	GDCLASS(REDParallaxFolder, Node2D);
-	REDFrame *frame;
-	
-	bool shrink;
-	bool expand;
+REDOutline::REDOutline(){	
 
-	Point2 orig_offset;
-	Point2 orig_scale;
-	Size2 parallax_factor;
-	Vector2 motion_offset;
-	Point2 screen_offset;
-	float zoom_scaling;
-
-	float zoom_in_scale;
-	float zoom_out_scale;
-	
-	Point2 camera_offset;
-	Vector2 camera_zoom;
-
-	Point2 parallax_offset;
-	Point2 old_parallax_offset;
-	bool parallax_offset_dirty;
-	Vector2 parallax_scale;
-	Vector2 old_parallax_scale;
-	bool parallax_scale_dirty;
-
-	NodePath custom_transform;
-
-protected:
-	static void _bind_methods();
-	void _notification(int p_what);
-	
-public:
-	Transform get_custom_transform(const Transform &p_offset);
-	void set_custom_transform(const Transform &p_transform);
-	
-	void apply_parallax();
-
-	void set_camera_offset(const Point2 &p_offset);
-	void set_camera_zoom(const Vector2 &p_zoom);
-
-	Point2 get_parallax_offset();
-	Vector2 get_parallax_scale();
-
-	void set_zoom_in_scale(float p_scale);
-	float get_zoom_in_scale() const;
-	void set_zoom_out_scale(float p_scale);
-	float get_zoom_out_scale() const;
-
-	void set_motion_offset(const Size2 &p_offset);
-	Size2 get_motion_offset() const;
-
-	void set_parallax_factor(const Size2 &p_scale);
-	Size2 get_parallax_factor() const;
-
-
-	virtual String get_configuration_warning() const;
-	REDParallaxFolder();
-};
-
-#endif // RED_PARALLAX_FOLDER_H
+}

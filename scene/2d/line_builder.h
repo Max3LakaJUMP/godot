@@ -61,6 +61,9 @@ public:
 	Vector<Vector2> uvs;
 	Vector<int> indices;
 
+    Vector<float> width_list;
+    bool closed;
+
 	LineBuilder();
 
 	void build();

@@ -112,7 +112,11 @@ public:
 
 	void set_antialiased(bool p_antialiased);
 	bool get_antialiased() const;
-
+    
+	void set_closed(bool p_closed);
+    bool get_closed() const;
+	void set_width_list(const PoolVector<float> &p_width_list);
+    PoolVector<float> get_width_list() const;
 protected:
 	void _notification(int p_what);
 	void _draw();
@@ -137,6 +141,8 @@ private:
 	float _sharp_limit;
 	int _round_precision;
 	bool _antialiased;
+    bool _closed;
+    PoolVector<float> width_list;
 };
 
 #endif // LINE2D_H

@@ -4,12 +4,11 @@
 #include "scene/2d/node_2d.h"
 #include "red_element.h"
 #include "scene/resources/packed_scene.h"
-#include "core/reference.h "
 
 class REDFrame;
 
-class REDPage : public REDElement {
-	GDCLASS(REDPage, REDElement);
+class REDPage : public Node2D {
+	GDCLASS(REDPage, Node2D);
     Vector<NodePath> frames;
 
     int id;

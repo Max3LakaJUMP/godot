@@ -303,35 +303,6 @@ void main() {
 	float transform_mask = 1.0;
 #endif
 
-// #ifdef USE_DEFORM
-// 	highp float deform_mask;
-// 	vec2 wave;
-// 	float t = time * 6.28;
-// 	vec2 uv_rot;
-// 	{
-// 		//todo custom transform
-// 		float wind_rad = radians(wind_rotation);
-// 		float object_rotation = radians(object_rotation);
-
-// 		vec2 direction = rotate(vec2(0.0, 1.0), wind_rad - object_rotation);
-// 		uv_rot = rotate_uv(uv_interp, -object_rotation);
-
-// 		deform_mask = 1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0);
-// 		deform_mask = clamp(deform_mask * color.g, 0.0, 1.0);
-
-// 		wave.x = ((1.0 - uv_rot.y) * elasticity.y) * 6.28;
-// 		wave.y = (uv_rot.x * elasticity.x) * 6.28;
-// 		vec2 wind_target = direction;
-// 		wind_target.y = wind_target.y * 0.5 - 0.5;
-// 		vec2 cycle_wind = wind(t / wind_time + time_offset, direction, wave) + wind_target * wind_offset;
-// 		//vec2 cycle_wind2 = wind((t + 0.79) / wind2_time + time_offset, direction, wave, wind_from_top, wind_from_bellow);
-// 		vec2 cycle_scale = sin(t / scale_time + time_offset) * (uv_rot - scale_center);
-		
-// 		outvec.xy = rotate(outvec.xy, -object_rotation);
-// 		outvec.xy = outvec.xy + (cycle_wind * wind_strength + cycle_scale * scale_strength) * deform_mask * wind_strength_object;
-// 		outvec.xy = rotate(outvec.xy, object_rotation);
-// 	}
-// #endif
 #define extra_matrix extra_matrix_instance
 
 	float point_size = 1.0;

@@ -162,18 +162,35 @@ float REDParallaxFolder::get_zoom_out_scale() const{
 }
 
 String REDParallaxFolder::get_configuration_warning() const {
-
-	if (!Object::cast_to<REDFrame>(get_parent())) {
-		return TTR("REDParallaxFolder node only works when set as child of a REDFrame node.");
+	bool warn = true;
+	String warning = Node2D::get_configuration_warning();
+	if(!frame){
+		warning += TTR("REDParallaxFolder node only works when set as child of a REDFrame node.");
 	}
-
-	return String();
+	return warning;
 }
 
 void REDParallaxFolder::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_DRAW: {
 			apply_parallax();
+		} break;
+		case NOTIFICATION_ENTER_TREE: {
+			Node *parent = get_parent();
+			for (int i = 0; i < 10; i++){
+				frame = Object::cast_to<REDFrame>(parent);
+				if (frame){
+					frame->parallax_folders_append(this);
+					break;
+				}
+				parent = parent->get_parent();
+			}
+			update_configuration_warning();
+		} break;
+		case NOTIFICATION_EXIT_TREE: {
+			if (frame)
+				frame->parallax_folders_pop(this);
+			frame = NULL;
 		} break;
 	}
 }

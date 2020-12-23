@@ -34,7 +34,7 @@
 #include "skeleton_2d.h"
 #include "modules/red/red_transform.h"
 #include "modules/red/red_deform.h"
-#include "modules/red/red_frame.h"
+#include "modules/red/red_clipper.h"
 #include "modules/red/red_engine.h"
 
 #ifdef TOOLS_ENABLED
@@ -107,9 +107,9 @@ void Polygon2D::_notification(int p_what) {
 			if (polygon.size() < 3)
 				return;
 
-			REDFrame *red_clipper_node = NULL;
+			REDClipper *red_clipper_node = NULL;
 			if (has_node(clipper)) {
-				red_clipper_node = Object::cast_to<REDFrame>(get_node(clipper));
+				red_clipper_node = Object::cast_to<REDClipper>(get_node(clipper));
 			}
 			if (red_clipper_node) {
 				VS::get_singleton()->canvas_item_add_clip_ignore(get_canvas_item(), !clipper_top);
@@ -1015,7 +1015,7 @@ void Polygon2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "internal_vertex_count", PROPERTY_HINT_RANGE, "0,1000"), "set_internal_vertex_count", "get_internal_vertex_count");
 	
 	ADD_GROUP("Mask", "");
-	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "clipper", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDFrame"), "set_clipper", "get_clipper");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "clipper", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "REDClipper"), "set_clipper", "get_clipper");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "clipper_top"), "set_clipper_top", "get_clipper_top");
 
 	ADD_GROUP("3D", "");
