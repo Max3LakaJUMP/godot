@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  polygon_2d.cpp                                                       */
+/*  line_2d_editor_plugin.h                                              */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,16 +28,39 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "red_bubble.h"
+#ifndef RED_SHAPE_EDITOR_PLUGIN_H
+#define RED_SHAPE_EDITOR_PLUGIN_H
 
-// void REDBubble::_notification(int p_what) {
+#include "editor/plugins/abstract_polygon_2d_editor.h"
 
-// }
+class REDShape;
 
-// void REDBubble::_bind_methods() {
-	
-// }
+class REDShapeEditor : public AbstractPolygon2DEditor {
 
-REDBubble::REDBubble() {
+	GDCLASS(REDShapeEditor, AbstractPolygon2DEditor);
 
-}
+	REDShape *node;
+
+protected:
+	virtual Node2D *_get_node() const;
+	virtual void _set_node(Node *p_line);
+	virtual bool _is_line() const;
+	virtual Vector2 _get_offset(int p_idx) const;
+	virtual Variant _get_polygon(int p_idx) const;
+	virtual void _set_polygon(int p_idx, const Variant &p_polygon) const;
+	virtual void _action_set_polygon(int p_idx, const Variant &p_previous, const Variant &p_polygon);
+	virtual void _action_add_polygon(const Variant &p_polygon);
+	virtual void _action_set_polygon(int p_idx, const Variant &p_polygon);
+public:
+	REDShapeEditor(EditorNode *p_editor);
+};
+
+class REDShapeEditorPlugin : public AbstractPolygon2DEditorPlugin {
+
+	GDCLASS(REDShapeEditorPlugin, AbstractPolygon2DEditorPlugin);
+
+public:
+	REDShapeEditorPlugin(EditorNode *p_node);
+};
+
+#endif // RED_SHAPE_EDITOR_PLUGIN_H

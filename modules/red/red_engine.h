@@ -94,6 +94,29 @@ enum t {
 	FRAME
 };
 
+enum TesselateMode {
+	CUBIC = 0,
+	QUADRATIC_BEZIER,
+	CUBIC_BEZIER
+};
+
+template <class T>
+T *find_parent_type(Node *node, int max_iter=10) {
+	Node *parent = node->get_parent();
+	for (int i = 0; i < max_iter; i++){
+		T *n = Object::cast_to<T>(parent);
+		if (n){
+			return n;
+		}
+		parent = parent->get_parent();
+	}
+	return nullptr;
+}
+
+Vector2 cubic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, const Vector2 &p3, float t);
+Vector2 quadratic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, float t);
+Vector<Vector2> tesselate(const Vector<Vector2> &low_res, const int smooth_factor=1, const TesselateMode &p_interpolation=TesselateMode::CUBIC);
+
 Ref<BitMap> read_bitmap(Ref<Image> p_img, float p_threshold=0.1f, Size2 max_size=Size2(128.0f, 128.0f));
 PoolColorArray get_normals(PoolVector2Array vtxs);
 Vector<Polygon2D*> bitmap_to_polygon2d(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=1.0, float epsilon=4.0, bool single=false, bool normals_to_colors=false, Rect2 &crop_rect=Rect2());

@@ -1,18 +1,21 @@
 #ifndef RED_SHAPE_H
 #define RED_SHAPE_H
 
-#include "red_element.h"
-#include "core/node_path.h"
+#include "scene/2d/node_2d.h"
 #include "scene/2d/line_2d.h"
-#include "scene/animation/animation_node_state_machine.h"
+#include "red_engine.h"
 
-class REDOutline;
+class REDShape;
+class REDShapeRenderer;
 class REDClipper;
 
 class REDShape : public Node2D {
 	GDCLASS(REDShape, Node2D);
-	friend class REDOutline;
+
+	friend class REDShape;
+	friend class REDShapeRenderer;
 	friend class REDClipper;
+	
 public:
 #ifdef TOOLS_ENABLED
 	virtual Dictionary _edit_get_state() const;
@@ -37,38 +40,43 @@ public:
 		DEFORMATION_WIDTH_TAPERING0,
 		DEFORMATION_WIDTH_TAPERING1,
 	};
-
+	enum Boolean{
+		BOOLEAN_MAIN,
+		BOOLEAN_MERGE,
+		BOOLEAN_CLIP,
+		BOOLEAN_INTERSECT,
+		BOOLEAN_OVERRIDE
+	};
 private:
 	//main
+	REDShape* root_shape;
+	Vector<REDShape*> boolean_nodes;
+	Vector<REDShapeRenderer*> render_nodes;
+
+	Boolean boolean;
 	PoolVector<Vector2> polygon;
+	Vector<Vector2> real_polygon;
+	Vector<Vector2> boolean_polygon;
+	Vector<float> real_width_list;
 	Vector2 offset;
+	int reorient;
+	int smooth;
+    red::TesselateMode interpolation;
+	float simplify;
+	float spikes = 0;
 	Vector2 camera_zoom;
-	bool width_dirty;
 	bool polygon_dirty;
+	bool boolean_dirty;
+	bool width_dirty;
 	mutable bool rect_cache_dirty;
 	mutable Rect2 item_rect;
-	// content
-	REDClipper *content_node;
-	bool use_content;
-	// line
-	REDOutline *outline_node;
-	bool use_outline;
-	float outline_width_zoom_const;
-    PoolVector<float> width_list;
-	float width;
-	Vector<Vector2> real_polygon;
-	Vector<float> real_width_list;
-	Line2D::LineJointMode joint_mode;
-	Color line_color;
-	Ref<Texture> texture;
-	Line2D::LineTextureMode texture_mode;
-	bool antialiased;
-	// Deformation
+	// animation
 	DeformationState deformation_state;
+	DeformationState width_state;
 	bool deformation_enable;
 	float deformation_offset;
 	float deformation_speed;
-	float deformation_width_factor;
+	float deformation_width_min;
 	float deformation_width_max;
 	Vector<Vector2> targets;
 	Vector<Vector2> offsets;
@@ -86,57 +94,49 @@ protected:
 
 public:
 	// main
+	void update_renderers();
+	void update_line_renderers();
+	void update_polygon_renderers();
+	void update_root();
 	void set_polygon(const PoolVector<Vector2> &p_polygon);
 	PoolVector<Vector2> get_polygon() const;
 	void set_offset(const Vector2 &p_offset);
 	Vector2 get_offset() const;
+	void set_boolean(Boolean p_interpolation);
+	Boolean get_boolean() const;
+    void set_smooth(const int p_smooth);
+    int get_smooth() const;
+	void set_interpolation(red::TesselateMode p_interpolation);
+	red::TesselateMode get_interpolation() const;
+	void set_simplify(float p_simplify);
+	float get_simplify() const;
+	void set_spikes(float p_spikes);
+	float get_spikes() const;
+	void add_spikes(Vector<Vector2> &p_points);
 	Vector2 get_camera_zoom() const;
 	void update_camera_zoom(const Vector2 p_camera_zoom=Vector2(1.0, 1.0));
+	void set_reorient(int p_reorient);
+	int get_reorient() const;
 	void calc_polygon();
-	// content
-	void update_content();
-	void set_use_content(bool b);
-	bool get_use_content() const;
-	void set_content(REDClipper *p_content);
-	REDClipper *get_content();
-	// line 
-	void update_outline();
-	void set_use_outline(bool b);
-	bool get_use_outline() const;
-	void set_outline(REDOutline *p_outline);
-	REDOutline *get_outline();
-	void set_width(float width);
-	float get_width() const;
-    void set_width_list(const PoolVector<float> &p_width_list);
-    PoolVector<float> get_width_list() const;
-	void set_line_color(Color color);
-	Color get_line_color() const;
-	void set_line_texture(const Ref<Texture> &texture);
-	Ref<Texture> get_line_texture() const;
-	void set_texture_mode(const Line2D::LineTextureMode mode);
-	Line2D::LineTextureMode get_texture_mode() const;
-	void set_joint_mode(Line2D::LineJointMode mode);
-	Line2D::LineJointMode get_joint_mode() const;
-	void set_antialiased(bool p_antialiased);
-	bool get_antialiased() const;
+	void calc_boolean();
+	Vector<float> resize_vector(const Vector<float> &in, int size) const;
 	void calc_width_list();
-	// Deformation
-	void _move_points(const float deltatime);
+	// animation
+	void _animate_offset(const float deltatime);
+	void _animate_width(const float deltatime);
 	void set_deformation_enable(bool p_deformate);
 	bool get_deformation_enable() const;
 	void set_deformation_offset(float p_deformation_offset);
 	float get_deformation_offset() const;
 	void set_deformation_speed(float p_deformation_speed);
 	float get_deformation_speed() const;
-	void set_deformation_width_factor(const float p_deformation_width_factor);
-	float get_deformation_width_factor() const;
+
+	void set_deformation_width_min(const float p_deformation_width_min);
+	float get_deformation_width_min() const;
 	void set_deformation_width_max(const float p_deformation_width_max);
 	float get_deformation_width_max() const;
-	void set_outline_width_zoom_const(float p_outline_width_zoom_const);
-	float get_outline_width_zoom_const() const;
 	REDShape();
 };
-VARIANT_ENUM_CAST(Line2D::LineJointMode)
-//VARIANT_ENUM_CAST(Line2D::LineCapMode)
-VARIANT_ENUM_CAST(Line2D::LineTextureMode)
+VARIANT_ENUM_CAST(red::TesselateMode)
+VARIANT_ENUM_CAST(REDShape::Boolean)
 #endif // RED_SHAPE_H

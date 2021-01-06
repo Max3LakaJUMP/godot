@@ -15,6 +15,120 @@
 #include <string>
 
 namespace red {
+Vector2 cubic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, const Vector2 &p3, float t){
+    Vector2 q0 = p0.linear_interpolate(p1, t);
+    Vector2 q1 = p1.linear_interpolate(p2, t);
+    Vector2 q2 = p2.linear_interpolate(p3, t);
+
+    Vector2 r0 = q0.linear_interpolate(q1, t);
+    Vector2 r1 = q1.linear_interpolate(q2, t);
+
+    Vector2 r = r0.linear_interpolate(r1, t);
+    return r;
+};
+
+Vector2 quadratic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, float t){
+    Vector2 q0 = p0.linear_interpolate(p1, t);
+    Vector2 q1 = p1.linear_interpolate(p2, t);
+    Vector2 r = q0.linear_interpolate(q1, t);
+    return r;
+};
+
+Vector<Vector2> tesselate(const Vector<Vector2> &low_res, int smooth_factor, const TesselateMode &p_interpolation) {
+	Vector2 pre_a;
+	Vector2 a;
+	Vector2 b;
+	Vector2 post_b;
+
+	int size = low_res.size();
+	int last_id = size - 1;
+	int pre_last_id = last_id - 1;
+	
+	Vector2 first = low_res[0];
+	Vector2 second = low_res[1];
+	Vector2 third = low_res[2];
+	Vector2 last = low_res[last_id];
+	
+	smooth_factor += 1;
+	Vector<Vector2> high_res;
+	int h_i = 0;
+	switch(p_interpolation){
+		case(CUBIC): {
+			high_res.resize(size * smooth_factor);
+			float k = 1.f / smooth_factor;
+			for(int i = 0; i < size; ++i){
+				if(i == 0){
+					pre_a = last;
+					a = first;
+					b = second;
+					post_b = third;
+				}else{
+					pre_a = a;
+					a = b;
+					b = post_b;
+					post_b = i == pre_last_id ? first : i == last_id ? second : low_res[i + 2];
+				}
+				high_res.write[h_i] = a;
+				h_i++;
+				for(int j = 1; j < smooth_factor; ++j){
+					high_res.write[h_i] = a.cubic_interpolate(b, pre_a, post_b, j * k);
+					h_i++;
+				}
+			}
+		} break;
+		case(QUADRATIC_BEZIER): {
+			high_res.resize(ceil(size / 2.0) * smooth_factor);
+			float k = 1.f / smooth_factor;
+			for(int i = 0; i < size; ++i){
+				if(i == 0){
+					pre_a = last;
+					a = first;
+					b = second;
+					post_b = third;
+				}else{
+					pre_a = a;
+					a = b;
+					b = post_b;
+					post_b = i == pre_last_id ? first : i == last_id ? second : low_res[i + 2];
+				}
+				if(i % 2)
+					continue;
+				high_res.write[h_i] = a;
+				h_i++;
+				for(int j = 1; j < smooth_factor; ++j){
+					high_res.write[h_i] = quadratic_bezier(a, b, post_b, j * k);
+					h_i++;
+				}
+			}
+		} break;
+		case(CUBIC_BEZIER): {
+			high_res.resize(ceil(size / 3.0) * smooth_factor);
+			float k = 1.f / smooth_factor;
+			for(int i = 0; i < size; ++i){
+				if(i == 0){
+					pre_a = last;
+					a = first;
+					b = second;
+					post_b = third;
+				}else{
+					pre_a = a;
+					a = b;
+					b = post_b;
+					post_b = i == pre_last_id ? first : i == last_id ? second : low_res[i + 2];
+				}
+				if((i-1) % 3)
+					continue;
+				high_res.write[h_i] = pre_a;
+				h_i++;
+				for(int j = 1; j < smooth_factor; ++j){
+					high_res.write[h_i] = cubic_bezier(pre_a, a, b, post_b, j * k);
+					h_i++;
+				}
+			}
+		} break;
+	}
+	return high_res;
+}
 
 Ref<BitMap> read_bitmap(const Ref<Image> p_img, float p_threshold, Size2 max_size){
 	Vector2 image_size = p_img->get_size();

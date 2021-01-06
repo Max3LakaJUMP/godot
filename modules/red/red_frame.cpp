@@ -541,9 +541,6 @@ bool REDFrame::is_end_loop() const{
 }
 */
 
-
-
-
 void REDFrame::travel_start(){
 	target_loop = FRAME_LOOP_START;
 	id = 0;
@@ -561,7 +558,6 @@ void REDFrame::travel_end(){
 	id = states_count - 1;
 	_travel(get_state());
 }
-
 
 void REDFrame::_travel(const StringName &p_state){
 	print_line("TRAVEL");
@@ -590,7 +586,6 @@ void REDFrame::_travel(const StringName &p_state){
 			get_script_instance()->call("_travel");
 }
 /*
-
 		if (is_ending()){
 			if (machine->has_node(end_transition)) {
 				playback->travel(end_transition);
@@ -739,7 +734,6 @@ void REDFrame::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_end_transition", "end_transition"), &REDFrame::set_end_transition);
     ClassDB::bind_method(D_METHOD("get_end_transition"), &REDFrame::get_end_transition);
 
-
 	ClassDB::bind_method(D_METHOD("set_origin_pos_gl", "origin_pos_gl"), &REDFrame::set_origin_pos_gl);
 	ClassDB::bind_method(D_METHOD("get_origin_pos_gl"), &REDFrame::get_origin_pos_gl);
 	ClassDB::bind_method(D_METHOD("update_origin_pos_gl"), &REDFrame::update_origin_pos_gl);
@@ -779,7 +773,6 @@ void REDFrame::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("frame_zoom_changed"), &REDFrame::update_camera_zoom);
 	ClassDB::bind_method(D_METHOD("_target_parallax_moved"), &REDFrame::_target_parallax_moved);
 	ClassDB::bind_method(D_METHOD("_target_pos_moved"), &REDFrame::_target_pos_moved);
-
 	ClassDB::bind_method(D_METHOD("set_frame_scale", "frame_scale"), &REDFrame::set_frame_scale);
 
 	ClassDB::bind_method(D_METHOD("set_parallax_zoom", "parallax_zoom"), &REDFrame::set_parallax_zoom);
@@ -856,12 +849,6 @@ REDFrame::REDFrame() {
 	parallax_factor = Vector2(0.f, 0.f);
 	parallax_zoom = Vector2(1.f, 1.f);
 	camera_zoom = Vector2(1.f, 1.f);
-    
-	b_start_loop = false;
-    b_starting = false;
-    b_started = false;
-    b_ending = false;
-    b_ended = false;
 
 	reinit_tree = false;
     b_active = false;

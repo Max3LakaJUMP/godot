@@ -160,12 +160,12 @@ public:
 		FRAME_LOOP_END,
 	};
 
-	enum Status{
-		FRAME_STATE_STARTING,
-		FRAME_STATE_STARTED,
-		FRAME_STATE_ENDING,
-		FRAME_STATE_ENDED,
-	};
+	// enum Status{
+	// 	FRAME_STATE_STARTING,
+	// 	FRAME_STATE_STARTED,
+	// 	FRAME_STATE_ENDING,
+	// 	FRAME_STATE_ENDED,
+	// };
 
 	enum CameraState{
 		CAMERA_STATE_MOOVING_TO_FRAME,
@@ -176,17 +176,10 @@ public:
 //Frame managment
 private:
 	FrameLoop target_loop;
-	Status status;
+	// Status status;
 	CameraState camera_state;
 
     bool reinit_tree;
-
-	bool b_start_loop;
-    bool b_starting;
-    bool b_started;
-    bool b_ending;
-    bool b_ended;
-	bool b_end_loop;
     
 	bool focused;
 	bool deformate_on_activation;

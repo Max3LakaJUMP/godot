@@ -1,15 +1,14 @@
 #ifndef RED_CLIPPER_H
 #define RED_CLIPPER_H
 
-#include "scene/2d/polygon_2d.h"
+#include "red_shape_renderer.h"
 #include "core/node_path.h"
 #include "scene/animation/animation_node_state_machine.h"
 
 class REDShape;
 
-class REDClipper : public Node2D {
-	GDCLASS(REDClipper, Node2D);
-	// Clipper
+class REDClipper : public REDShapeRenderer {
+	GDCLASS(REDClipper, REDShapeRenderer);
 public:
 	enum Space{
 		CLIPPER_SPACE_WORLD,
@@ -17,7 +16,6 @@ public:
 		CLIPPER_SPACE_SCREEN
 	};
 private:
-	REDShape *shape;
 	bool clip_enable;
 	bool clip_rect_enable;
 	bool split;
@@ -49,7 +47,6 @@ public:
 	void set_space(Space p_space);
 	Space get_space() const;
 	RID get_ci() const;
-	void _draw();
 	REDClipper();
 	~REDClipper();
 protected:

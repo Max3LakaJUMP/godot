@@ -142,8 +142,6 @@ public:
 	bool update_uv;
 	bool reset_uv;
 	bool reorder;
-	// Thread *thread;
-	// static void thread_func(void *p_udata);
 
 	void _texture();
 	void _polygon();

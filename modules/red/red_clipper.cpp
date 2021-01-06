@@ -110,7 +110,8 @@ void REDClipper::_update_stencil() {
 	ERR_FAIL_COND_MSG(!shape, "No parent REDshape found!");
 	if (!(stencil_dirty && clip_enable && is_inside_tree()))
 		return;
-	int polygon_size = shape->real_polygon.size();
+	bool use_boolean_polygon = !shape->boolean_polygon.empty();
+	int polygon_size = use_boolean_polygon ? shape->boolean_polygon.size() : shape->real_polygon.size();
 	if (polygon_size != 3 && polygon_size != 4 && polygon_size != 8)
 		return;
 
@@ -127,10 +128,15 @@ void REDClipper::_update_stencil() {
 	default:
 		tr = get_transform();
 	}
-	for (int i = 0; i < polygon_size; i++) {
-		screen_coords.write[i] = tr.xform(shape->real_polygon[i]);
+	if(use_boolean_polygon){
+		for (int i = 0; i < polygon_size; i++) {
+			screen_coords.write[i] = tr.xform(shape->boolean_polygon[i]);
+		}
+	}else{
+		for (int i = 0; i < polygon_size; i++) {
+			screen_coords.write[i] = tr.xform(shape->real_polygon[i]);
+		}
 	}
-
 	if (space == CLIPPER_SPACE_SCREEN){
 		Size2 res = get_viewport()->get_size();
 		for (int i = 0; i < polygon_size; i++) {
@@ -347,50 +353,21 @@ RID REDClipper::get_ci() const{
 	return ci;
 }
 
-void REDClipper::_draw() {
-	VisualServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), clip_rect_enable);
-	ERR_FAIL_COND_MSG(!shape, "No parent REDshape found!");
-	Vector<Color> colors;
-	if (colors.size() == shape->real_polygon.size()) {
-		colors.push_back(Color(1, 1, 1, 1));
-	} else {
-		colors.push_back(Color(1, 1, 1, 1));
-	}
-	VS::get_singleton()->canvas_item_add_polygon(get_canvas_item(), shape->real_polygon, colors);
-	if (clip_enable){
-		stencil_dirty = true;
-		_update_stencil();
-		_send_stencil();
-	}
-}
-
 void REDClipper::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_DRAW: {
-			_draw();
-		}
-		case NOTIFICATION_ENTER_TREE: {
-			Node *parent = get_parent();
-			for (int i = 0; i < 10; i++){
-				shape = Object::cast_to<REDShape>(parent);
-				if (shape){
-					shape->set_content(this);
-					break;
+			if (is_inside_tree()){
+				VisualServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), clip_rect_enable);
+				stencil_dirty = true;
+				if (clip_enable){
+					_update_stencil();
+					_send_stencil();
 				}
-				parent = get_parent();
 			}
-			call_deferred("_update_points");
-		} break;
-		case NOTIFICATION_EXIT_TREE: {
-			if (shape){
-				shape->set_content(NULL);
-			}
-			shape = NULL;
-		} break;
+		}
 		case NOTIFICATION_TRANSFORM_CHANGED:{
 			if (is_inside_tree()){
 				stencil_dirty = true;
-				send_stencil_dirty = true;
 				if (clip_enable){
 					_update_stencil();
 					_send_stencil();

@@ -10,9 +10,7 @@
 #include "red_frame.h"
 #include "red_bubble.h"
 #include "red.h"
-// #include "red_line.h"
-//#include "red_polygon.h"
-#include "red_outline.h"
+#include "red_shape_renderer.h"
 #include "red_clipper.h"
 #include "red_controller.h"
 #include "red_controller_base.h"
@@ -23,10 +21,10 @@
 #include "red_deform.h"
 
 void register_red_types() {
-	ClassDB::register_class<REDOutline>();
+	ClassDB::register_class<REDShapeRenderer>();
 	ClassDB::register_class<REDClipper>();
 	ClassDB::register_class<REDTransform>();
-	ClassDB::register_virtual_class<REDShape>();
+	ClassDB::register_class<REDShape>();
 	//ClassDB::register_virtual_class<REDBase>();
 	//ClassDB::register_virtual_class<REDElement>();
 	//ClassDB::register_virtual_class<REDFolder>();
