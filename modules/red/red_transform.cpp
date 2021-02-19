@@ -46,8 +46,6 @@ void REDTransform::_make_root_dirty(bool update_child) {
 			REDTransform *pi = Object::cast_to<REDTransform>(get_child(i));
 			if (pi)
 				pi->_make_root_dirty(true);
-			else
-				break;
 		}
 	}
 }
@@ -98,8 +96,6 @@ void REDTransform::_update_custom_transform(bool update_child){
 			REDTransform *pi = Object::cast_to<REDTransform>(get_child(i));
 			if (pi)
 				pi->_make_transform_dirty(true);
-			else
-				break;
 		}
 	}
 }
@@ -191,13 +187,13 @@ Transform REDTransform::get_global_rest() const {
 	return global_rest;
 }
 
-void REDTransform::set_rest(const Transform &p_transform) {
+void REDTransform::set_rest3d(const Transform &p_transform) {
 	rest.set_transform(p_transform);
 	_make_rest_dirty();
 	_make_transform_dirty();
 }
 
-Transform REDTransform::get_rest() const{
+Transform REDTransform::get_rest3d() const{
 	return (Transform) rest;
 }
 
@@ -239,55 +235,64 @@ void REDTransform::_notification(int p_what) {
 			Skeleton2D *is_skeleton;
 			REDTransform *is_transform;
 			root_node = NULL;
-			while (parent) {
-				is_transform = Object::cast_to<REDTransform>(parent);
-				if (is_transform){
-					root_node = is_transform->get_root_node();
-					if (root_node){
-						break;
-					}
-				}else{
-					is_bone = Object::cast_to<Bone2D>(parent);
-					if (is_bone){
-						root_node = (Node2D*)is_bone->get_skeleton();
-						if (root_node)
+			if(skeleton){
+				root_node = Object::cast_to<Node2D>(skeleton);
+			}else{
+				while (parent) {
+					is_transform = Object::cast_to<REDTransform>(parent);
+					if (is_transform){
+						root_node = is_transform->get_root_node();
+						if (root_node){
 							break;
+						}
 					}else{
-						is_skeleton = Object::cast_to<Skeleton2D>(parent);
-						if (is_skeleton){
-							root_node = is_skeleton;
+						is_bone = Object::cast_to<Bone2D>(parent);
+						if (is_bone){
+							root_node = (Node2D*)is_bone->get_skeleton();
 							if (root_node)
 								break;
+						}else{
+							is_skeleton = Object::cast_to<Skeleton2D>(parent);
+							if (is_skeleton){
+								root_node = is_skeleton;
+								if (root_node)
+									break;
+							}
 						}
+						// no skeleton so update transform
+						set_notify_transform(true);
 					}
-					// no skeleton so update transform
-					set_notify_transform(true);
+					root_node = Object::cast_to<Node2D>(parent);
+					if(root_node)
+						break;
+					parent = parent->get_parent();
 				}
-				root_node = Object::cast_to<Node2D>(parent);
-				if(root_node)
-					break;
-				parent = parent->get_parent();
 			}
 			_update_custom_transform();
 			Transform global_transform = Variant(root_node->get_global_transform());
 			global_custom_old = global_transform * get_global_custom_transform();
 			global_custom_velocity = Transform();
 			global_custom_euler_accum = 0.0;
-			Skeleton2D *skeleton = Object::cast_to<Skeleton2D>(root_node);
-			if (skeleton) {
-				skeleton->red_transforms.push_back(this);
-			}
+			// Skeleton2D *skeleton = Object::cast_to<Skeleton2D>(root_node);
+			// if (skeleton) {
+			// 	Skeleton2D::Bone bone;
+			// 	// bone.object_bone = this;
+			// 	skeleton->bones.push_back(bone);
+			// }
+			// if (skeleton) {
+			// 	skeleton->red_transforms.push_back(this);
+			// }
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
-			Skeleton2D *skeleton = Object::cast_to<Skeleton2D>(root_node);
-			if (skeleton) {
-				for (int i = 0; i < skeleton->bones.size(); i++) {
-					if (skeleton->red_transforms[i] == this) {
-						skeleton->red_transforms.remove(i);
-						break;
-					}
-				}
-			}
+			//Skeleton2D *skeleton = Object::cast_to<Skeleton2D>(root_node);
+			// if (skeleton) {
+			// 	for (int i = 0; i < skeleton->bones.size(); i++) {
+			// 		if (skeleton->bones[i].object_bone == this) {
+			// 			skeleton->bones.remove(i);
+			// 			break;
+			// 		}
+			// 	}
+			// }
 			set_notify_transform(false);
 			if (root_node) {
 				root_node = NULL;
@@ -427,8 +432,8 @@ void REDTransform::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_global_custom_transform"), &REDTransform::get_global_custom_transform);
 
 	ClassDB::bind_method(D_METHOD("get_global_rest"), &REDTransform::get_global_rest);
-	ClassDB::bind_method(D_METHOD("set_rest", "p_rest"), &REDTransform::set_rest);
-	ClassDB::bind_method(D_METHOD("get_rest"), &REDTransform::get_rest);
+	ClassDB::bind_method(D_METHOD("set_rest3d", "p_rest"), &REDTransform::set_rest3d);
+	ClassDB::bind_method(D_METHOD("get_rest3d"), &REDTransform::get_rest3d);
 	ClassDB::bind_method(D_METHOD("set_rest_position", "position"), &REDTransform::set_rest_position);
 	ClassDB::bind_method(D_METHOD("get_rest_position"), &REDTransform::get_rest_position);
 	ClassDB::bind_method(D_METHOD("set_rest_rotation", "p_rotation"), &REDTransform::set_rest_rotation);
@@ -446,7 +451,7 @@ void REDTransform::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_custom_rotation_degrees"), &REDTransform::get_custom_rotation_degrees);
 	ClassDB::bind_method(D_METHOD("set_custom_scale", "scale"), &REDTransform::set_custom_scale);
 	ClassDB::bind_method(D_METHOD("get_custom_scale"), &REDTransform::get_custom_scale);
-	
+
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM, "custom_transform", PROPERTY_HINT_NONE, "", 0), "set_custom_transform", "get_custom_transform");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "depth_position"), "set_depth_position", "get_depth_position");
 	// ADD_GROUP("3D", "custom_");
@@ -471,6 +476,7 @@ REDTransform::REDTransform() {
 	elasticity = 0.0f;
 	ci = VS::get_singleton()->custom_transform_create();
 	set_notify_local_transform(true);
+	object_bone = true;
 }
 REDTransform::~REDTransform() {
 

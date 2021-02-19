@@ -14,12 +14,13 @@
 //#include "red_bubble_editor_plugin.h"
 #include "red_transform_editor_plugin.h"
 #include "editor/editor_node.h"
-#include "scene_export_editor_plugin.h"
+#include "red_tools_editor_plugin.h"
 
 #include "resource_importer_psd.h"
 #include "resource_importer_jscn.h"
 #include "mediapipe.h"
 #include "red_render_data.h"
+#include "maya.h"
 
 static Ref<ResourceImporterJSCN> import_jscn;
 static Ref<ResourceImporterPSD> import_psd;
@@ -31,17 +32,20 @@ void register_red_editor_types() {
 	ClassDB::register_class<PSD>();
 	ClassDB::register_class<JSCN>();
 	ClassDB::register_class<Mediapipe>();
+
 	Mediapipe::load_dll();
     EditorPlugins::add_by_type<MediapipeEditorPlugin>();
 	EditorPlugins::add_by_type<REDShapeEditorPlugin>();
     //EditorPlugins::add_by_type<REDFrameEditorPlugin>();
 	//EditorPlugins::add_by_type<REDBubbleEditorPlugin>();
-	EditorPlugins::add_by_type<SceneExportEditorPlugin>();
+	EditorPlugins::add_by_type<REDToolsEditorPlugin>();
 	EditorPlugins::add_by_type<REDTransformEditorPlugin>();
 	import_jscn.instance();
 	ResourceFormatImporter::get_singleton()->add_importer(import_jscn);
 	import_psd.instance();
 	ResourceFormatImporter::get_singleton()->add_importer(import_psd);
+	
+	ClassDB::register_class<Maya>();
 #endif
 }
 

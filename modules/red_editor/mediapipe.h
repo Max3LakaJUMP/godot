@@ -1463,7 +1463,7 @@ public:
 			//eye_transform->set_rest_rotation_degrees(eye_transform->get_custom_rotation_degrees());
 			eye_transform->set_position(Point2(eyelids_position.x, eyelids_position.y));
 			eye_transform->set_depth_position(eyelids_position.z);
-			eye_transform->set_rest(Transform().translated(-eyelids_position));
+			eye_transform->set_rest3d(Transform().translated(-eyelids_position));
 			// eye mesh init
 			{
 				Vector3 offseted_x = eye_tr.xform_inv(get_eye_target(iris_offset_x, eyelids_position, eye_len * eye_scale));

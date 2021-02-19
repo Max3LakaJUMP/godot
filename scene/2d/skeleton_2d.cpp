@@ -53,7 +53,7 @@ void Bone2D::_notification(int p_what) {
 			skeleton = Object::cast_to<Skeleton2D>(parent);
 			if (skeleton)
 				break;
-			if (!Object::cast_to<Bone2D>(parent) && !Object::cast_to<REDTransform>(parent))
+			if (!Object::cast_to<Bone2D>(parent))
 				break; //skeletons must be chained to Bone2Ds.
 
 			parent = parent->get_parent();
@@ -101,9 +101,10 @@ void Bone2D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_default_length", "default_length"), &Bone2D::set_default_length);
 	ClassDB::bind_method(D_METHOD("get_default_length"), &Bone2D::get_default_length);
-
-	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM2D, "rest"), "set_rest", "get_rest");
+	
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "default_length", PROPERTY_HINT_RANGE, "1,1024,1"), "set_default_length", "get_default_length");
+	ADD_GROUP("Rest Matrix", "");
+	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM2D, "rest"), "set_rest", "get_rest");
 }
 
 void Bone2D::set_rest(const Transform2D &p_rest) {
@@ -121,6 +122,10 @@ Transform2D Bone2D::get_rest() const {
 Transform2D Bone2D::get_skeleton_rest() const {
 
 	if (parent_bone) {
+		if(parent_bone->object_bone && !object_bone){
+			Transform2D rest_global = Variant(Object::cast_to<REDTransform>(parent_bone)->get_global_rest());
+			return rest_global * rest * rest_global.affine_inverse();
+		}
 		return parent_bone->get_skeleton_rest() * rest;
 	} else {
 		return rest;
@@ -148,7 +153,7 @@ int Bone2D::get_index_in_skeleton() const {
 String Bone2D::get_configuration_warning() const {
 
 	String warning = Node2D::get_configuration_warning();
-	if (!skeleton) {
+	if (!skeleton && !object_bone) {
 		if (warning != String()) {
 			warning += "\n\n";
 		}
@@ -159,7 +164,7 @@ String Bone2D::get_configuration_warning() const {
 		}
 	}
 
-	if (rest == Transform2D(0, 0, 0, 0, 0, 0)) {
+	if (rest == Transform2D(0, 0, 0, 0, 0, 0) && !object_bone) {
 		if (warning != String()) {
 			warning += "\n\n";
 		}
@@ -179,6 +184,7 @@ Bone2D::Bone2D() {
 	for (int i = 0; i < 3; i++) {
 		rest[i] = Vector2(0, 0);
 	}
+	object_bone = false;
 }
 
 //////////////////////////////////////
@@ -204,6 +210,17 @@ void Skeleton2D::_update_bone_setup() {
 	bones.sort(); //sorty so they are always in the same order/index
 
 	for (int i = 0; i < bones.size(); i++) {
+		if(bones[i].bone->object_bone){
+			bones.write[i].bone->skeleton_index = i;
+			Bone2D *parent_bone = Object::cast_to<Bone2D>(bones[i].bone->get_parent());
+			if (parent_bone) {
+				bones.write[i].parent_index = parent_bone->skeleton_index;
+			} else {
+				bones.write[i].parent_index = -1;
+			}
+			Object::cast_to<REDTransform>(bones.write[i].bone)->_make_rest_dirty();
+			continue;
+		}
 		bones.write[i].rest_inverse = bones[i].bone->get_skeleton_rest().affine_inverse(); //bind pose
 		bones.write[i].bone->skeleton_index = i;
 		Bone2D *parent_bone = Object::cast_to<Bone2D>(bones[i].bone->get_parent());
@@ -212,10 +229,6 @@ void Skeleton2D::_update_bone_setup() {
 		} else {
 			bones.write[i].parent_index = -1;
 		}
-	}
-	for (int i = 0; i < red_transforms.size(); i++) {
-		if (red_transforms[i])
-			red_transforms.write[i]->_make_rest_dirty();
 	}
 
 	transform_dirty = true;
@@ -246,20 +259,28 @@ void Skeleton2D::_update_transform() {
 
 	for (int i = 0; i < bones.size(); i++) {
 
+		if(bones[i].bone->object_bone){
+			Object::cast_to<REDTransform>(bones.write[i].bone)->_make_transform_dirty();
+			continue;
+		}
 		ERR_CONTINUE(bones[i].parent_index >= i);
 		if (bones[i].parent_index >= 0) {
-			bones.write[i].accum_transform = bones[bones[i].parent_index].accum_transform * bones[i].bone->get_transform();
+			if(bones[bones[i].parent_index].bone->object_bone && !bones[i].bone->object_bone){
+				Transform2D rest_global = Variant(Object::cast_to<REDTransform>(bones[bones[i].parent_index].bone)->get_global_rest());
+				bones.write[i].accum_transform = rest_global * bones[i].bone->get_transform() * rest_global.affine_inverse();
+			}else{
+				bones.write[i].accum_transform = bones[bones[i].parent_index].accum_transform * bones[i].bone->get_transform();
+			}
 		} else {
 			bones.write[i].accum_transform = bones[i].bone->get_transform();
 		}
 	}
-	for (int i = 0; i < red_transforms.size(); i++) {
-		if (red_transforms[i])
-			red_transforms.write[i]->_make_transform_dirty();
-	}
 
 	for (int i = 0; i < bones.size(); i++) {
-
+		if(bones[i].bone->object_bone){
+			VS::get_singleton()->skeleton_bone_set_transform_2d(skeleton, i, Transform2D());
+			continue;
+		}
 		Transform2D final_xform = bones[i].accum_transform * bones[i].rest_inverse;
 		VS::get_singleton()->skeleton_bone_set_transform_2d(skeleton, i, final_xform);
 	}
@@ -297,8 +318,9 @@ void Skeleton2D::_notification(int p_what) {
 	}
 
 	if (p_what == NOTIFICATION_TRANSFORM_CHANGED) {
-		for (int i = 0; i < red_transforms.size(); i++) {
-			red_transforms.write[i]->_make_root_dirty();
+		for (int i = 0; i < bones.size(); i++) {
+			if(bones[i].bone->object_bone)
+				Object::cast_to<REDTransform>(bones.write[i].bone)->_make_root_dirty();
 		}
 		VS::get_singleton()->skeleton_set_base_transform_2d(skeleton, get_global_transform());
 	}
@@ -307,6 +329,7 @@ void Skeleton2D::_notification(int p_what) {
 RID Skeleton2D::get_skeleton() const {
 	return skeleton;
 }
+
 void Skeleton2D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("_update_bone_setup"), &Skeleton2D::_update_bone_setup);

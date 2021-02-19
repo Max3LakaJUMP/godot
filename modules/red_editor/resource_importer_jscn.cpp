@@ -52,6 +52,8 @@
 #include "modules/red/red_parallax_folder.h" 
 #include "modules/red/red_target.h" 
 #include "modules/red/red_transform.h" 
+#include "modules/red/red_shape_renderer.h" 
+#include "modules/red/red_clipper.h" 
 #include "scene/resources/bit_map.h"
 #include "core/math/math_funcs.h"
 #include <string>
@@ -119,7 +121,7 @@ Node *ResourceImporterJSCN::get_edited_scene_root(const String &p_path) const{
 	return nullptr;
 }
 
-void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, const Map<StringName, Variant> &p_options, String &scene_path, bool parent_is_root){
+void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node **root_ptr, String &scene_path, const Map<StringName, Variant> &p_options){
 	bool b_update = p_options["main/update"];
 	bool b_update_only_editor = p_options["main/update_only_editor"];
 	// bool update_polygon = p_options["update/polygon"];
@@ -129,9 +131,23 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 
 	Node *node;
 	String name = serialized["name"];
+	String parent_path = serialized["parent"];
 	String type = serialized["type"];
 	bool need_create = true;
 
+	Node *parent;
+	if((*root_ptr) == nullptr){
+		parent = nullptr;
+		print_line("no root");
+	}else{
+		if(parent_path == "")
+			return;
+		parent = (*root_ptr)->get_parent()->get_node(NodePath(parent_path));
+		if(!parent){
+			print_line("parent error");
+			return;
+		}
+	}
 	if (parent == nullptr){
 		_File file_сheck;
 		if (file_сheck.file_exists(scene_path)){
@@ -152,6 +168,7 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 			return;
 		}	
 		need_create = false;
+		*root_ptr = node;
 	}
 	// if (parent == nullptr){
 	// 	Ref<PackedScene> scene;
@@ -192,13 +209,17 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 			node = red::create_node<Skeleton2D>(parent, name);
 		else if (type=="Bone2D")
 			node = red::create_node<Bone2D>(parent, name);
+		else if (type=="REDShapeRenderer")
+			node = red::create_node<REDShapeRenderer>(parent, name);
+		else if (type=="REDClipper")
+			node = red::create_node<REDClipper>(parent, name);
 		else{
 			return;
 		}
 	}
 	List<PropertyInfo> plist;
 	ClassDB::get_property_list(node->get_class(), &plist, false, node);
-	print_line(node->get_name());
+	//print_line(node->get_name());
 	for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
 		String name = E->get().name;
 		if (name == "name" || name == "owner" || name == "_import_path" || 
@@ -249,7 +270,7 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 				//print_line("Appled " + name + " property");
 				//print_line(std::to_string((int)serialized[name].get_type()).c_str());
 				//print_line(std::to_string((int)node->get(name).get_type()).c_str());
-			}else if (serialized[name].get_type()==4 && node->get(name).get_type()==15){
+			}else if (serialized[name].get_type() == Variant::STRING && node->get(name).get_type() == Variant::NODE_PATH){
 				node->set(name, NodePath(serialized[name]));
 			}else {
 				print_line("Ignored " + name + " property");
@@ -332,25 +353,8 @@ void ResourceImporterJSCN::dict_to_node(Dictionary &serialized, Node *parent, co
 		int count = children.size();
 		for (int i = 0; i < count; i++){
 			Dictionary child = children[i];
-			dict_to_node(child, node, p_options, scene_path);
+			dict_to_node(child, root_ptr, scene_path, p_options);
 		}
-	}
-	if (parent == nullptr){
-		if (force_save){
-			Ref<PackedScene> scene = memnew(PackedScene);
-			Error err = scene->pack(node);
-			if (err == OK){
-				err = ResourceSaver::save(scene_path, scene);
-			}
-		}
-		EditorData &editor_data = EditorNode::get_editor_data();
-		int index = 0;
-		for (int i = 0; i < editor_data.get_edited_scene_count(); i++) {
-			if (editor_data.get_scene_path(i) == scene_path)
-				index = i;
-		}
-		editor_data.set_edited_scene(index);
-		//EditorNode::get_singleton()->reload_scene(scene_path);
 	}
 }
 
@@ -365,19 +369,39 @@ Error ResourceImporterJSCN::import(const String &p_source_file, const String &p_
 	String err_string;
 	int err_int;
 	Error err = REDJSON::parse(json_text, parse_result, err_string, err_int);
-	if(err!=OK){
+	if(err != OK){
 		memdelete(f);
 		return ERR_CANT_OPEN;
 	}
-	Dictionary data = Dictionary(parse_result);
+	Array data = parse_result;
 	memdelete(f);
 	
 	String scene_path = p_source_file.get_basename() + ".tscn";
-
-	if (data.has("root")) {
-		Dictionary root_serialized = data["root"];
-		dict_to_node(root_serialized, nullptr, p_options, scene_path);
+	Node *root = nullptr;
+	Node **root_ptr = &root;
+	for (int i = 1; i < data.size(); i++){
+		Dictionary d = data[i];
+		print_line(String(d["name"]));
+		dict_to_node(d, root_ptr, scene_path, p_options);
 	}
+	if(root == nullptr)
+		return OK;
+	if (!p_options["main/update_only_editor"]){
+		Ref<PackedScene> scene = memnew(PackedScene);
+		Error err = scene->pack(root);
+		if (err == OK){
+			err = ResourceSaver::save(scene_path, scene);
+		}
+	}
+	EditorData &editor_data = EditorNode::get_editor_data();
+	int index = 0;
+	for (int i = 0; i < editor_data.get_edited_scene_count(); i++) {
+		if (editor_data.get_scene_path(i) == scene_path)
+			index = i;
+	}
+	editor_data.set_edited_scene(index);
+	//EditorNode::get_singleton()->reload_scene(scene_path);
+	
 	return OK;
 }
 

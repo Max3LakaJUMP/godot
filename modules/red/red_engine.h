@@ -113,6 +113,7 @@ T *find_parent_type(Node *node, int max_iter=10) {
 	return nullptr;
 }
 
+PoolByteArray to_ascii(const String &input_string);
 Vector2 cubic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, const Vector2 &p3, float t);
 Vector2 quadratic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, float t);
 Vector<Vector2> tesselate(const Vector<Vector2> &low_res, const int smooth_factor=1, const TesselateMode &p_interpolation=TesselateMode::CUBIC);

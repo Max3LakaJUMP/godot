@@ -92,7 +92,7 @@ public:
 	virtual Error import(const String &p_source_file, const String &p_save_path, const Map<StringName, Variant> &p_options, List<String> *r_platform_variants, List<String> *r_gen_files = NULL, Variant *r_metadata = NULL);
 
 	Node *get_edited_scene_root(const String &p_path) const;
-	void dict_to_node(Dictionary &serialized, Node *parent, const Map<StringName, Variant> &p_options, String &scene_path, bool parent_is_root=false);
+	void dict_to_node(Dictionary &serialized, Node **root_ptr, String &scene_path, const Map<StringName, Variant> &p_options);
 	Error create_dir(String dir);
 
 	ResourceImporterJSCN();

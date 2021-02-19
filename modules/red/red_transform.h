@@ -31,13 +31,13 @@
 #ifndef REDTRANSFORM_H
 #define REDTRANSFORM_H
 
-#include "scene/2d/node_2d.h"
+#include "scene/2d/skeleton_2d.h"
 #include "core/math/transform.h"
 #include "core/rid.h"
 #include "modules/red/red_engine.h"
 
-class REDTransform : public Node2D {
-	GDCLASS(REDTransform, Node2D);
+class REDTransform : public Bone2D {
+	GDCLASS(REDTransform, Bone2D);
 	float depth_position;
 	TransformC rest;
 	TransformC custom;
@@ -92,8 +92,8 @@ public:
 	
 	// rest
 	Transform get_global_custom_transform() const;
-	void set_rest(const Transform &p_rest);
-	Transform get_rest() const;
+	void set_rest3d(const Transform &p_rest);
+	Transform get_rest3d() const;
 	void set_rest_position(const Vector3 &p_pos);
 	Vector3 get_rest_position() const;
 	void set_rest_rotation(const Vector3 &p_radians);

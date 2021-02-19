@@ -40,6 +40,7 @@ class Bone2D : public Node2D {
 	GDCLASS(Bone2D, Node2D);
 
 	friend class Skeleton2D;
+	friend class REDTransform;
 #ifdef TOOLS_ENABLED
 	friend class AnimatedValuesBackup;
 #endif
@@ -50,6 +51,7 @@ class Bone2D : public Node2D {
 	float default_length;
 
 	int skeleton_index;
+	bool object_bone;
 
 protected:
 	void _notification(int p_what);
@@ -89,8 +91,6 @@ public:
 		int parent_index;
 		Transform2D accum_transform;
 		Transform2D rest_inverse;
-
-		bool bone3d=false;
 	};
 private:
 	Vector<Bone> bones;

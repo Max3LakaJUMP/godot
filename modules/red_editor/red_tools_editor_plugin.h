@@ -34,28 +34,29 @@
 #include "editor/plugins/abstract_polygon_2d_editor.h"
 #include "scene/2d/line_2d.h"
 #include "scene/gui/menu_button.h"
+#include "maya.h"
 
-class SceneExportEditorPlugin : public EditorPlugin {
+class REDToolsEditorPlugin : public EditorPlugin {
 
-	GDCLASS(SceneExportEditorPlugin, EditorPlugin);
+	GDCLASS(REDToolsEditorPlugin, EditorPlugin);
+	Ref<Maya> maya;
+
 	MenuButton *red_menu;
+
 protected:
 	static void _bind_methods();
 
 public:
-	SceneExportEditorPlugin(EditorNode *p_node);
 	void red_clicked(const int id);
-
 	void to_maya();
-	Dictionary scene_to_dict(Node *root);
-	Dictionary node_to_dict(Node *node);
-	Error save_json(Dictionary &p_data, String &p_path);
-	
+
 	Vector<int> triangulate(const PoolVector2Array &points, const Array &polygons);
 	void selection_to_normals();
 	
 	void create_mediapipe();
 	void attach_transform();
+	
+	REDToolsEditorPlugin(EditorNode *p_node);
 };
 
 #endif // SCENE_EXPORT_EDITOR_PLUGIN_H

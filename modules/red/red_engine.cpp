@@ -15,6 +15,19 @@
 #include <string>
 
 namespace red {
+PoolByteArray to_ascii(const String &input_string) {
+	if (input_string.empty()) 
+		return PoolByteArray();
+	PoolByteArray out;
+	CharString charstr = input_string.ascii();
+	size_t len = charstr.length();
+	out.resize(len);
+	PoolByteArray::Write w = out.write();
+	copymem(w.ptr(), charstr.ptr(), len);
+	w.release();
+	return out;
+}
+
 Vector2 cubic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, const Vector2 &p3, float t){
     Vector2 q0 = p0.linear_interpolate(p1, t);
     Vector2 q1 = p1.linear_interpolate(p2, t);
