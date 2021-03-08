@@ -218,7 +218,7 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 														0.0, 0.0, 1.0, 
 														0.0, 0.0, 0.0);
 				if (state.using_custom_transform){
-					state.deform_object_matrix = state.deform_object_matrix * state.custom_transform;
+					state.deform_object_matrix = state.custom_transform.affine_inverse() * state.deform_object_matrix;
 				}
 			}
 			state.deform_object_matrix_inverse = state.deform_object_matrix.affine_inverse();
@@ -235,7 +235,8 @@ void RasterizerCanvasGLES3::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 													s, c, 0.0,
 													0.0, 0.0, 1.0, 
 													0.0, 0.0, 0.0);
-				state.deform_wind_matrix = Transform(Variant(world_pos.affine_inverse())) * state.deform_object_matrix_inverse * state.deform_wind_matrix;				
+				state.deform_wind_matrix = state.deform_object_matrix * Transform(Variant(world_pos.affine_inverse())) * state.deform_wind_matrix;
+				// state.deform_wind_matrix = Transform(Variant(world_pos.affine_inverse())) * state.deform_wind_matrix;	
 			}
 			state.wind_rotation = deform->wind_rotation;
 			state.wind_offset = deform->wind_offset;
@@ -1557,7 +1558,7 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 														0.0, 0.0, 1.0, 
 														0.0, 0.0, 0.0);
 				if (state.using_custom_transform){
-					state.deform_object_matrix = state.deform_object_matrix * state.custom_transform;
+					state.deform_object_matrix = state.custom_transform.affine_inverse() * state.deform_object_matrix;
 				}
 			}
 			state.deform_object_matrix_inverse = state.deform_object_matrix.affine_inverse();
@@ -1574,7 +1575,7 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 													s, c, 0.0,
 													0.0, 0.0, 1.0, 
 													0.0, 0.0, 0.0);
-				state.deform_wind_matrix = Transform(Variant(world_pos.affine_inverse())) * state.deform_object_matrix_inverse * state.deform_wind_matrix;				
+				state.deform_wind_matrix = state.deform_object_matrix * Transform(Variant(world_pos.affine_inverse())) * state.deform_wind_matrix;
 			}
 			state.wind_rotation = deform->wind_rotation;
 			state.wind_offset = deform->wind_offset;

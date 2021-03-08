@@ -172,9 +172,6 @@ vec2 select(vec2 a, vec2 b, bvec2 c) {
 }
 
 #ifdef USE_DEFORM
-vec2 lerp(vec2 val, vec2 val2, float k){
-	return val + k * (val2 - val);
-}
 vec2 rotate(vec2 uv, float rotation)
 {
 	float c = cos(rotation);
@@ -204,7 +201,28 @@ vec2 wind(float t, vec2 direction, vec2 wave)
 	vec2 wind_side;
 	wind_side.x = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.x);
 	wind_side.y = (sin(t + wave.y) * 0.5 - 0.5);
-	vec2 result = lerp(wind_side, wind_top, max(wind_from_bellow, wind_from_top));
+	vec2 result = mix(wind_side, wind_top, max(wind_from_bellow, wind_from_top));
+
+	return result;
+}
+vec3 wind(float t, vec3 direction, vec2 wave)
+{
+	float wind_from_top = dot(direction, vec3(0, 1, 0));
+	float wind_from_bellow = -1 * wind_from_top;
+	float vertical = abs(wind_from_top);
+	wind_from_top = max(wind_from_top, 0.0);
+	wind_from_bellow = max(wind_from_bellow, 0.0);
+
+	vec3 wind_top;
+	wind_top.x = sin(t * 0.5 + wave.x + 3.14) * 0.5;
+	wind_top.y = (cos(t + 3.14 + wave.y) * 0.5 - 0.5 * wind_from_bellow) * (-direction.y);
+	wind_top.z = sin(t * 0.5 + wave.x + 3.14) * 0.5;
+	vec3 wind_side;
+	wind_side.x = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.x);
+	wind_side.y = (sin(t + wave.y) * 0.5 - 0.5);
+	wind_side.z = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.z);
+	// wind_side.z = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.x);
+	vec3 result = mix(wind_side, wind_top, vertical);
 
 	return result;
 }
@@ -334,8 +352,6 @@ VERTEX_SHADER_CODE
 	#endif
 		#if defined(USE_DEFORM)
 		{
-			highp mat2 object_matrix = mat2(deform_object_matrix);
-			highp mat2 object_matrix_inverse = mat2(deform_object_matrix_inverse);
 			vec2 uv_rot = rotate_uv((uv - 0.5) * 1.25 + 0.5, -object_rotation);
 			
 			float t = time * 6.28;
@@ -347,35 +363,39 @@ VERTEX_SHADER_CODE
 			
 			// physics
 			#ifdef USE_CUSTOM_TRANSFORM
-			highp vec2 cycle_physics = vec2(0,0);
+			highp vec3 cycle_physics = vec3(0,0,0);
 			{
-				highp float physics_offset = length(outvec_physics.xy - outvec.xy);
+				highp vec3 physics_direction = mat3(deform_object_matrix) * (outvec_physics.xyz - outvec.xyz);
+				highp float physics_offset = length(physics_direction);
 				if (physics_offset > 0.001){
-					highp vec2 physics_direction = normalize(object_matrix_inverse * (outvec_physics.xy - outvec.xy));
-					highp vec2 physics_target = physics_direction;
-					physics_target.y = physics_target.y * 0.5 - 0.5;
-					cycle_physics = (physics_target + wind(2.0 * t + time_offset, physics_direction, wave) * 0.25) * physics_offset * soft_body;
+					physics_direction = normalize(physics_direction);
+					highp vec3 physics_target = physics_direction;
+					float pty = sin(physics_target.y * 1.57) * 0.5;
+					physics_target.y = mix(pty - 0.5, pty, abs(dot(physics_target, vec3(0, 1, 0))));
+					cycle_physics = wind(t + time_offset, physics_direction, wave);
+					cycle_physics = (cycle_physics * 0.25 + physics_target) * physics_offset * soft_body;
+					cycle_physics = mat3(deform_object_matrix_inverse) * cycle_physics;
 				}
 			}
 			#endif
 			// wind
-			highp vec2 cycle_wind = vec2(0,0);
+			highp vec3 cycle_wind = vec3(0, 0, 0);
 			{
-				highp vec2 wind_direction = mat2(deform_wind_matrix) * vec2(0.0, 1.0);
-				highp vec2 wind_target = wind_direction;
-				wind_target.y = wind_target.y * 0.5 - 0.5;
-				cycle_wind = (wind(t / wind_time + time_offset, wind_direction, wave) + wind_target * wind_offset) * wind_strength;
+				highp vec3 wind_direction = mat3(deform_wind_matrix) * vec3(0.0, 1.0, 0.0);
+				highp vec3 wind_target = wind_direction;
+				wind_target.y = sin(wind_target.y * 1.57) * 0.5 - 0.5;
+				cycle_wind = wind(t / wind_time + time_offset, wind_direction, wave);
+				cycle_wind = (cycle_wind + wind_target * wind_offset) * wind_strength;
+				cycle_wind = mat3(deform_object_matrix_inverse) * cycle_wind;
 			}
 			// scale
 			highp vec2 cycle_scale = (sin(t / scale_time + time_offset) * (uv_rot - scale_center)) * scale_strength;
 			// apply
-			outvec.xy = object_matrix_inverse * outvec.xy;
 			#ifdef USE_CUSTOM_TRANSFORM
-			outvec.xy += ((cycle_wind + cycle_scale) * wind_strength_object + cycle_physics) * deform_mask;
+			outvec.xyz += ((cycle_wind.xyz + vec3(cycle_scale, 0)) * wind_strength_object.x + cycle_physics.xyz) * deform_mask;
 			#else
-			outvec.xy += ((cycle_wind + cycle_scale) * wind_strength_object) * deform_mask;
+			outvec.xyz += ((cycle_wind.xyz + vec3(cycle_scale, 0)) * wind_strength_object.x) * deform_mask;
 			#endif
-			outvec.xy = object_matrix * outvec.xy;
 			// gravity
 			// vec2 object_direction = object_matrix * vec2(0,1);
 			// float object_is_facing_top = (dot(object_direction, vec2(0,-1)) * 0.5 + 0.5) * 

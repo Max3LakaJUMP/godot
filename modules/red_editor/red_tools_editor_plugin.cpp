@@ -43,13 +43,14 @@
 
 REDToolsEditorPlugin::REDToolsEditorPlugin(EditorNode *p_node) {
 	maya.instance();
+	maya->set_server_port(6000);
+	maya->set_maya_port(6001);
 	red_menu = memnew(MenuButton);
 	red_menu->set_text("RED");
 	PopupMenu *popup = red_menu->get_popup();
+	popup->add_check_shortcut(ED_SHORTCUT("maya/server", TTR("Maya server")));
 	popup->add_check_shortcut(ED_SHORTCUT("maya/sender", TTR("Maya sender")));
-	popup->add_check_shortcut(ED_SHORTCUT("maya/reciever", TTR("Maya receiver")));
-	popup->add_item("From Maya server");
-	popup->add_item("To Maya");
+	popup->add_item("Send scene");
 	popup->add_item("Render normals");
 	popup->add_item("Mediapipe");
 	popup->add_item("Attach transform");
@@ -65,9 +66,9 @@ void REDToolsEditorPlugin::red_clicked(const int id) {
 		bool current = !popup->is_item_checked(idx);
 		popup->set_item_checked(idx, current);
 		if(current)
-			maya->start_sender();
+			maya->start_server();
 		else
-			maya->stop_sender();
+			maya->stop_server();
 	} break;
 	case 1:{
 		PopupMenu *popup = red_menu->get_popup();
@@ -75,23 +76,20 @@ void REDToolsEditorPlugin::red_clicked(const int id) {
 		bool current = !popup->is_item_checked(idx);
 		popup->set_item_checked(idx, current);
 		if(current)
-			maya->start_receiver();
+			maya->start_sender();
 		else
-			maya->stop_receiver();
+			maya->stop_sender();
 	} break;
 	case 2:
-		maya->start_server();
-		break;
-	case 3:
 		to_maya();
 		break;
-	case 4:
+	case 3:
 		selection_to_normals();
 		break;
-	case 5:
+	case 4:
 		create_mediapipe();
 		break;
-	case 6:
+	case 5:
 		attach_transform();
 		break;
 	default:

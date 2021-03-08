@@ -18,12 +18,51 @@ class REDFrame;
 class REDControllerBase;
 class Polygon2D;
 
+// struct Edge{
+// 	Vector3 start;
+// 	Vector3 end;
+
+// 	bool operator==(const Edge &p_edge) const {
+// 		return (start == p_edge.start && end == p_edge.end) || (start == p_edge.end && end == p_edge.start);
+// 	}
+// }
+
 class TransformC : public Transform{
+public:
+	// enum ROTATION_ORDER{
+	// 	DEFAULT_ROTATION,
+	// 	ZYX
+	// };
+private:
 	bool _xform_dirty;
 	Vector3 rotation;
 	Vector3 scale;
+	// ROTATION_ORDER rotation_order;
 public:
+	// void set_rotation_order(const ROTATION_ORDER &p_rotation_order) {
+	// 	rotation_order = p_rotation_order;
+	// 	_xform_dirty = true;
+	// }
+
+	// void get_rotation_order() const{
+	// 	return rotation_order;
+	// }
+
 	void _update_xform_values() {
+
+		// switch (ROTATION_ORDER)
+		// {
+		// case ROTATION_ORDER::ZYX:{
+		// 	Basis m = basis.orthonormalized();
+		// 	real_t det = m.determinant();
+		// 	if (det < 0)
+		// 		m.scale(Vector3(-1, -1, -1));
+		// 	rotation = m.get_euler_zyx();
+		// } break;
+		// default:
+			// rotation = get_basis().get_rotation();
+		// 	break;
+		// }	
 		rotation = get_basis().get_rotation();
 		scale = get_basis().get_scale();
 		_xform_dirty = false;
@@ -39,7 +78,16 @@ public:
 		if (_xform_dirty)
 			((TransformC *)this)->_update_xform_values();
 		rotation = p_radians;
-		basis.set_euler_scale(rotation, scale);
+		// switch (ROTATION_ORDER)
+		// {
+		// case ROTATION_ORDER::ZYX:{
+		// 	basis.set_euler_zyx(rotation);
+		// } break;
+		// default:
+		// 	basis.set_euler(rotation);
+		// 	break;
+		// }	
+		basis.set_euler(rotation);
 	}
 
 	Vector3 get_rotation() const {
@@ -58,7 +106,7 @@ public:
 			temp.x = CMP_EPSILON;
 		if (temp.y == 0)
 			temp.y = CMP_EPSILON;
-		basis.scale(temp / scale);
+		basis.scale(p_scale * temp / scale);
 		scale = p_scale;
 	}
 
@@ -82,6 +130,8 @@ public:
 	TransformC() {
 		rotation = Vector3(0, 0, 0);
 		scale = Vector3(1, 1, 1);
+
+		// rotation_order = DEFAULT_ROTATION;
 	}
 };
 
@@ -156,13 +206,13 @@ Dictionary dict(Vector2 &p_vector2, float &p_z);
 Dictionary dict(Color &p_color);
 
 Array arr(PoolVector<Vector2> &p_value);	
-
+PoolVector<int> pool_int_array(Array &p_arr);
 PoolVector<Vector2> pool_vector2_array(Array &p_arr);
 PoolVector<Color> pool_color_array(Array &p_arr);
 PoolVector<float> pool_real_array(Array &p_arr);
 
-String globalize(String &p_path);
-String localize(String &p_path);
+String globalize(const String &p_path);
+String localize(const String &p_path);
 template <class T>
 T *create_node(Node *parent, const String &name="", Node *owner=nullptr, bool force=false){
 	if (parent){
@@ -187,6 +237,18 @@ T *create_node(Node *parent, const String &name="", Node *owner=nullptr, bool fo
 		return node;
 	}
 	ERR_FAIL_V(nullptr);
+}
+
+template <class T>
+Vector<T> vector(const PoolVector<T> p_array) {
+	int count = p_array.size();
+	PoolVector<T>::Read r = p_array.read();
+	Vector<T> result;
+	result.resize(count);
+	for (int i = 0; i < count; i++) {
+		result.write[i] = r[i];
+	}
+	return result;
 }
 
 template <class T>

@@ -389,6 +389,7 @@ void RasterizerCanvasBaseGLES3::_set_texture_rect_mode(bool p_enable, bool p_nin
 }
 
 void RasterizerCanvasBaseGLES3::_draw_polygon(const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor, const int *p_bones, const float *p_weights) {
+	glClear(GL_DEPTH_BUFFER_BIT);
 
 	glBindVertexArray(data.polygon_buffer_pointer_array);
 	glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
@@ -1017,7 +1018,14 @@ void RasterizerCanvasBaseGLES3::reset_canvas() {
 
 	glBindVertexArray(0);
 	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
+	//enable depth buffer
+	// glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDepthMask(GL_TRUE);
+	glClearDepth(1.0f);
+	glClear(GL_DEPTH_BUFFER_BIT);
+
 	glDisable(GL_SCISSOR_TEST);
 	glDisable(GL_DITHER);
 	glEnable(GL_BLEND);

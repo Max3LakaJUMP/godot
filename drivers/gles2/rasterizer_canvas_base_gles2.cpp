@@ -448,16 +448,17 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 void RasterizerCanvasBaseGLES2::reset_canvas() {
 
 	glDisable(GL_CULL_FACE);
+	//enable depth buffer
 	//glDisable(GL_DEPTH_TEST);
 	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_SCISSOR_TEST);
-	glDisable(GL_DITHER);
-	glEnable(GL_BLEND);
-	
 	glDepthFunc(GL_LEQUAL);
 	glDepthMask(GL_TRUE);
 	glClearDepth(1.0f);
 	glClear(GL_DEPTH_BUFFER_BIT);
+
+	glDisable(GL_SCISSOR_TEST);
+	glDisable(GL_DITHER);
+	glEnable(GL_BLEND);
 
 	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);

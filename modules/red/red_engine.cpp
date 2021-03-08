@@ -623,6 +623,18 @@ Array arr(PoolVector<Vector2> &p_value){
 	}
 	return result;
 }		
+PoolVector<int> pool_int_array(Array &p_arr){
+	Array array;
+	int count = p_arr.size();
+	PoolVector<int> pool;
+	pool.resize(count);
+	PoolVector<int>::Write w = pool.write();
+	for (int i = 0; i < count; i++){
+		int el = p_arr[i];
+		w[i] = el;
+	}
+	return pool;
+}
 PoolVector<Vector2> pool_vector2_array(Array &p_arr){
 	Array array;
 	int count = p_arr.size();
@@ -705,21 +717,21 @@ void dict(Variant &p_value, Array &output){
 
 }
 */
-String globalize(String &p_path){
+String globalize(const String &p_path){
 	ProjectSettings *settings = ProjectSettings::get_singleton();
 	if (settings)
 		return settings->globalize_path(p_path);
 	else
 		ERR_PRINTS("Error can't globalize: " + p_path);
-	return p_path;
+	return String();
 }
-String localize(String &p_path){
+String localize(const String &p_path){
 	ProjectSettings *settings = ProjectSettings::get_singleton();
 	if (settings)
 		return settings->localize_path(p_path);
 	else
 		ERR_PRINTS("Error can't localize: " + p_path);
-	return p_path;
+	return String();
 }
 /*
 REDPage *get_page_from_scene(const Node &n) {

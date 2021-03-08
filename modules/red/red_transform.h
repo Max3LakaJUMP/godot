@@ -100,7 +100,8 @@ public:
 	Vector3 get_rest_rotation() const;
 	void set_rest_rotation_degrees(const Vector3 &p_degrees);
 	Vector3 get_rest_rotation_degrees() const;
-
+	void set_rest_scale(const Vector3 &p_scale);
+	Vector3 get_rest_scale() const;
 	RID get_ci();
 	REDTransform();
 	~REDTransform();

@@ -172,15 +172,15 @@ Transform REDTransform::get_global_rest() const {
 		Node *par = get_parent();
 		REDTransform *parent_tr = Object::cast_to<REDTransform>(par);
 		if (parent_tr) {
-			global_rest = parent_tr->get_global_rest() * rest;
+			global_rest = parent_tr->get_global_rest() * get_rest3d();
 		} else {
 			Bone2D *parent_bone = Object::cast_to<Bone2D>(par);
 			if (parent_bone){
 				Transform bone_rest = Variant(parent_bone->get_skeleton_rest());
-				global_rest = bone_rest * rest;
+				global_rest = bone_rest * get_rest3d();
 			}
 			else{
-				global_rest = rest;
+				global_rest = get_rest3d();
 			}
 		}
 	}
@@ -226,6 +226,17 @@ void REDTransform::set_rest_rotation_degrees(const Vector3 &p_degrees) {
 Vector3 REDTransform::get_rest_rotation_degrees() const {
 	return rest.get_rotation_degrees();
 }
+
+void REDTransform::set_rest_scale(const Vector3 &p_scale) {
+	rest.set_scale(p_scale);
+	_make_rest_dirty();
+	_make_transform_dirty();
+}
+
+Vector3 REDTransform::get_rest_scale() const {
+	return rest.get_scale();
+}
+
 
 void REDTransform::_notification(int p_what) {
 	switch (p_what) {
@@ -319,32 +330,78 @@ void REDTransform::_update_old_custom_transform(){
 		global_custom_velocity = Transform();
 		global_custom_euler_accum = 0.0;
 		set_process_internal(false);
+		VisualServer::get_singleton()->custom_transform_set_old(ci, global_transform.affine_inverse() * global_custom_old * get_global_rest().affine_inverse());
 	}
 	else{
-		// Bounce
-		float delta = CLAMP(get_process_delta_time() * 4.0, 0.001, 0.2);
-		Transform target_velocity = target * global_custom_old.affine_inverse();
-		target_velocity.origin = 2.0 * target_velocity.origin;
-		Vector3 euler = target_velocity.basis.get_euler();
-		global_custom_euler_accum += delta * euler.length();
-		euler.x = MIN(ABS(2.0f * euler.x), 0.7853) * SGN(euler.x);
-		euler.y = MIN(ABS(2.0f * euler.y), 0.7853) * SGN(euler.y);
-		euler.z = MIN(ABS(2.0f * euler.z), 0.7853) * SGN(euler.z);
-		target_velocity.basis.set_euler(2.0f * euler);
-		global_custom_velocity = global_custom_velocity.interpolate_with(target_velocity, delta);
-		global_custom_old = global_custom_old.interpolate_with(global_custom_velocity * target, delta);
-		// max offset
-		Vector3 origin_diff = (global_custom_old.origin - target.origin);
-		global_custom_old.origin = origin_diff * MIN(elasticity / origin_diff.length(), 1.0) + target.origin;
-		//float elasticity_angle = 15.0;
-		//Vector3 euler_diff = (global_custom_old * target.affine_inverse()).basis.get_euler();
-		//global_custom_old.basis.set_euler(euler_diff * MIN(elasticity_angle * 3.14 / 180.0 / euler_diff.length(), 1.0) + target.basis.get_euler());
-		// update origin faster when rotating
-		global_custom_old.origin = global_custom_old.origin.linear_interpolate(target.origin, MIN(global_custom_euler_accum * 180 / 3.14 * delta * 0.1, 1.0f));
-		// print_line(Variant(global_custom_euler_accum * 180 / 3.14 * delta * 0.1));
-		global_custom_euler_accum = global_custom_euler_accum - delta * global_custom_euler_accum;
+		// {
+		// 	float bounces = 2.f;
+		// 	float delta = MIN(get_process_delta_time() * 8.f, 1.f);
+		// 	global_custom_velocity.origin = global_custom_velocity.origin.linear_interpolate(bounces * (target.origin - global_custom_old.origin), delta);
+		// 	global_custom_old.origin = global_custom_old.origin.linear_interpolate(global_custom_velocity.origin + global_custom_old.origin, delta);
+		// 	// max offset
+		// 	Vector3 diff = (global_custom_old.origin - target.origin);
+		// 	float k = MIN(elasticity / diff.length(), 1.f);
+		// 	global_custom_old.origin = target.origin + k * diff;
+		// }
+		Transform local_custom_old = global_transform.affine_inverse() * global_custom_old * get_global_rest().affine_inverse();
+		Transform local_target = global_transform.affine_inverse() * target * get_global_rest().affine_inverse();
+		{
+			float delta = MIN(get_process_delta_time() * 5.0f, 1.f);
+			// get smooth velocity
+			global_custom_velocity.origin = global_custom_velocity.origin.linear_interpolate(2.f * (local_target.origin - local_custom_old.origin), delta);
+			// apply
+			local_custom_old.origin = local_custom_old.origin.linear_interpolate(global_custom_velocity.origin + local_custom_old.origin, delta);
+			// max offset
+			Vector3 diff = local_custom_old.origin - local_target.origin;
+			float k = MIN(elasticity / diff.length(), 1.f);
+			local_custom_old.origin = local_target.origin + k * diff;
+			// get smooth velocity
+			global_custom_velocity.basis = global_custom_velocity.interpolate_with(local_target * local_custom_old.affine_inverse(), delta).basis;
+			// apply
+			local_custom_old.basis = local_custom_old.interpolate_with(global_custom_velocity * local_custom_old, MIN(delta * 2.0f, 1.f)).basis;
+			// // max offset
+			// Vector3 diff = local_custom_old.origin - local_target.origin;
+			// float k = MIN(elasticity / diff.length(), 1.f);
+			// local_custom_old.origin = local_target.origin + k * diff;
+
+			// temp2.basis.set_euler(target_velocity);
+			// global_custom_velocity.basis.set_euler(global_custom_velocity.basis.get_euler().linear_interpolate(target_velocity, delta));
+			// set
+			// local_target.basis.set_euler((local_custom_old.basis * global_custom_velocity.basis).get_euler());
+ 			//local_custom_old.interpolate_with(, delta).basis;
+			// local_custom_old.basis.set_euler(local_custom_old.interpolate_with(local_target, delta).basis.get_euler());
+			// local_custom_old.basis = local_target.basis;
+			// max offset
+			// Vector3 diff = (local_custom_old * local_target.affine_inverse()).basis.get_euler();
+			// float k = MIN(max_offset * 3.14f / 180.f / diff.length(), 1.f);
+			// local_custom_old.basis.set_euler(local_target.basis.get_euler() + k * diff);
+		}
+		// set
+		global_custom_old = global_transform * local_custom_old * get_global_rest();
+		VisualServer::get_singleton()->custom_transform_set_old(ci, local_custom_old);
+		// // Bounce
+		// float delta = CLAMP(get_process_delta_time() * 4.0, 0.001, 0.2);
+		// // multiplynig velocity to get bounce effect
+		// Transform target_velocity = target * global_custom_old.affine_inverse();
+		// target_velocity.origin = 2.0 * target_velocity.origin;
+		// // // seting euler target bounce
+		// // Vector3 euler = target_velocity.basis.get_euler();
+		// // global_custom_euler_accum += delta * euler.length();
+		// // euler.x = MIN(ABS(2.0f * euler.x), 0.7853) * SGN(euler.x);
+		// // euler.y = MIN(ABS(2.0f * euler.y), 0.7853) * SGN(euler.y);
+		// // euler.z = MIN(ABS(2.0f * euler.z), 0.7853) * SGN(euler.z);
+		// // target_velocity.basis.set_euler(2.0f * euler);
+		// // main set
+		// global_custom_velocity = global_custom_velocity.interpolate_with(target_velocity, delta);
+		// global_custom_old = global_custom_old.interpolate_with(global_custom_velocity * target, delta);
+		// // max offset
+		// Vector3 origin_diff = (global_custom_old.origin - target.origin);
+		// global_custom_old.origin = origin_diff * MIN(elasticity / origin_diff.length(), 1.0) + target.origin;
+		// // // update origin faster when rotating
+		// // global_custom_old.origin = global_custom_old.origin.linear_interpolate(target.origin, MIN(global_custom_euler_accum * 180 / 3.14 * delta * 0.1, 1.0f));
+		// // global_custom_euler_accum = global_custom_euler_accum - delta * global_custom_euler_accum;
 	}
-	VisualServer::get_singleton()->custom_transform_set_old(ci, global_transform.affine_inverse() * global_custom_old * get_global_rest().affine_inverse());
+	// VisualServer::get_singleton()->custom_transform_set_old(ci, global_transform.affine_inverse() * global_custom_old * get_global_rest().affine_inverse());
 }
 
 void REDTransform::set_depth_position(float p_depth){
@@ -440,6 +497,8 @@ void REDTransform::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_rest_rotation"), &REDTransform::get_rest_rotation);
 	ClassDB::bind_method(D_METHOD("set_rest_rotation_degrees", "degrees"), &REDTransform::set_rest_rotation_degrees);
 	ClassDB::bind_method(D_METHOD("get_rest_rotation_degrees"), &REDTransform::get_rest_rotation_degrees);
+	ClassDB::bind_method(D_METHOD("set_rest_scale", "scale"), &REDTransform::set_rest_scale);
+	ClassDB::bind_method(D_METHOD("get_rest_scale"), &REDTransform::get_rest_scale);
 
 	ClassDB::bind_method(D_METHOD("set_custom_transform", "transform"), &REDTransform::set_custom_transform);
 	ClassDB::bind_method(D_METHOD("get_custom_transform"), &REDTransform::get_custom_transform);
@@ -464,6 +523,7 @@ void REDTransform::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rest_position"), "set_rest_position", "get_rest_position");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rest_rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_rest_rotation", "get_rest_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rest_rotation_degrees", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater", PROPERTY_USAGE_EDITOR), "set_rest_rotation_degrees", "get_rest_rotation_degrees");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rest_scale"), "set_rest_scale", "get_rest_scale");
 }
 
 REDTransform::REDTransform() {

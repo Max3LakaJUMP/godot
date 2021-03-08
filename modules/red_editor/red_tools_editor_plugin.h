@@ -47,6 +47,7 @@ protected:
 	static void _bind_methods();
 
 public:
+	void start_server();
 	void red_clicked(const int id);
 	void to_maya();
 

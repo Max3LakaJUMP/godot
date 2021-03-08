@@ -106,7 +106,7 @@ String REDJSON::_print_var(const Variant &p_var, const String &p_indent, int p_c
 			return s;
 		};
 		//case Variant::REAL: return rtos(p_var);
-		//case Variant::POOL_INT_ARRAY:
+		case Variant::POOL_INT_ARRAY:
 		case Variant::POOL_REAL_ARRAY:
 		//case Variant::POOL_STRING_ARRAY:
 		//case Variant::POOL_BYTE_ARRAY:
@@ -434,6 +434,11 @@ Error REDJSON::_parse_value(Variant &value, Token &token, const CharType *p_str,
 					value = Color(d["r"], d["g"], d["b"], d["a"]);
 					return OK;
 				};		
+				case Variant::POOL_INT_ARRAY: {
+					Array a = d["pld"];
+					value = red::pool_int_array(a);
+					return OK;
+				};	
 				case Variant::POOL_VECTOR2_ARRAY: {
 					Array a = d["pld"];
 					value = red::pool_vector2_array(a);

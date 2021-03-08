@@ -170,10 +170,10 @@ void REDTransformEditor::forward_canvas_draw_over_viewport(Control *p_overlay) {
 	const Color modulate = EditState::STOPED ? Color(1, 1, 1) : Color(0.5, 1, 2);
 	p_overlay->draw_texture(handle, point - handle->get_size() * 0.5, modulate);
 
-	if(false && edit_state == EditState::ROTATING){
-		p_overlay->draw_circle(point, 100.0, Color(1.0, 0.5, 0.5, 0.5));
-		draw_empty_circle(p_overlay, point, 100.0, Color(1.0, 1.0, 1.0, 0.5), 100.0, 1, true);
-	}
+	// if(edit_state == EditState::ROTATING){
+	// 	p_overlay->draw_circle(point, 100.0, Color(1.0, 0.5, 0.5, 0.5));
+	// 	draw_empty_circle(p_overlay, point, 100.0, Color(1.0, 1.0, 1.0, 0.5), 100.0, 1, true);
+	// }
 }
 
 void REDTransformEditor::draw_empty_circle(Control *p_overlay, const Vector2 &p_center, float p_radius, const Color &p_color, float p_width, int p_resolution, bool p_antialiased){
@@ -192,19 +192,32 @@ void REDTransformEditor::draw_empty_circle(Control *p_overlay, const Vector2 &p_
 }
 
 Vector3 REDTransformEditor::_get_custom_position() const {
-	return _get_node()->get_rest_position() - _get_node()->get_position3d();
+	REDTransform *node = _get_node();
+	Transform c = Variant(node->get_transform());
+	c.origin.z = node->get_depth_position();
+	
+	return c.xform_inv(_get_node()->get_rest_position());
+	// return _get_node()->get_rest_position() - _get_node()->get_position3d();
 }
 
 void REDTransformEditor::_set_custom_position(const Vector3 &p_polygon) const {
 	REDTransform *node = _get_node();
-	node->set("rest_position", p_polygon + _get_node()->get_position3d());
+
+	Transform c = Variant(node->get_transform());
+	c.origin.z = node->get_depth_position();
+
+	node->set("rest_position", c.xform(p_polygon));
+	// node->set("rest_position", p_polygon + _get_node()->get_position3d());
 	node->_change_notify("rest_position");
 }
 
 void REDTransformEditor::_action_set_custom_position(const Vector3 &p_previous, const Vector3 &p_polygon) {
 	REDTransform *node = _get_node();
-	undo_redo->add_do_method(node, "set_rest_position", p_polygon + _get_node()->get_position3d());
-	undo_redo->add_undo_method(node, "set_rest_position", p_previous + _get_node()->get_position3d());
+	Transform c = Variant(node->get_transform());
+	c.origin.z = node->get_depth_position();
+
+	undo_redo->add_do_method(node, "set_rest_position", c.xform(p_polygon));// p_polygon + _get_node()->get_position3d());
+	undo_redo->add_undo_method(node, "set_rest_position", c.xform(p_previous));// p_previous + _get_node()->get_position3d());
 	node->_change_notify("rest_position");
 }
 
@@ -251,14 +264,14 @@ void REDTransformEditor::_menu_option(int p_option) {
 			case MENU_OPTION_MAKE_REST: {
 				UndoRedo *ur = EditorNode::get_singleton()->get_undo_redo();
 				ur->create_action(TTR("Make Selected Rest Pose"));
-				ur->add_do_method(n, "set_rest", n->get_transform3d());
-				ur->add_undo_method(n, "set_rest", n->get_rest());
+				ur->add_do_method(n, "set_rest3d", n->get_transform3d());
+				ur->add_undo_method(n, "set_rest3d", n->get_rest3d());
 				ur->commit_action();
 			} break;
 			case MENU_OPTION_TO_REST: {
 				UndoRedo *ur = EditorNode::get_singleton()->get_undo_redo();
 				ur->create_action(TTR("Set Selected to Rest Pose"));
-				ur->add_do_method(n, "set_transform3d", n->get_rest());
+				ur->add_do_method(n, "set_transform3d", n->get_rest3d());
 				ur->add_undo_method(n, "set_transform3d", n->get_transform3d());
 				ur->commit_action();
 			} break;

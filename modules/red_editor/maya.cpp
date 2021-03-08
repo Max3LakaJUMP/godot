@@ -19,12 +19,37 @@
 #include "core/bind/core_bind.h"
 #include "core/variant.h"
 #include "editor/editor_node.h"
+#include "scene/resources/material.h"
+#include "scene/resources/texture.h"
 
 // Core
 Variant Maya::property_to_dict(Node *node, const String &property_name){
 	Variant out;
 	if (!node)
 		return out;
+	if (property_name == "uv"){
+		Polygon2D *polygon = Object::cast_to<Polygon2D>(node);
+		if (polygon){
+			PoolVector2Array uvs = polygon->get_uv();
+			if (uvs.size() > 0) {
+				return uvs;
+			} else {
+				Ref<Texture> tex = polygon->get_texture();
+				Size2 tex_size = tex.is_valid() ? tex->get_size() : Size2(128, 128);
+				PoolVector2Array p = polygon->get_polygon();
+				uvs.resize(p.size());
+				Size2 tex_k = Size2(1.0f, 1.0f) / tex_size;
+				Transform2D texmat(polygon->get_texture_rotation(), polygon->get_texture_offset());
+				texmat.scale(polygon->get_texture_scale());
+				PoolVector<Vector2>::Write uvw = uvs.write();
+				PoolVector<Vector2>::Read pr = p.read();
+				for (int i = 0; i < p.size(); i++) {
+					uvw[i] = texmat.xform(pr[i]) * tex_k;
+				}
+			}
+			return uvs;
+		}
+	}
 	Variant property;
 	if(!ClassDB::get_property(node, property_name, property))
 		return out;
@@ -40,14 +65,45 @@ Variant Maya::property_to_dict(Node *node, const String &property_name){
 	}else if (property_name == "bones"){
 		Polygon2D *polygon = Object::cast_to<Polygon2D>(node);
 		if (polygon){
-			Array bones;
-			for (int i = 0; i < polygon->get_bone_count(); i++){
-				Dictionary bone;
-				bone["path"] = polygon->get_bone_path(i);
-				bone["weights"] = polygon->get_bone_weights(i);
-				bones.push_back(bone);
+			NodePath skeleton_path = polygon->get_skeleton();
+			if(skeleton_path.is_empty() || !polygon->has_node(skeleton_path))
+				return out;
+			Skeleton2D *skeleton = Object::cast_to<Skeleton2D>(polygon->get_node(skeleton_path));
+			if(skeleton){
+				Array bones;
+				for (int i = 0; i < polygon->get_bone_count(); i++){
+					NodePath bone_path = polygon->get_bone_path(i);
+					if(bone_path.is_empty() || !skeleton->has_node(bone_path))
+						continue;
+					Node *node = skeleton->get_node(bone_path);
+					REDTransform *transform = Object::cast_to<REDTransform>(node);
+					if(transform){
+						Dictionary bone;
+						bone["path"] = bone_path;
+						bone["weights"] = polygon->get_bone_weights(i);
+						bone["position"] = transform->get_rest_position();
+						bone["rotation"] = transform->get_rest_rotation_degrees();
+						bone["scale"] = transform->get_rest_scale();
+						bones.push_back(bone);
+					}else{
+						Bone2D *bone2d = Object::cast_to<Bone2D>(node);
+						if(bone2d){
+							Transform2D rest = bone2d->get_rest();
+							Vector2 origin = rest.get_origin();
+							float rotation = rest.get_rotation();
+							Vector2 scale = rest.get_scale();
+							Dictionary bone;
+							bone["path"] = bone_path;
+							bone["weights"] = polygon->get_bone_weights(i);
+							bone["position"] = Vector3(origin.x, origin.y, 0.f);
+							bone["rotation"] = Vector3(0.f, 0.f, rotation);
+							bone["scale"] = Vector3(scale.x, scale.y, 1.f);
+							bones.push_back(bone);
+						}
+					}
+				}
+				out = bones;
 			}
-			out = bones;
 		}
 	}else {
 		out = property;
@@ -56,9 +112,11 @@ Variant Maya::property_to_dict(Node *node, const String &property_name){
 }
 
 void Maya::animation_player_to_dict(AnimationPlayer *player, Dictionary &properties){
-	Array animations;
 	List<StringName> animation_names;
 	player->get_animation_list(&animation_names);
+	if (animation_names.size() == 0)
+		return;
+	Array animations;
 	animations.resize(animation_names.size());
 	int animation_i = 0;
 	for (List<StringName>::Element *E = animation_names.front(); E; E = E->next()) {
@@ -128,35 +186,39 @@ void Maya::node_to_dict(Node *node, Node *root, Array &nodes, bool child, const 
 	}
 	String type = node->get_class();
 	serialized["type"] = type;
-	int prop_size = properties.size();
-	if(properties.size() > 0){
-		for (int i = 0; i < prop_size; i++){
-			String property = properties[i];
-			Variant new_value = property_to_dict(node, property);
-			if(!new_value.is_zero())
-				serialized[property] = new_value;
-		}
-	}
-	else{
-		List<PropertyInfo> plist;
-		ClassDB::get_property_list(type, &plist, false, node);
-		for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
-			String property = E->get().name;
-			if (property == "property" || property == "owner" || property == "_import_path" || 
-				property == "custom_multiplayer" || property == "multiplayer" || 
-				property == "global_scale" || property == "global_position" || 
-				property == "global_rotation_degrees" || property == "global_rotation" || 
-				property == "transform" || property == "global_transform" ||
-				property == "current_animation" || property == "assigned_animation") 
-				continue;
-			Variant new_value = property_to_dict(node, property);
-			if(!new_value.is_zero())
-				serialized[property] = new_value;
-		}
-	}
+
 	AnimationPlayer *player = Object::cast_to<AnimationPlayer>(node);
-	if (player){
+	if (player) {
 		animation_player_to_dict(player, serialized);
+	} else {
+		int prop_size = properties.size();
+		if(properties.size() > 0){
+			for (int i = 0; i < prop_size; i++){
+				String property = properties[i];
+				Variant new_value = property_to_dict(node, property);
+				if(!new_value.is_zero())
+					serialized[property] = new_value;
+			}
+		}
+		else{
+			List<PropertyInfo> plist;
+			ClassDB::get_property_list(type, &plist, false, node);
+			for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
+				String property = E->get().name;
+				if (property == "property" || property == "owner" || property == "_import_path" || 
+					property == "custom_multiplayer" || property == "multiplayer" || 
+					property == "global_scale" || property == "global_position" || 
+					property == "global_rotation_degrees" || property == "global_rotation" || 
+					property == "transform" || property == "global_transform" ||
+					property == "current_animation" || property == "assigned_animation") 
+					continue;
+				Variant new_value = property_to_dict(node, property);
+				// if(!new_value.is_zero())
+				serialized[property] = new_value;
+			}
+		}
+	}
+	// if (player){
 		// AnimationPlayer *player = (AnimationPlayer*)node;
 		
 		// Array animations;
@@ -209,7 +271,7 @@ void Maya::node_to_dict(Node *node, Node *root, Array &nodes, bool child, const 
 		// 	animation_i++;
 		// }
 		// serialized["animations"] = animations;
-	}
+	// }
 	nodes.append(serialized);
 	if(child){
 		int count = node->get_child_count();
@@ -221,57 +283,102 @@ void Maya::node_to_dict(Node *node, Node *root, Array &nodes, bool child, const 
 void Maya::dict_to_property(Node *node, const String &property_name, const Variant &new_value, bool force){
 	if (!node)
 		return;
-	if (property_name == "name")
+	if (property_name == "name"){
 		return;
+	}
 	Variant old_value = node->get(property_name);
 	int old_type = old_value.get_type();
 	int new_type = new_value.get_type();
-	if ((property_name == "position" || property_name == "rotation_degrees" || property_name == "scale") && !force){
-		if(!receiver_tween)
-			receiver_tween = red::create_node<Tween>(EditorInterface::get_singleton()->get_tree()->get_root(), "ReceiverTween");
-		receiver_tween->stop(node, property_name);
-		receiver_tween->interpolate_property(node, property_name, old_value, new_value, 0.99f / receiver_fps);
-		receiver_tween->start();
+	// if ((property_name == "position" || property_name == "rotation_degrees" || property_name == "scale") && !force){
+	// 	if(!receiver_tween)
+	// 		receiver_tween = red::create_node<Tween>(EditorInterface::get_singleton()->get_tree()->get_root(), "ReceiverTween");
+	// 	if(old_value != new_value){
+	// 		receiver_tween->stop(node, property_name);
+	// 		receiver_tween->interpolate_property(node, property_name, old_value, new_value, 0.99f / receiver_fps);
+	// 		receiver_tween->start();
+	// 	}
+	// }
+	// else 
+	if (property_name == "texture"){// || update_texture)){
+		if(new_value == ""){
+			node->set(property_name, RES());
+		}else{
+			node->set(property_name, ResourceLoader::load(new_value, "Texture"));
+		}
 	}
-	else if (property_name == "texture" && force){// || update_texture)){
-		String global_path = new_value;
-		node->set(property_name, ResourceLoader::load(global_path, "Texture"));
-	}
-	else if (property_name == "material" && force){
-		String global_path = new_value;
-		Ref<ShaderMaterial> material = ResourceLoader::load(global_path, "Material");
-		// String global_path = new_value;
-		// Ref<ShaderMaterial> material;
-		// material.instance();
-		// Ref<Shader> shader = ResourceLoader::load(global_path, "Shader");
-		// material->set_shader(shader);
-		node->set(property_name, material);
+	else if (property_name == "material"){
+		if(new_value == ""){
+			node->set(property_name, RES());
+		}else{
+			Ref<ShaderMaterial> material = ResourceLoader::load(new_value, "Material");
+			// String global_path = new_value;
+			// Ref<ShaderMaterial> material;
+			// material.instance();
+			// Ref<Shader> shader = ResourceLoader::load(global_path, "Shader");
+			// material->set_shader(shader);
+			node->set(property_name, material);
+		}
 	}else if (property_name == "bones"){
 		Polygon2D *polygon = Object::cast_to<Polygon2D>(node);
 		if (polygon){
 			Array bones = new_value;
-			for (int i = 0; i < bones.size(); i++){
-				bool found=false;
-				Dictionary bone = bones[i];
-				String path = bone["path"];
-				PoolVector<float> weights = bone["weights"];
-				NodePath bone_path(path.replace_first("/", ""));
-				for (int j = 0; j < polygon->get_bone_count(); j++){
-					if (polygon->get_bone_path(j) == bone_path){
-						polygon->set_bone_weights(j, weights);
-						found = true;
-						break;
+			NodePath skeleton_path = polygon->get_skeleton();
+			if(skeleton_path.is_empty() || !polygon->has_node(skeleton_path))
+				return;
+			Skeleton2D *skeleton = Object::cast_to<Skeleton2D>(polygon->get_node(polygon->get_skeleton()));
+			if(skeleton){
+				for (int i = 0; i < bones.size(); i++){
+					bool found=false;
+					Dictionary bone = bones[i];
+					String path = bone["path"];
+					PoolVector<float> weights = bone["weights"];
+					NodePath bone_path(path.replace_first("/", ""));
+					for (int j = 0; j < polygon->get_bone_count(); j++){
+						NodePath bone_path_real = polygon->get_bone_path(j);
+						if (bone_path_real == bone_path){
+							polygon->set_bone_weights(j, weights);
+							found = true;
+							if(bone_path_real.is_empty() || !skeleton->has_node(bone_path_real))
+								continue;
+							Node *node = skeleton->get_node(bone_path_real);
+							REDTransform *transform = Object::cast_to<REDTransform>(node);
+							if(transform){
+								if(bone.has("position") && bone.has("rotation") && bone.has("scale")){
+									Vector3 position = bone["position"];
+									Vector3 rotation = bone["rotation"];
+									Vector3 scale = bone["scale"];
+									Transform rest;
+									rest.basis.set_euler_scale(rotation, scale);
+									rest.set_origin(position);
+									transform->set_rest3d(rest);
+								}
+							}else{
+								Bone2D *bone2d = Object::cast_to<Bone2D>(node);
+								if(bone2d && bone.has("position") && bone.has("rotation") && bone.has("scale")){
+									Vector3 position = bone["position"];
+									Vector3 rotation = bone["rotation"];
+									Vector3 scale = bone["scale"];
+									Transform2D rest;
+									rest.set_rotation_and_scale(rotation.z, Vector2(scale.x, scale.y));
+									rest.set_origin(Vector2(position.x, position.y));
+									bone2d->set_rest(rest);
+								}
+							}
+							break;
+						}
 					}
-				}
-				if (!found){
-					polygon->add_bone(bone_path, weights);
+					if (!found){
+						polygon->add_bone(bone_path, weights);
+					}
 				}
 			}
 		}
 	}else if (old_type == new_type || 
 			(old_type == Variant::INT && new_type == Variant::REAL) || 
 			(old_type == Variant::REAL && new_type == Variant::INT)){
+		// if(node->get(property_name) != new_value){
 		node->set(property_name, new_value);
+		// }
 	}else if (old_type == Variant::NODE_PATH && new_type == Variant::STRING){
 		node->set(property_name, NodePath(new_value));
 	}else if(echo){
@@ -279,6 +386,9 @@ void Maya::dict_to_property(Node *node, const String &property_name, const Varia
 		print_line(Variant(old_type));
 		print_line(Variant(new_type));
 	}
+	// if(property_name == "polygon" || property_name == "polygons"){
+	// 	VS::get_singleton()->draw();
+	// }
 }
 
 void Maya::dict_to_animation_player(AnimationPlayer *player, const Dictionary &serialized){
@@ -359,6 +469,11 @@ Node *Maya::dict_to_node(const Dictionary &serialized, Node *root){
 
 	if(parent_path == ""){
 		node = root;
+		if(node){
+			if(node->get_name() != name){
+				node->set_name(name);
+			}
+		}
 		need_create = false;
 	}else{
 		Node *root_parent = root->get_parent();
@@ -404,11 +519,27 @@ Node *Maya::dict_to_node(const Dictionary &serialized, Node *root){
 			return node;
 		}
 	}
+	if(node == nullptr){
+		return nullptr;
+	}
+	ignore_nodes_to_send.push_back(node->get_path());
 	List<Variant> plist;
 	serialized.get_key_list(&plist);
+	bool has_material = true;
+	// need to set skeleton before bones initialization
+	if(serialized.has("skeleton")){
+		node->set("skeleton", NodePath(serialized["skeleton"]));
+	}
 	for (List<Variant>::Element *E = plist.front(); E; E = E->next()){
 		String property = E->get();
+		if(property == "material"){
+			has_material = true;
+		}
 		dict_to_property(node, property, serialized[property], need_create);
+	}
+	if(type == "Polygon2D" && !has_material && need_create){
+		Ref<ShaderMaterial> material = ResourceLoader::load("res:/redot/materials/default/default.material", "Material");
+		node->set("material", material);
 	}
 	AnimationPlayer *player = Object::cast_to<AnimationPlayer>(node);
 	if (player)
@@ -498,11 +629,19 @@ void Maya::send_node(Node *node, bool use_file) {
 }
 
 void Maya::send_selected_nodes(bool use_file) {
+	if (!maya_tcp_client->is_connected_to_host() && maya_tcp_client->get_status() != StreamPeerTCP::STATUS_CONNECTED){
+		maya_tcp_client->disconnect_from_host();
+		maya_tcp_client->connect_to_host(IP_Address("127.0.0.1"), maya_port);
+		if (!maya_tcp_client->is_connected_to_host() && maya_tcp_client->get_status() != StreamPeerTCP::STATUS_CONNECTED){
+			return;
+		}
+	}
 	Array nodes;
 	List<Node *> selection = EditorInterface::get_singleton()->get_selection()->get_selected_node_list();
 	for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
 		Node *node = E->get();
-		nodes.append(node);
+		if(ignore_nodes_to_send.find(node->get_path()) == -1)
+			nodes.append(node);
 	}
 	_send_nodes(nodes, false, use_file);
 }
@@ -525,6 +664,7 @@ Error Maya::load_file(const String &p_source_file) {
 }
 
 Error Maya::load(const String &json_text) {
+	ignore_nodes_to_send.clear();
 	Variant parse_result;
 	String err_string;
 	int err_int;
@@ -535,7 +675,13 @@ Error Maya::load(const String &json_text) {
 	Dictionary scene_data = serialized[0];
 	String path = String(scene_data["path"]);
 	String name = String(scene_data["name"]);
-	const String scene_path = red::localize(path) + name + ".tscn";
+	if(path.find("/") != 0){
+		path = "/" + path;
+	}
+	if(path.rfind("/") != path.size() - 2){
+		path += "/";
+	}
+	const String scene_path = "res:/" + path + name + ".tscn";
 	_File file_сheck;
 	bool force_save;
 	bool b_update = true;
@@ -551,23 +697,27 @@ Error Maya::load(const String &json_text) {
 		EditorNode::get_singleton()->load_scene(scene_path);
 	}
 	Node *root = nullptr;
-	int current_edited_scene = -1;
+	int switch_to_scene = -1;
 	EditorData &editor_data = EditorNode::get_editor_data();
 	for (int i = 0; i < editor_data.get_edited_scene_count(); i++) {
 		if (editor_data.get_scene_path(i) == scene_path){
-			current_edited_scene = i;
+			switch_to_scene = i;
 			root = editor_data.get_edited_scene_root(i);
+			if(editor_data.get_edited_scene_root() != root){
+				EditorNode::get_singleton()->set_current_scene(switch_to_scene);
+			}
+			break;
 		}
 	}
-	ERR_FAIL_COND_V_MSG(current_edited_scene == -1, FAILED, "Can't get root node in edited scene")
-	editor_data.set_edited_scene(current_edited_scene);
+	ERR_FAIL_COND_V_MSG(switch_to_scene == -1, FAILED, "Can't get root node in edited scene")
+
 	for (int i = 1; i < serialized.size(); i++){
-		if(root == nullptr || root != editor_data.get_edited_scene_root(current_edited_scene) || !root->is_inside_tree())
+		if(root == nullptr || root != editor_data.get_edited_scene_root(switch_to_scene) || !root->is_inside_tree())
 			break;
 		Dictionary d = serialized[i];
 		dict_to_node(d, root);
 	}
-	if(root == nullptr || root != editor_data.get_edited_scene_root(current_edited_scene))
+	if(root == nullptr || root != editor_data.get_edited_scene_root(switch_to_scene))
 		return OK;
 	if (force_save){
 		Ref<PackedScene> scene = memnew(PackedScene);
@@ -580,98 +730,182 @@ Error Maya::load(const String &json_text) {
 
 // Servers
 void Maya::start_server() {
-    // acceptor.listen(max_connections);
-// 	m_acceptor.async_accept(m_socket, [this](std::error_code ec) {
-// 		if (!ec) {
-// 			std::make_shared<Maya>(std::move(std::move(m_socket)))->start();
-// 		}
-// 		std::cout << "accept new client" << std::endl;
-// 		_server_process();
-// 	});
-//   }
-
-    // std::cout << "Run server on " << port << " port with "
-    //           << max_connections << " max connections and "
-    //           << max_threads << " max threads." << std::endl;
-	// std::thread thread = std::bind(&Maya::start_server, this);
-	// thread.join();
-
-    
-
-	// if (!maya_tcp_server_is_listening){
-	// 	maya_tcp_server_is_listening = true;
-	// 	maya_tcp_server->startWorkerThread(1);
-	// 	auto enterCallback = [](const TcpConnection::Ptr& session) {
-	// 		total_client_num++;
-
-	// 		session->setDataCallback([session](brynet::base::BasePacketReader& reader) {
-	// 			session->send(reader.begin(), reader.size());
-	// 			TotalRecvSize += reader.size();
-	// 			total_packet_num++;
-	// 			reader.consumeAll();
-	// 		});
-
-	// 		session->setDisConnectCallback([](const TcpConnection::Ptr& session) {
-	// 			(void) session;
-	// 			total_client_num--;
-	// 		});
-	// 	};
-	// 	wrapper::ListenerBuilder listener;
-	// 	listener.configureService(maya_tcp_server)
-	// 			.configureSocketOptions({[](TcpSocket& socket) {
-	// 				socket.setNodelay();
-	// 			}})
-	// 			.configureConnectionOptions({brynet::net::AddSocketOption::WithMaxRecvBufferSize(1024 * 1024),
-	// 										brynet::net::AddSocketOption::AddEnterCallback(enterCallback)})
-	// 			.configureListen([=](wrapper::BuildListenConfig config) {
-	// 				config.setAddr(false, "0.0.0.0", 6001);
-	// 			})
-	// 			.asyncRun();
-	// }
-		
+	SceneTree *tree = EditorInterface::get_singleton()->get_tree();
+	ERR_FAIL_COND_MSG(!tree, "Can't get scene tree")
 	if(!server_timer){
-		server_timer = red::create_node<Timer>(EditorInterface::get_singleton()->get_tree()->get_root(), "ServerTimer");
+		server_timer = red::create_node<Timer>(tree->get_root(), "ServerTimer");
 		server_timer->connect("timeout", this, "_server_process");
 	}
+	if (maya_tcp_server.is_valid() && !maya_tcp_server->is_listening()){
+		maya_tcp_server->listen(server_port);
+	}
 	if (server_timer->is_stopped()){
-		maya_tcp_server->listen(6001);
 		server_timer->start(0.01);
 	}
 }
 
 void Maya::stop_server() {
-	if(server_timer && !server_timer->is_stopped()){
+	if(server_timer)
 		server_timer->stop();
+	int size = maya_tcp_clients.size();
+	for (int i = 0; i < size; i++){
+		Ref<StreamPeerTCP> client = maya_tcp_clients[i];
+		client->disconnect_from_host();
 	}
-	if (maya_tcp_server.is_valid() && maya_tcp_server->is_listening()){
+	maya_tcp_clients.clear();
+	maya_tcp_commands.clear();
+	if (maya_tcp_server.is_valid())
 		maya_tcp_server->stop();
-	}
+	ignore_nodes_to_send.clear();
 }
 
 void Maya::_server_process() {
-	
 	if(maya_tcp_server->is_connection_available()){
 		Ref<StreamPeerTCP> client = maya_tcp_server->take_connection();
 		client->set_no_delay(true);
 		maya_tcp_clients.push_back(client);
 		maya_tcp_commands.push_back(String(""));
+		print_line("Maya connected!");
+	}
+	int size = maya_tcp_clients.size();
+	if(size == 0){
+		return;
 	}
 	Vector<int> pop_ids;
-	int size = maya_tcp_clients.size();
 	for (int i = 0; i < size; i++){
 		Ref<StreamPeerTCP> client = maya_tcp_clients[i];
-		if (client->is_connected_to_host()){
-			int available_bytes = client->get_available_bytes();
-			if(available_bytes > 0){
-				maya_tcp_commands.write[i] += client->get_string(available_bytes);
-			}
-			client->put_8(1);
-		}else{
-			load(maya_tcp_commands[i]);
-			if (echo)
-				print_line(String("Got packet of size ") + Variant(maya_tcp_commands[i].size()) + String("bytes"));
+		if (!client->is_connected_to_host()){
+			print_line("Maya has been disconnected!");
+			// load(maya_tcp_commands[i]);
+			// if (echo)
+			// 	print_line(String("Got packet of size ") + Variant(maya_tcp_commands[i].size()) + String("bytes"));
 			pop_ids.push_back(i);
+			continue;
 		}
+		if(maya_tcp_commands[i].size() > 134217728){ // 128mb is max
+			maya_tcp_commands.write[i].clear();
+		}
+		String cache = maya_tcp_commands[i];
+
+		bool loaded = false;
+		while(!loaded && client->get_available_bytes() > 4){
+			int bytes = client->get_u32();
+			if(bytes > MAX_POCKET_SIZE){
+				client->disconnect_from_host();
+				pop_ids.push_back(i);
+				print_line("256kb is a max size. Disconnected.");
+				break;
+			}
+			client->get_data((uint8_t *)current, bytes);
+			int last = bytes - 1;
+			int start = 0;
+			int end_id = -1;
+			while(end_id < last){
+				for(int i = start; i < bytes; ++i){
+					if(current[i] == 0){
+						end_id = i;
+						break;
+					}
+				}
+				if(end_id == -1){
+					{
+						int from = cache.length() - start;
+						cache.resize(from + bytes + 1);
+						cache.set(cache.length(), 0);
+						CharType *dst = cache.ptrw();
+						for (int i = start; i < bytes; i++)
+							dst[from + i] = current[i];
+					}
+					break;
+				}
+				if(cache.empty()){
+					if(end_id == last){
+						load(current);
+					}else {
+						String current_string;
+						current_string.resize(end_id + 1 - start);
+						{
+							cache.set(cache.length(), 0);
+							CharType *dst = current_string.ptrw();
+							for (int i = start; i < end_id; i++)
+								dst[i - start] = current[i];
+						}
+						load(current_string);
+					}
+				}else{
+					int from = cache.length() - start;
+					cache.resize(from + end_id + 1);
+					{
+						cache.set(cache.length(), 0);
+						CharType *dst = cache.ptrw();
+						for (int i = start; i < end_id; i++)
+							dst[from + i] = current[i];
+					}
+					load(cache);
+					cache.clear();
+				}
+				loaded = true;
+				// start = end_id + 1;
+				break; // stop loading
+			}
+		}
+		while(loaded && client->get_available_bytes() > 4){
+			int p_bytes = client->get_u32();
+			if(p_bytes >= MAX_POCKET_SIZE){
+				client->disconnect_from_host();
+				pop_ids.push_back(i);
+				print_line("256kb is a max size. Disconnected.");
+			}
+			client->get_data((uint8_t *)current, p_bytes);
+		}
+		maya_tcp_commands.write[i] = cache;
+		// bool parse = false;
+		// char buf[max_pocket_size];
+		// while(client->get_available_bytes() > 4){
+		// 	int search_from = MAX(cache.length() - 5, 0);
+		// 	int p_bytes = client->get_u32();
+		// 	if(p_bytes >= max_pocket_size){
+		// 		client->disconnect_from_host();
+		// 		pop_ids.push_back(i);
+		// 		ERR_FAIL_COND_MSG(p_bytes >= max_pocket_size, "256kb is a max size. Disconnected.");
+		// 	}
+		// 	client->get_data((uint8_t *)buf, p_bytes);
+		// 	buf[p_bytes] = 0;
+		// 	if(cache == "")
+		// 		cache = buf;
+		// 	else
+		// 		cache = cache + buf;
+		// 	int end_id = cache.find("%end", search_from);
+		// 	if(end_id == -1){
+		// 		search_from += p_bytes - 4;
+		// 		continue;
+		// 	}
+		// 	int start_id = cache.find("[{");
+		// 	if(start_id == -1){
+		// 		cache = "";
+		// 		search_from = 0;
+		// 		continue;
+		// 	}
+		// 	cache = cache.substr(start_id, end_id);
+		// 	parse = true;
+		// 	break;
+		// }
+		// if(parse){
+		// 	load(cache);
+		// 	while(client->get_available_bytes() > 0){
+		// 		int p_bytes = client->get_u32();
+		// 		if(p_bytes >= max_pocket_size){
+		// 			client->disconnect_from_host();
+		// 			pop_ids.push_back(i);
+		// 			ERR_FAIL_COND_MSG(p_bytes >= max_pocket_size, "256kb is a max size. Disconnected.");
+		// 		}
+		// 		client->get_data((uint8_t *)buf, p_bytes);
+		// 		// client->get_string();
+		// 	}
+		// 	cache = "";
+		// 	if (echo)
+		// 		print_line(String("Got packet of size ") + Variant(cache.size()) + String("bytes"));
+		// }
 	}
 	size = pop_ids.size();
 	for (int i = 0; i < size; i++){
@@ -683,9 +917,14 @@ void Maya::_server_process() {
 
 void Maya::start_sender(){
 	// sending = true;
-	start_server();
+	if (!maya_tcp_client->is_connected_to_host() || maya_tcp_client->get_status() != StreamPeerTCP::STATUS_CONNECTED){
+		maya_tcp_client->disconnect_from_host();
+		maya_tcp_client->connect_to_host(IP_Address("127.0.0.1"), maya_port);
+	}
+	SceneTree *tree = EditorInterface::get_singleton()->get_tree();
+	ERR_FAIL_COND_MSG(!tree, "Can't get scene tree")
 	if(!sender_timer){
-		sender_timer = red::create_node<Timer>(EditorInterface::get_singleton()->get_tree()->get_root(), "SenderTimer");
+		sender_timer = red::create_node<Timer>(tree->get_root(), "SenderTimer");
 		sender_timer->connect("timeout", this, "_sender_process");
 	}
 	if (sender_timer->is_stopped())
@@ -693,37 +932,23 @@ void Maya::start_sender(){
 }
 
 void Maya::stop_sender(){
-	if((sender_timer) && !sender_timer->is_stopped())
+	print_line("stop_sender");
+	maya_tcp_client->disconnect_from_host();
+	if(sender_timer)
 		sender_timer->stop();
-	if (maya_tcp_client->is_connected_to_host()){
-		maya_tcp_client->disconnect_from_host();
-	}
-		
 }
 
 void Maya::_sender_process(){
-	send_selected_nodes(false);
-}
-
-void Maya::start_receiver(){
-	// receiving = true;
-	start_server();
-	if(!receiver_timer){
-		receiver_timer = red::create_node<Timer>(EditorInterface::get_singleton()->get_tree()->get_root(), "ReceiverTimer");
-		receiver_timer->connect("timeout", this, "_receiver_process");
+	if (maya_tcp_client->is_connected_to_host() && maya_tcp_client->get_status() == StreamPeerTCP::STATUS_CONNECTED){
+		send_selected_nodes(false);
+	}else{
+		maya_tcp_client->disconnect_from_host();
+		maya_tcp_client->connect_to_host(IP_Address("127.0.0.1"), maya_port);
+		if (maya_tcp_client->is_connected_to_host() && maya_tcp_client->get_status() == StreamPeerTCP::STATUS_CONNECTED){
+			send_selected_nodes(false);
+		}
 	}
-	if (receiver_timer->is_stopped())
-		receiver_timer->start(1.0 / receiver_fps);
-}
-
-void Maya::stop_receiver(){
-	stop_server();
-	if((receiver_timer) && !receiver_timer->is_stopped())
-		receiver_timer->stop();
-}
-
-void Maya::_receiver_process(){
-	python("redmaya.redot.godot.send_selected_nodes()");
+	ignore_nodes_to_send.clear();
 }
 
 // Misc
@@ -731,9 +956,11 @@ Dictionary Maya::get_scene(const Node *root){
 	Dictionary scene;
 	if (!root)
 		return scene;
+	String project_path = ProjectSettings::get_singleton()->get_resource_path();
 	scene["name"] = root->get_filename().get_file().get_basename();
-	scene["path"] = root->get_filename().get_base_dir();
-	scene["project_path"] = ProjectSettings::get_singleton()->get_resource_path();
+	scene["type"] = "Scene";
+	scene["project_path"] = project_path;
+	scene["path"] = red::localize(root->get_filename().get_base_dir()).replace("res://", "");
 	return scene;
 }
 
@@ -756,25 +983,102 @@ void Maya::mel(const String &command) {
 	PoolByteArray ascii = red::to_ascii(command);
 	int len = ascii.size();
 	if (!maya_tcp_client->is_connected_to_host())
-		ERR_FAIL_COND_MSG(maya_tcp_client->connect_to_host(IP_Address("127.0.0.1"), 6000) != OK, "Can't connect to Maya")
+		ERR_FAIL_COND_MSG(maya_tcp_client->connect_to_host(IP_Address("127.0.0.1"), maya_port) != OK, "Can't connect to Maya")
 	if(echo)
 		print_line(command);
 	PoolByteArray::Read r = ascii.read();
 	maya_tcp_client->put_data(&r[0], len);
+	maya_tcp_client->get_string();
 }
 
 void Maya::send_text(const String &command) {
-	if (!maya_tcp_client->is_connected_to_host())
-		ERR_FAIL_COND_MSG(maya_tcp_client->connect_to_host(IP_Address("127.0.0.1"), 6000) != OK, "Can't connect to Maya")
 	if(echo)
 		print_line(command);
-	maya_tcp_client->put_string(command + "%end");
+	if (maya_tcp_client->is_connected_to_host() && maya_tcp_client->get_status() == StreamPeerTCP::STATUS_CONNECTED){
+		_send_text(command);
+	}else{
+		maya_tcp_client->disconnect_from_host();
+		maya_tcp_client->connect_to_host(IP_Address("127.0.0.1"), maya_port);
+		if (maya_tcp_client->is_connected_to_host() && maya_tcp_client->get_status() == StreamPeerTCP::STATUS_CONNECTED){
+			_send_text(command);
+		}
+	}
+}
+
+void Maya::_send_text(const String &command) {
+	const int max_pocket_size = 262143; // 128 kb is max
+	int bytes = command.size();
+	int current_bytes = 0;
+	
+	// print_line("total: " + String(Variant(bytes_length)));
+	char msg_body[max_pocket_size];
+	for(int bytes_send = 0; bytes_send < bytes; bytes_send += current_bytes){
+		current_bytes = bytes - bytes_send;
+		if(current_bytes > max_pocket_size){
+			current_bytes = max_pocket_size;
+		}
+		for (int i = 0; i < current_bytes; i++)
+			msg_body[i] = command[bytes_send + i];
+		maya_tcp_client->put_u32(current_bytes);
+		maya_tcp_client->put_data((uint8_t*)msg_body, current_bytes);
+		// for (int i = 0; i < 10000; i++){
+		// 	print_line(Variant(i));
+		// }
+		// print_line("current: " + String(Variant(current_bytes_send)));
+	}
+
+	
+	// for(int packet_num = 0; packet_num < packets_count; packet_num ++){
+	// 	current_bytes_send = bytes_length - bytes_send;
+	// 	if(current_bytes_send > max_pocket_size - 5){
+	// 		current_bytes_send = max_pocket_size - 5;
+	// 	}
+	// 	for(int i = 0; i < current_bytes_send; i++){
+	// 		msg_body[i] = command[bytes_send + i];
+	// 	}
+	// 	// if(packet_num == packets_count - 1){
+	// 	// 	msg_body[current_bytes_send] = '\0';
+	// 	// 	// msg_body[current_bytes_send + 1] = 'e';
+	// 	// 	// msg_body[current_bytes_send + 2] = 'n';
+	// 	// 	// msg_body[current_bytes_send + 3] = 'd';
+	// 	// 	// msg_body[current_bytes_send + 4] = NULL;
+	// 	// 	current_bytes_send += 1;
+	// 	// }
+	// 	// std::memcpy(msg_body, &command[bytes_send], current_bytes_send);
+	// 	maya_tcp_client->put_u32(current_bytes_send);
+	// 	maya_tcp_client->put_data((uint8_t*)msg_body, current_bytes_send);
+		
+	// 	bytes_send += current_bytes_send;
+	// }
+
+
+	
+
+	// if(pocket_size > max_pocket_size){
+	// 	float pockets_count_f = command.size() / max_pocket_size;
+	// 	int pockets_count = pocket_size % max_pocket_size == 0 ? command.size() / max_pocket_size : command.size() / max_pocket_size + 1;
+	// 	int start = 0;
+	// 	for (int i = 0; i < pockets_count; i++){
+	// 		String command_chunk = command.substr(start, max_pocket_size - 1);
+	// 		start += command_chunk.size();
+	// 		CharString cs = command_chunk.ascii();
+	// 		maya_tcp_client->put_u32(cs.size());
+	// 		maya_tcp_client->put_data((const uint8_t *)cs.get_data(), cs.length());
+	// 		print_line(String("Send chank size: ") + Variant(command_chunk.size()));
+	// 		print_line(String("Receive u32: ") + Variant(maya_tcp_client->get_u32()));
+	// 	}
+	// 	return;
+	// }
+
+	// ERR_FAIL_COND_MSG(pocket_size > max_pocket_size, "packet is too big! >256 kb")
+	// maya_tcp_client->put_string(command);
+
+	// maya_tcp_client->get_u32();
 }
 
 bool Maya::check_serialized(const Array &serialized) const{
 	ERR_FAIL_COND_V_MSG(serialized.size() == 0, false, "No nodes to load")
 	Dictionary scene_data = serialized[0];
-
 	ERR_FAIL_COND_V_MSG(!scene_data.has("name"), false, "Scene name undefined")
 	ERR_FAIL_COND_V_MSG(!scene_data.has("path"), false, "Scene path undefined")
 	ERR_FAIL_COND_V_MSG(!scene_data.has("project_path"), false, "Project path undefined")
@@ -787,8 +1091,24 @@ void Maya::set_echo(bool p_echo){
 
 bool Maya::get_echo(){
 	return echo;
-
 }
+
+void Maya::set_server_port(int p_server_port){
+	server_port = p_server_port;
+}
+
+int Maya::get_server_port(){
+	return server_port;
+}
+
+void Maya::set_maya_port(int p_maya_port){
+	maya_port = p_maya_port;
+}
+
+int Maya::get_maya_port(){
+	return maya_port;
+}
+
 // Core
 void Maya::_bind_methods() {
 	// Send
@@ -804,6 +1124,10 @@ void Maya::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_echo", "echo"), &Maya::set_echo);
 	ClassDB::bind_method(D_METHOD("get_echo"), &Maya::get_echo);
+	ClassDB::bind_method(D_METHOD("set_server_port", "server_port"), &Maya::set_server_port);
+	ClassDB::bind_method(D_METHOD("get_server_port"), &Maya::get_server_port);
+	ClassDB::bind_method(D_METHOD("set_maya_port", "maya_port"), &Maya::set_maya_port);
+	ClassDB::bind_method(D_METHOD("get_maya_port"), &Maya::get_maya_port);
 	ClassDB::bind_method(D_METHOD("python", "command"), &Maya::python);
 	ClassDB::bind_method(D_METHOD("mel", "command"), &Maya::mel);
 	ClassDB::bind_method(D_METHOD("send_text", "text"), &Maya::send_text);
@@ -814,22 +1138,23 @@ void Maya::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("start_sender"), &Maya::start_sender);
 	ClassDB::bind_method(D_METHOD("stop_sender"), &Maya::stop_sender);
 	ClassDB::bind_method(D_METHOD("_sender_process"), &Maya::_sender_process);
-	ClassDB::bind_method(D_METHOD("start_receiver"), &Maya::start_receiver);
-	ClassDB::bind_method(D_METHOD("stop_receiver"), &Maya::stop_receiver);
-	ClassDB::bind_method(D_METHOD("_receiver_process"), &Maya::_receiver_process);
 	
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "echo"), "set_echo", "get_echo");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "server_port"), "set_server_port", "get_server_port");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "maya_port"), "set_maya_port", "get_maya_port");
 }
+
 Maya::Maya() {
-	maya_port = 6001;
+	server_port = 9000;
+	maya_port = 9001;
 
 	echo = false;
-	sending_fps = 60;
-	receiver_fps = 3;
+	sending_fps = 30;
+	receiver_fps = 30;
 
 	server_timer = nullptr;
 	sender_timer = nullptr;
-	receiver_timer = nullptr;
+	receiver_tween = nullptr;
 	maya_tcp_client.instance();
 	maya_tcp_server.instance();
 }
@@ -837,7 +1162,6 @@ Maya::Maya() {
 Maya::~Maya() {
 	stop_server();
 	stop_sender();
-	stop_receiver();
 	if(server_timer != nullptr){
 		server_timer->disconnect("timeout", this, "_server_process");
 		server_timer->queue_delete();
@@ -845,9 +1169,5 @@ Maya::~Maya() {
 	if(sender_timer != nullptr){
 		sender_timer->disconnect("timeout", this, "_sender_process");
 		sender_timer->queue_delete();
-	}
-	if(receiver_timer != nullptr){
-		receiver_timer->disconnect("timeout", this, "_receiver_process");
-		receiver_timer->queue_delete();
 	}
 }

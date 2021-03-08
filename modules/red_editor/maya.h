@@ -5,6 +5,9 @@
 #include "core/io/stream_peer_tcp.h"
 #include "core/io/tcp_server.h"
 #include "scene/resources/packed_scene.h"
+
+#define MAX_POCKET_SIZE 262144
+
 class Timer;
 class Tween;
 class AnimationPlayer;
@@ -16,13 +19,14 @@ class Maya : public Reference{
 	Ref<TCP_Server> maya_tcp_server;
 	Vector<Ref<StreamPeerTCP> > maya_tcp_clients;
 	Vector<String> maya_tcp_commands;
+	Vector<String> ignore_nodes_to_send;
 
 	Timer *server_timer;
 	Timer *sender_timer;
-	Timer *receiver_timer;
 	Tween *receiver_tween;
 	
 	String maya_ip;
+	int server_port;
 	int maya_port;
 	float sending_fps;
 	float receiver_fps;
@@ -30,6 +34,7 @@ class Maya : public Reference{
 
 	bool maya_tcp_server_is_listening;
 
+	char current[MAX_POCKET_SIZE];
 protected:
 	static void _bind_methods();
 
@@ -60,19 +65,21 @@ public:
 	void start_sender();
 	void stop_sender();
 	void _sender_process();
-	void start_receiver();
-	void stop_receiver();
-	void _receiver_process();
 
 	// Misc
 	Dictionary get_scene(const Node *root);
 	Error save_json(const Array &p_data, const String &p_path);
 	void python(const String &command);
 	void mel(const String &command);
+	void _send_text(const String &command);
 	void send_text(const String &command);
 	bool check_serialized(const Array &serialized) const;
 	void set_echo(bool p_echo=true);
 	bool get_echo();
+	void set_server_port(int p_server_port);
+	int get_server_port();
+	void set_maya_port(int p_maya_port);
+	int get_maya_port();
 	Maya();
 	~Maya();
 };
