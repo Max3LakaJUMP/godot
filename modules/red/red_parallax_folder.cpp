@@ -1,33 +1,3 @@
-/*************************************************************************/
-/*  parallax_layer.cpp                                                   */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
-
 #include "red_parallax_folder.h"
 
 #include "core/engine.h"
@@ -162,18 +132,35 @@ float REDParallaxFolder::get_zoom_out_scale() const{
 }
 
 String REDParallaxFolder::get_configuration_warning() const {
-
-	if (!Object::cast_to<REDFrame>(get_parent())) {
-		return TTR("REDParallaxFolder node only works when set as child of a REDFrame node.");
+	bool warn = true;
+	String warning = Node2D::get_configuration_warning();
+	if(!frame){
+		warning += TTR("REDParallaxFolder node only works when set as child of a REDFrame node.");
 	}
-
-	return String();
+	return warning;
 }
 
 void REDParallaxFolder::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_DRAW: {
 			apply_parallax();
+		} break;
+		case NOTIFICATION_ENTER_TREE: {
+			Node *parent = get_parent();
+			for (int i = 0; i < 10; i++){
+				frame = Object::cast_to<REDFrame>(parent);
+				if (frame){
+					frame->parallax_folders_append(this);
+					break;
+				}
+				parent = parent->get_parent();
+			}
+			update_configuration_warning();
+		} break;
+		case NOTIFICATION_EXIT_TREE: {
+			if (frame)
+				frame->parallax_folders_pop(this);
+			frame = NULL;
 		} break;
 	}
 }

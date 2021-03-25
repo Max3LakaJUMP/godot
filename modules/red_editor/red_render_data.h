@@ -39,6 +39,7 @@
 #include "modules/red/red_clipper.h"
 #include "scene/gui/viewport_container.h"
 #include "core/array.h"
+#include "scene/main/viewport.h"
 
 class ShaderMaterial;
 class ViewportContainer;

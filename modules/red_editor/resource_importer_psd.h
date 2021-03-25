@@ -43,6 +43,7 @@ struct _psd_layer_record;
 class Polygon2D;
 class Node2D;
 class ShaderMaterial;
+class REDClipper;
 class REDFrame;
 class REDPolygon;
 class ViewportContainer;
@@ -80,7 +81,7 @@ struct Materials{
 	Ref<ShaderMaterial> material_sub;
 
 	void init(const Map<StringName, Variant> &p_options, Node *node);
-	void apply_material(const _psd_layer_record *layer, Node2D *node, REDFrame *parent_clipper, ImgData &atlas_img);
+	void apply_material(const _psd_layer_record *layer, Node2D *node, ImgData &atlas_img);
 };
 
 class Layer : public Object {
@@ -106,7 +107,7 @@ public:
 	Vector<String> names;
 
 	Node *parent;
-	REDFrame *parent_clipper;
+	REDClipper *parent_clipper;
 	Vector2 parent_pos; 
 	Vector2 parent_offset;
 
@@ -141,8 +142,6 @@ public:
 	bool update_uv;
 	bool reset_uv;
 	bool reorder;
-	// Thread *thread;
-	// static void thread_func(void *p_udata);
 
 	void _texture();
 	void _polygon();
@@ -230,7 +229,7 @@ public:
 	void create_polygon(_psd_layer_record *layer, Ref<ShaderMaterial> material, Vector2 polygon_size, String png_path, Node2D *parent);
 	int load_folder(_psd_context *context, const String &scene_path, int start, Materials &materials, 
 					Node *parent, Vector2 parent_post, Vector2 parent_offset, const Map<StringName, Variant> &p_options, 
-					bool force_save=false, int counter=0, int folder_level=-1, REDFrame *parent_clipper=nullptr);
+					bool force_save=false, int counter=0, int folder_level=-1, REDClipper *parent_clipper=nullptr);
 	Node *_get_root(_psd_context *context, const String &scene_path, bool &force_save, const Map<StringName, Variant> &p_options) const;
 	Node *get_edited_scene_root(const String &p_path) const;
 	Vector3 find_normal_border(const Ref<BitMap> bitmap, const Point2 &point, int max_radius=32);

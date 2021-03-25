@@ -8,8 +8,8 @@
 class RED;
 class REDPage;
 
-class REDIssue : public REDElement {
-	GDCLASS(REDIssue, REDElement);
+class REDIssue : public Node2D {
+	GDCLASS(REDIssue, Node2D);
 	Vector<Ref<PackedScene> > page_scenes;
     Vector<REDPage*> pages;
     //Vector<bool> instanced_list;

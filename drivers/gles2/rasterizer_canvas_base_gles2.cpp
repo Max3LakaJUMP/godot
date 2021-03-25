@@ -157,8 +157,8 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 
 	state.using_texture_rect = false;
 	state.using_skeleton = false;
-	state.using_custom_transform = false;
 	state.using_clipper = false;
+	state.using_custom_transform = false;
 	state.using_deform = false;
 	state.using_ninepatch = false;
 	state.using_transparent_rt = false;
@@ -407,14 +407,14 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 	
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::WORLD_MATRIX, state.uniforms.world_matrix);
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::INV_WORLD_MATRIX, state.uniforms.inv_world_matrix);
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_SIZE, state.depth_size);
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_OFFSET, state.depth_offset);
 	if (state.using_custom_transform) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX, state.custom_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::OLD_CUSTOM_MATRIX, state.old_custom_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX_ROOT, state.custom_transform_root);
 		//state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX_ROOT_INVERSE, state.custom_transform_root.affine_inverse());
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SOFT_BODY, state.soft_body);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_SIZE, state.depth_size);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_OFFSET, state.depth_offset);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_POSITION, state.depth_position);
 	}
 	if (state.using_clipper) {
@@ -448,16 +448,17 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 void RasterizerCanvasBaseGLES2::reset_canvas() {
 
 	glDisable(GL_CULL_FACE);
+	//enable depth buffer
 	//glDisable(GL_DEPTH_TEST);
 	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_SCISSOR_TEST);
-	glDisable(GL_DITHER);
-	glEnable(GL_BLEND);
-	
 	glDepthFunc(GL_LEQUAL);
 	glDepthMask(GL_TRUE);
 	glClearDepth(1.0f);
 	glClear(GL_DEPTH_BUFFER_BIT);
+
+	glDisable(GL_SCISSOR_TEST);
+	glDisable(GL_DITHER);
+	glEnable(GL_BLEND);
 
 	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);

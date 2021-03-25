@@ -2283,7 +2283,7 @@ PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_star
 				} else {
 #endif
 					// not using software skinning?
-					if (!bdata.settings_use_software_skinning && get_this()->state.using_skeleton) {
+					if (!bdata.settings_use_software_skinning && get_this()->state.using_skeleton || get_this()->state.using_custom_transform || get_this()->state.using_deform || get_this()->state.using_clipper) {
 						// not accelerated
 						_prefill_default_batch(r_fill_state, command_num, *p_item);
 					} else {

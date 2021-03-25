@@ -255,7 +255,7 @@ typedef enum {
 	psd_layer_effects_bevel_emboss_inner_shadow,
 	psd_layer_effects_bevel_emboss_inner_light,
 	psd_layer_effects_bevel_emboss_texture
-};
+} psd_layer_effects_bevel_emboss_enum;
 #define psd_layer_effects_image_count		(psd_layer_effects_bevel_emboss_texture + 1)
 
 typedef enum {

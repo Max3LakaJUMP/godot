@@ -39,7 +39,7 @@
 #include "scene/2d/node_2d.h"
 #include "scene/2d/polygon_2d.h"
 #include "scene/resources/packed_scene.h"
-#include "modules/red/red_transform.h"
+#include "modules/red/root_bone_2d.h"
 #include "modules/red_editor/red_render_data.h"
 
 #include "scene/resources/texture.h"
@@ -1367,15 +1367,18 @@ public:
 		}else{
 			parent->set_position(source_object->get_position());
 		}
-		REDTransform *head_transform = red::create_node<REDTransform>(parent, "head_transform");
-		REDTransform *face_transform = red::create_node<REDTransform>(head_transform,"face_transform");
-		face_transform->set_custom_transform(canonical_pose_transform);
+		RootBone2D *head_transform = red::create_node<RootBone2D>(parent, "head_transform");
+		RootBone2D *face_transform = red::create_node<RootBone2D>(head_transform,"face_transform");
+		face_transform->set_spatial_transform(canonical_pose_transform);
+		face_transform->set_preferred_rotation(face_transform->get_spatial_rotation());
 		if (anchor == MEDIAPIPE_ANCHOR_CENTER){
-			head_transform->set_position(Point2(0.0, 0.0));
-			head_transform->set_depth_position(source_object->get_depth_position());
+			head_transform->set_spatial_position(Vector3(0.0, 0.0, source_object->get_depth_position()));
+			// head_transform->set_position(Point2(0.0, 0.0));
+			// head_transform->set_spatial_podepth_position(source_object->get_depth_position());
 		}else{
-			head_transform->set_position(Point2(face_offset.x, face_offset.y));
-			head_transform->set_depth_position(source_object->get_depth_position() + face_offset.z);
+			head_transform->set_spatial_position(Vector3(face_offset.x, face_offset.y, source_object->get_depth_position() + face_offset.z));
+			// head_transform->set_position(Point2(face_offset.x, face_offset.y));
+			// head_transform->set_depth_position(source_object->get_depth_position() + face_offset.z);
 		}
 		Polygon2D *target_object;
 		if(parent->has_node(NodePath("face"))){
@@ -1450,7 +1453,7 @@ public:
 			Vector3 eyelids_position = Vector3(	edited_read[ids[0]].x + eye_offset.x * (edited_read[ids[8]].x - edited_read[ids[0]].x) - face_offset.x, 
 												edited_read[ids[12]].y + eye_offset.y * (edited_read[ids[4]].y - edited_read[ids[12]].y) - face_offset.y, 
 												2.0 * eye_offset.z * (face_scale.z * loaded_eye->get_depth_position() + eye_len * (face_scale.z - eye_scale)));
-			REDTransform *eye_transform = red::create_node<REDTransform>(face_transform, transform_name);
+			RootBone2D *eye_transform = red::create_node<RootBone2D>(face_transform, transform_name);
 			PoolVector2Array eye_offset = get_offsets(offsets_num);
 			PoolVector2Array::Read eye_offset_read = eye_offset.read();
 			Vector3 iris_offset_c = canonical_iris_landmarks_read[face_iris_center_id] + Vector3(eye_offset_read[0].x, eye_offset_read[0].y, 0.0);
@@ -1459,11 +1462,13 @@ public:
 			Vector3 eye_c_target = get_eye_target(iris_offset_c, eyelids_position, eye_len * eye_scale);
 
 			Transform eye_tr = Transform().looking_at(eye_c_target, Vector3(0, 1, 0));
-			eye_transform->set_custom_transform(eye_tr);
-			//eye_transform->set_rest_rotation_degrees(eye_transform->get_custom_rotation_degrees());
-			eye_transform->set_position(Point2(eyelids_position.x, eyelids_position.y));
-			eye_transform->set_depth_position(eyelids_position.z);
+			eye_transform->set_spatial_transform(eye_tr);
+			/////////////eye_transform->set_rest_rotation_degrees(eye_transform->get_custom_rotation_degrees());
+			eye_transform->set_spatial_position(eyelids_position);
+			// eye_transform->set_position(Point2(eyelids_position.x, eyelids_position.y));
+			// eye_transform->set_depth_position(eyelids_position.z);
 			eye_transform->set_rest(Transform().translated(-eyelids_position));
+			eye_transform->set_preferred_rotation(eye_transform->get_spatial_rotation());
 			// eye mesh init
 			{
 				Vector3 offseted_x = eye_tr.xform_inv(get_eye_target(iris_offset_x, eyelids_position, eye_len * eye_scale));
@@ -1519,7 +1524,7 @@ public:
 					loaded_eye->set_position(Point2(eyelids_position.x + face_offset.x, eyelids_position.y + face_offset.y));
 				}
 				loaded_eye->set_depth_position(eye_transform->get_global_depth_position());
-				loaded_eye->set_custom_transform(loaded_eye->get_path_to(eye_transform));
+				loaded_eye->set_root_bone_path(loaded_eye->get_path_to(eye_transform));
 			}
 			Polygon2D *blick_flat_polygon;
 			if(!blick_path.is_empty() && has_node(blick_path)){
@@ -1549,8 +1554,9 @@ public:
 				}else{
 					loaded_eye_blick->set_position(Point2(eyelids_position.x + face_offset.x, eyelids_position.y + face_offset.y));
 				}
+				// loaded_eye_blick->set_depth_position(eye_transform->get_global_custom_transform().origin.z);
 				loaded_eye_blick->set_depth_position(eye_transform->get_global_depth_position());
-				loaded_eye_blick->set_custom_transform(loaded_eye->get_path_to(eye_transform));
+				loaded_eye_blick->set_root_bone_path(loaded_eye->get_path_to(eye_transform));
 			}
 		}
 		PoolVector<Vector3>::Read edited_landmarks_read = edited_landmarks.read();
@@ -1589,7 +1595,7 @@ public:
 			uv_new_write[i] = Vector2(vtx_rotated.x / polygon_size.x, vtx_rotated.y / polygon_size.y);
 			vc_new_write[i] = Color(1.0, 1.0, 1.0, (vtx.z - min_depth) / real_depth);
 		}
-		target_object->set_custom_transform(target_object->get_path_to(face_transform));
+		target_object->set_root_bone_path(target_object->get_path_to(face_transform));
 		target_object->set_depth_position(source_object->get_depth_position());
 		target_object->set_texture(source_object->get_texture());
 		target_object->set_polygon(polygon_new);

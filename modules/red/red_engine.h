@@ -18,12 +18,51 @@ class REDFrame;
 class REDControllerBase;
 class Polygon2D;
 
+// struct Edge{
+// 	Vector3 start;
+// 	Vector3 end;
+
+// 	bool operator==(const Edge &p_edge) const {
+// 		return (start == p_edge.start && end == p_edge.end) || (start == p_edge.end && end == p_edge.start);
+// 	}
+// }
+
 class TransformC : public Transform{
+public:
+	// enum ROTATION_ORDER{
+	// 	DEFAULT_ROTATION,
+	// 	ZYX
+	// };
+private:
 	bool _xform_dirty;
 	Vector3 rotation;
 	Vector3 scale;
+	// ROTATION_ORDER rotation_order;
 public:
+	// void set_rotation_order(const ROTATION_ORDER &p_rotation_order) {
+	// 	rotation_order = p_rotation_order;
+	// 	_xform_dirty = true;
+	// }
+
+	// void get_rotation_order() const{
+	// 	return rotation_order;
+	// }
+
 	void _update_xform_values() {
+
+		// switch (ROTATION_ORDER)
+		// {
+		// case ROTATION_ORDER::ZYX:{
+		// 	Basis m = basis.orthonormalized();
+		// 	real_t det = m.determinant();
+		// 	if (det < 0)
+		// 		m.scale(Vector3(-1, -1, -1));
+		// 	rotation = m.get_euler_zyx();
+		// } break;
+		// default:
+			// rotation = get_basis().get_rotation();
+		// 	break;
+		// }	
 		rotation = get_basis().get_rotation();
 		scale = get_basis().get_scale();
 		_xform_dirty = false;
@@ -39,7 +78,17 @@ public:
 		if (_xform_dirty)
 			((TransformC *)this)->_update_xform_values();
 		rotation = p_radians;
+		// switch (ROTATION_ORDER)
+		// {
+		// case ROTATION_ORDER::ZYX:{
+		// 	basis.set_euler_zyx(rotation);
+		// } break;
+		// default:
+		// 	basis.set_euler(rotation);
+		// 	break;
+		// }	
 		basis.set_euler_scale(rotation, scale);
+
 	}
 
 	Vector3 get_rotation() const {
@@ -58,7 +107,12 @@ public:
 			temp.x = CMP_EPSILON;
 		if (temp.y == 0)
 			temp.y = CMP_EPSILON;
-		basis.scale(temp / scale);
+		if (temp.z == 0)
+			temp.z = CMP_EPSILON;
+		// basis.orthonormalize();
+		// basis.scale(temp);
+		basis.set_euler_scale(rotation, temp);
+		// basis.scale(temp / scale);
 		scale = p_scale;
 	}
 
@@ -82,6 +136,8 @@ public:
 	TransformC() {
 		rotation = Vector3(0, 0, 0);
 		scale = Vector3(1, 1, 1);
+
+		// rotation_order = DEFAULT_ROTATION;
 	}
 };
 
@@ -94,6 +150,30 @@ enum t {
 	FRAME
 };
 
+enum TesselateMode {
+	CUBIC = 0,
+	QUADRATIC_BEZIER,
+	CUBIC_BEZIER
+};
+
+template <class T>
+T *find_parent_type(Node *node, int max_iter=10) {
+	Node *parent = node->get_parent();
+	for (int i = 0; i < max_iter; i++){
+		T *n = Object::cast_to<T>(parent);
+		if (n){
+			return n;
+		}
+		parent = parent->get_parent();
+	}
+	return nullptr;
+}
+
+PoolByteArray to_ascii(const String &input_string);
+Vector2 cubic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, const Vector2 &p3, float t);
+Vector2 quadratic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, float t);
+Vector<Vector2> tesselate(const Vector<Vector2> &low_res, const int smooth_factor=1, const TesselateMode &p_interpolation=TesselateMode::CUBIC);
+
 Ref<BitMap> read_bitmap(Ref<Image> p_img, float p_threshold=0.1f, Size2 max_size=Size2(128.0f, 128.0f));
 PoolColorArray get_normals(PoolVector2Array vtxs);
 Vector<Polygon2D*> bitmap_to_polygon2d(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=1.0, float epsilon=4.0, bool single=false, bool normals_to_colors=false, Rect2 &crop_rect=Rect2());
@@ -105,10 +185,6 @@ PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> 
 Rect2 get_rect(PoolVector<Vector2> polygon, Vector2 offset = Vector2());
 Size2 get_full_size(PoolVector<Vector2> &polygon, PoolVector<Vector2> &uv);
 
-void print(const float number);
-void print(const String number);
-String str(const int number);
-String str(const float number);
 Node *get_singleton(const Node *n);
 RED *red(const Node *n);
 Vector2 get_zoom(const Node *n);
@@ -132,13 +208,13 @@ Dictionary dict(Vector2 &p_vector2, float &p_z);
 Dictionary dict(Color &p_color);
 
 Array arr(PoolVector<Vector2> &p_value);	
-
+PoolVector<int> pool_int_array(Array &p_arr);
 PoolVector<Vector2> pool_vector2_array(Array &p_arr);
 PoolVector<Color> pool_color_array(Array &p_arr);
 PoolVector<float> pool_real_array(Array &p_arr);
 
-String globalize(String &p_path);
-String localize(String &p_path);
+String globalize(const String &p_path);
+String localize(const String &p_path);
 template <class T>
 T *create_node(Node *parent, const String &name="", Node *owner=nullptr, bool force=false){
 	if (parent){
@@ -163,6 +239,18 @@ T *create_node(Node *parent, const String &name="", Node *owner=nullptr, bool fo
 		return node;
 	}
 	ERR_FAIL_V(nullptr);
+}
+
+template <class T>
+Vector<T> vector(const PoolVector<T> p_array) {
+	int count = p_array.size();
+	PoolVector<T>::Read r = p_array.read();
+	Vector<T> result;
+	result.resize(count);
+	for (int i = 0; i < count; i++) {
+		result.write[i] = r[i];
+	}
+	return result;
 }
 
 template <class T>

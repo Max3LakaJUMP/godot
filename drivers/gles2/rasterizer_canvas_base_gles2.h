@@ -88,8 +88,8 @@ public:
 		bool using_ninepatch;
 		bool using_skeleton;
 
-		Transform2D skeleton_transform;
-		Transform2D skeleton_transform_inverse;
+		Transform skeleton_transform;
+		Transform skeleton_transform_inverse;
 		Size2i skeleton_texture_size;
 
 		RID current_tex;

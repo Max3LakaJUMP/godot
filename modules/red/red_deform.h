@@ -31,13 +31,12 @@
 #ifndef REDDEFORM_H
 #define REDDEFORM_H
 
-#include "scene/main/node.h"
+#include "scene/2d/node_2d.h"
 #include "core/rid.h"
 
-class REDDeform : public Node {
-	GDCLASS(REDDeform, Node);
-
-	float wind_rotation;
+class REDDeform : public Node2D {
+	GDCLASS(REDDeform, Node2D);
+	Vector2 wind_rotation;
 	float wind_offset;
 
 	float wind_time;
@@ -56,8 +55,10 @@ protected:
 	static void _bind_methods();
 
 public:
-	float get_wind_rotation() const;
-	void set_wind_rotation(float p_wind_rotation);
+	void set_wind_rotation(const Vector2 &p_wind_rotation);
+	Vector2 get_wind_rotation() const;
+	void set_wind_rotation_degrees(const Vector2 &p_wind_rotation);
+	Vector2 get_wind_rotation_degrees() const;
 	float get_wind_offset() const;
 	void set_wind_offset(float p_wind_offset);
 	float get_waves_count() const;

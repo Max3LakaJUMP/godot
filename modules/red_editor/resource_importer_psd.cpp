@@ -1,33 +1,3 @@
-/*************************************************************************/
-/*  resource_importer_texture_atlas.cpp                                  */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
-
 #include "resource_importer_psd.h"
 
 #include "core/io/image_loader.h"
@@ -47,6 +17,8 @@
 #include "scene/resources/material.h"
 #include "scene/main/node.h"
 #include "editor/editor_plugin.h" 
+#include "modules/red/red_shape_renderer.h" 
+#include "modules/red/red_clipper.h" 
 #include "modules/red/red_frame.h" 
 #include "modules/red/red_page.h" 
 #include "scene/resources/bit_map.h"
@@ -91,7 +63,7 @@ void Layer::_texture(){
 			poly->set_texture(texture);
 		psd_layer_record *layers = context->layer_records;
 		psd_layer_record *layer = &layers[final_iter];
-		materials.apply_material(layer, poly, parent_clipper, image_data);
+		materials.apply_material(layer, poly, image_data);
 	}
 	// memdelete(this);
 }
@@ -183,7 +155,7 @@ void Layer::load(){
 	psd_layer_record *layers = context->layer_records;
 	psd_layer_record *layer = &layers[final_iter];
 	String name = reinterpret_cast<char const*>(layer->layer_name);
-	print_line("Loading " + name);
+	print_verbose("Loading " + name);
 	int len = layer->width * layer->height;
 	if (len == 0) {
 		memdelete(this);
@@ -268,14 +240,7 @@ void Layer::load(){
 	_reorder();
 	_polygon();
 	_texture();
-	//texture_thread = Thread::create(Layer::thread_func, this);
-	//call_deferred("_texture");
 }
-
-// void Layer::thread_func(void *p_udata) {
-// 	Layer *ad = (Layer *)p_udata;
-// 	ad->_polygon();
-// }
 
 Ref<Image> Layer::read_image(_psd_layer_record *layer){
 	Ref<Image> img;
@@ -713,7 +678,7 @@ void Materials::init(const Map<StringName, Variant> &p_options, Node *node){
 	rim = p_options["materials/rim"];
 }
 
-void Materials::apply_material(const _psd_layer_record *layer, Node2D *node, REDFrame *parent_clipper, ImgData &atlas_img){
+void Materials::apply_material(const _psd_layer_record *layer, Node2D *node, ImgData &atlas_img){
 	switch(layer->blend_mode){
 		case psd_blend_mode_multiply:{
 			if (material_mul.is_valid())
@@ -762,7 +727,6 @@ void ResourceImporterPSD::render_normal(Ref<BitMap> bitmap, String &diffuse_path
 	normal_data->set_delete_after_render(true);
 	{
 		Vector<Polygon2D*> polygons = red::bitmap_to_polygon2d(bitmap, resolution, 1.0f, 3.0f, false, true);
-		red::print(polygons.size());
 		for (int i = 0; i < polygons.size(); i++){
 			Polygon2D* p = polygons[i];
 			Ref<ShaderMaterial> material;
@@ -816,7 +780,7 @@ void ResourceImporterPSD::render_normal(Ref<BitMap> bitmap, String &diffuse_path
 
 int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_path, int start, Materials &materials, 
 									 Node *parent, Vector2 parent_pos, Vector2 parent_offset, const Map<StringName, Variant> &p_options, 
-									 bool force_save, int counter, int folder_level, REDFrame *parent_clipper){
+									 bool force_save, int counter, int folder_level, REDClipper *parent_clipper){
 	psd_layer_record *layers = context->layer_records;
 	int count = 0;
 	int offset = 0;
@@ -837,17 +801,14 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 	bool b_update = p_options["main/update"];
 	bool b_update_only_editor = p_options["main/update_only_editor"];
 	bool updateble = true;
-	if (parent->get_owner()){
+	if (parent->get_owner())
 		updateble = b_update && (!b_update_only_editor || EditorNode::get_singleton()->is_scene_open(parent->get_owner()->get_filename()));
-	}
-	else{
+	else
 		updateble = b_update && (!b_update_only_editor || EditorNode::get_singleton()->is_scene_open(parent->get_filename()));
-	}
 	bool saveble = force_save || (!b_update_only_editor && b_update);
 	Vector<String> names;
-	for (int iter = start; iter + offset < end && loop; iter++){
+	for (int iter = start; iter + offset < end && loop; iter++)
 		names.push_back(reinterpret_cast<char const*>(layers[iter + offset].layer_name));
-	}
 	String target_dir = scene_path.get_basename().get_base_dir();
 	red::create_dir(target_dir);
 	_File file_сheck;
@@ -855,19 +816,15 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 	for (int iter = start; iter + offset < end && loop; iter++){	
 		final_iter = iter + offset; count++;
 		_psd_layer_record *layer = &layers[final_iter];
-		if (layer->clipping && !first){
+		if (layer->clipping && !first)
 			continue;
-		}
 		first = false;
-
-		if (!layer->visible && psd_layer_type::psd_layer_type_normal){
+		if (!layer->visible && psd_layer_type::psd_layer_type_normal)
 			continue;
-		}
 		switch (layer->layer_type){
 			case psd_layer_type::psd_layer_type_folder:{
-				if (counter > 0){
+				if (counter > 0)
 					loop = false;
-				}
 			} break;
 			case psd_layer_type::psd_layer_type_normal:{
 				Layer *l = memnew(Layer);
@@ -896,22 +853,12 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 				l->image_size_to_scene_size = image_size_to_scene_size;
 				l->load();
 				memdelete(l);
-				// _layers.push_back(l);
-				// 
 			} break;
 			case psd_layer_type::psd_layer_type_hidden:{
-				String name = reinterpret_cast<char const*>(layers[final_iter].layer_name);
 				_psd_layer_record *layer_folder;
-				int new_folder_level = folder_level;
 				{
 					int child_folder_count = 0;
 					int child_end_count = 0;
-					for (int j = start; j < final_iter + 1; j++){
-						if (layers[j].layer_type == psd_layer_type::psd_layer_type_hidden)
-							new_folder_level++;
-						if (layers[j].layer_type == psd_layer_type::psd_layer_type_folder)
-							new_folder_level--;
-					}
 					for (int j = final_iter + 1; j < end; j++){
 						if (layers[j].layer_type == psd_layer_type::psd_layer_type_hidden)
 							child_folder_count++;
@@ -924,77 +871,75 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 					}
 				}
 				String folder_name = reinterpret_cast<char const*>(layer_folder->layer_name);
+				int new_folder_level = folder_level + 1;
 				int mode = 0;
 				int anchor = 0;
-				if(new_folder_level == 0){
+				switch (new_folder_level)
+				{
+				case 0:
 					mode = p_options["type/root"];
 					anchor = ANCHOR_TOP_LEFT;
-				}
-				else if (new_folder_level == 1){
+					break;
+				case 1:
 					mode = p_options["type/first_level"];
 					anchor = p_options["anchor/first_level"];
-				}
-				else if (new_folder_level == 2){
+					break;
+				case 2:
 					mode = p_options["type/second_level"];
 					anchor = p_options["anchor/second_level"];
-				}
-				else{
+					break;
+				default:
 					mode = p_options["type/folder"];
 					anchor = p_options["anchor/folder"];
+					break;
 				}
 				if (folder_name == ""){
 					folder_name = "root";
 				}
 				else{
-					if ((mode == FOLDER_FRAME_EXTERNAL || mode == FOLDER_FRAME) && folder_name.find("_internal") != -1)
-					{
+					if ((mode == FOLDER_FRAME_EXTERNAL || mode == FOLDER_FRAME) && folder_name.find("_internal") != -1){
 						mode = FOLDER_FRAME;
 						folder_name = folder_name.replace_first("_internal", "");
 					}
-					if ((mode == FOLDER_FRAME_EXTERNAL || mode == FOLDER_FRAME) && folder_name.find("_external") != -1)
-					{
+					if ((mode == FOLDER_FRAME_EXTERNAL || mode == FOLDER_FRAME) && folder_name.find("_external") != -1){
 						mode = FOLDER_FRAME_EXTERNAL;
 						folder_name = folder_name.replace_first("_external", "");
 					}
-					if (folder_name.find("_center") != -1)
-					{
+					if (folder_name.find("_center") != -1){
 						anchor = ANCHOR_CENTER;
 						folder_name = folder_name.replace_first("_center", "");
 					}
 				}
 				String new_target_dir = mode != FOLDER_PAGE ? target_dir + "/" + folder_name : target_dir;
 				String new_scene_path = new_target_dir + "/" + folder_name + ".tscn";
-
-				Materials new_materials;
 				bool new_force_save = false;
+				
 				bool need_create = parent->has_node(folder_name) ? false : true;
 				bool external_frame_created = false;
-				Node *node_external = nullptr;
-				Node2D *node_2d = nullptr;
+				Node *new_parent = nullptr;
+				Node2D *position_object = nullptr;
 				REDPage *page = nullptr;
 				REDFrame *frame = nullptr;
-				REDFrame *clipper = parent_clipper;
-				Node2D *anchor_object = nullptr;
+				REDClipper *clipper = parent_clipper;
+				REDShapeRenderer *outline = nullptr;
 				switch (mode){
 					case FOLDER_NODE2D:{
-						node_2d = need_create ? red::create_node<Node2D>(parent, folder_name) : (Node2D*)parent->get_node(folder_name);
-						anchor_object = node_2d;
-						anchor_object->set_draw_behind_parent(true);
+						position_object = need_create ? red::create_node<Node2D>(parent, folder_name) : (Node2D*)parent->get_node(folder_name);
+						new_parent = (Node*)position_object;
 					} break;
 					case FOLDER_PAGE:{
 						page = need_create ? red::create_node<REDPage>(parent, folder_name) : (REDPage*)parent->get_node(folder_name);
-						node_2d = (Node2D*)page;
-						anchor_object = node_2d;
+						position_object = (Node2D*)page;
+						new_parent = (Node*)position_object;
 					} break;
 					case FOLDER_FRAME:{
 						frame = need_create ? red::create_node<REDFrame>(parent, folder_name) : (REDFrame*)parent->get_node(NodePath(folder_name));
-						
-						if (layer_folder->layer_mask_info.width!=0 && layer_folder->layer_mask_info.height!=0){
-							bool need_create_clipper = frame->has_node(folder_name + "_mask") ? false : true;
+						if(frame){
+							clipper = red::create_node<REDClipper>(frame, "content");
+							outline = red::create_node<REDShapeRenderer>(frame, "outline");
+							position_object = (Node2D*)frame;
+							new_parent = (Node*)clipper;
 						}
-						clipper = (REDFrame*)frame;
-						node_2d = (Node2D*)frame;
-						anchor_object = node_2d;
 					} break;
 					case FOLDER_FRAME_EXTERNAL:{
 						red::create_dir(new_target_dir);
@@ -1024,46 +969,43 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 						}
 						else
 							frame = (REDFrame*)root_node->get_node(folder_name);
-						
-						node_external = (Node*)frame;
-						clipper = (REDFrame*)frame;
-						node_2d = (Node2D*)parent->get_node(folder_name);
-						anchor_object = (Node2D*)frame;
+						if(frame){
+							clipper = red::create_node<REDClipper>(frame, "content");
+							outline = red::create_node<REDShapeRenderer>(frame, "outline");
+							position_object = (Node2D*)parent->get_node(folder_name);
+							new_parent = (Node*)clipper;
+						}
 					} break;
 					default:
 					case FOLDER_PARALLAX:{
-						node_2d = need_create ? (Node2D*)red::create_node<REDParallaxFolder>(parent, folder_name) : (Node2D*)parent->get_node(folder_name);
-						anchor_object = node_2d;
-						anchor_object->set_draw_behind_parent(true);
+						position_object = need_create ? (Node2D*)red::create_node<REDParallaxFolder>(parent, folder_name) : (Node2D*)parent->get_node(folder_name);
+						new_parent = (Node*)position_object;
 					} break;
 				}
-				if (!node_2d || (frame == nullptr && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)) || (!page && (mode == FOLDER_PAGE)))
+				if (!position_object || (!frame && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)) || (!page && (mode == FOLDER_PAGE))){
+					ERR_PRINTS("Error can't create node " + folder_name);
 					continue;
-				Vector2 new_parent_pos = parent_pos;
-				Vector2 new_parent_offset = Vector2(0, 0);
+				}
 				bool folder_mask = p_options["update/folder_mask"];
 				bool frame_targets = p_options["update/frame_targets"];
 				bool page_height = p_options["update/page_height"];
 				int folder_pos = p_options["update/folder_pos"];
-				bool apply_mask = (updateble && folder_mask) && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL) && clipper;
+				bool apply_mask = (updateble && folder_mask) && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL) && frame;
 				bool update_targets = (updateble && frame_targets) && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL);
 				bool update_page_height = updateble && page_height && mode == FOLDER_PAGE;
+				bool update_outline = false;
 				bool update_frame_params = updateble && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL);
 				bool update_pos_reset = updateble && folder_pos == FOLDER_POS_RESET;
 				bool update_pos_move_layers = updateble && folder_pos == FOLDER_MOVE_LAYERS;
-				
-				float offset_x = layer_folder->layer_mask_info.left * scene_k;
-				float offset_y = layer_folder->layer_mask_info.top * scene_k;
-				Vector2 local_pos = Vector2(offset_x, offset_y);
 				if (need_create){
-					apply_mask = (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL) && clipper;
+					apply_mask = (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL) && frame;
 					update_targets = (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL);
-					update_page_height = mode == FOLDER_PAGE;
+					update_page_height = page_height && mode == FOLDER_PAGE;
 					update_frame_params = (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL);
+					update_outline = outline;
 					update_pos_reset = true;
 					update_pos_move_layers = false;
 				}
-
 				if (apply_mask){
 					Ref<BitMap> bitmap_poly;
 					Ref<Image> bitmap_img = read_mask(layer_folder);
@@ -1071,72 +1013,72 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 					Size2 polygon_size = image_size * scene_k;
 					if (bitmap_img.is_valid())
 						image_size = bitmap_img->get_size();
-
 					if (polygon_size.width > 0 && polygon_size.height > 0)
 						bitmap_poly = red::read_bitmap(bitmap_img, 0.2f, Vector2(MIN(128, image_size.x), MIN(128, image_size.y)));
 					else
 						polygon_size = scene_size;
-					clipper->set_polygon(red::bitmap_to_polygon(bitmap_poly, polygon_size, 0.0, 4.0, true)[0]);
+					frame->set_polygon(red::bitmap_to_polygon(bitmap_poly, polygon_size, 0.0, 4.0, true)[0]);
 				}
-				Vector2 half_frame = (clipper) ? clipper->_edit_get_rect().size / 2.0 : Vector2(0,0);
+				Vector2 half_frame = (frame) ? frame->_edit_get_rect().size / 2.0 : Vector2(0,0);
 				Vector2 frame_anchor_offset = (anchor == ANCHOR_CENTER) ? -half_frame : Vector2(0,0);
-				new_parent_pos += local_pos;
-				new_parent_offset = -frame_anchor_offset;
+				Vector2 local_pos = Vector2(layer_folder->layer_mask_info.left * scene_k, 
+											layer_folder->layer_mask_info.top * scene_k);
+				Vector2 new_parent_pos = parent_pos + local_pos;
+				Vector2 new_parent_offset = -frame_anchor_offset;
 				if (update_pos_reset){
-					if (clipper && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
-						clipper->set_offset(frame_anchor_offset);
-						clipper->set_position(-frame_anchor_offset);
+					if (frame && (mode == FOLDER_FRAME || mode == FOLDER_FRAME_EXTERNAL)){
+						frame->set_offset(frame_anchor_offset);
+						frame->set_position(-frame_anchor_offset);
 					}
-					if (node_2d && mode != FOLDER_FRAME_EXTERNAL){
-						node_2d->set_position(local_pos - parent_pos - parent_offset - frame_anchor_offset);
+					if (position_object && mode != FOLDER_FRAME_EXTERNAL){
+						position_object->set_position(local_pos - parent_pos - parent_offset - frame_anchor_offset);
 					}
 				}
 				else if (update_pos_move_layers){
 					if (mode == FOLDER_FRAME_EXTERNAL){
-						new_parent_offset += node_2d->get_position();// - frame_anchor_offset;
+						new_parent_offset += position_object->get_position();// - frame_anchor_offset;
 					}
 					else{
-						new_parent_offset -= (local_pos - parent_pos - parent_offset - frame_anchor_offset) - node_2d->get_position();
+						new_parent_offset -= (local_pos - parent_pos - parent_offset - frame_anchor_offset) - position_object->get_position();
 					}
 				}
 				if (update_page_height){
 					page->set_size(scene_size);
 				}
-				if (update_targets){
-					Node *targets = red::create_node<Node>(anchor_object, "targets");
-					if(targets){
-						REDTarget *camera_pos = red::create_node<REDTarget>(targets, "camera_pos");
-						REDTarget *camera_pos_in = red::create_node<REDTarget>(targets, "camera_pos_in");
-						REDTarget *camera_pos_out = red::create_node<REDTarget>(targets, "camera_pos_out");
-						REDTarget *parallax_pos = red::create_node<REDTarget>(targets, "parallax_pos");
-						REDTarget *parallax_pos_in = red::create_node<REDTarget>(targets, "parallax_pos_in");
-						REDTarget *parallax_pos_out = red::create_node<REDTarget>(targets, "parallax_pos_out");
-						frame->set_camera_pos_path(frame->get_path_to(camera_pos));
-						frame->set_camera_pos_in_path(frame->get_path_to(camera_pos_in));
-						frame->set_camera_pos_out_path(frame->get_path_to(camera_pos_out));
-						frame->set_parallax_pos_path(frame->get_path_to(parallax_pos));
-						frame->set_parallax_pos_in_path(frame->get_path_to(parallax_pos_in));
-						frame->set_parallax_pos_out_path(frame->get_path_to(parallax_pos_out));
-						camera_pos->set_position(half_frame + frame_anchor_offset);
-						camera_pos_in->set_position(half_frame + frame_anchor_offset);
-						camera_pos_out->set_position(half_frame + frame_anchor_offset);
-						parallax_pos->set_position(half_frame + frame_anchor_offset);
-						parallax_pos_in->set_position(half_frame + frame_anchor_offset);
-						parallax_pos_out->set_position(half_frame + frame_anchor_offset);
+				if (update_frame_params){
+					parent->move_child(position_object, parent->get_child_count() - 1);
+					if (frame){
+						Node2D *targets = red::create_node<Node2D>(frame, "targets");
+						if(targets){
+							REDTarget *camera_pos = red::create_node<REDTarget>(targets, "camera");
+							REDTarget *camera_pos_in = red::create_node<REDTarget>(targets, "camera_in");
+							REDTarget *camera_pos_out = red::create_node<REDTarget>(targets, "camera_out");
+							REDTarget *parallax_pos = red::create_node<REDTarget>(targets, "parallax");
+							REDTarget *parallax_pos_in = red::create_node<REDTarget>(targets, "parallax_in");
+							REDTarget *parallax_pos_out = red::create_node<REDTarget>(targets, "parallax_out");
+							frame->set_camera_pos_path(frame->get_path_to(camera_pos));
+							frame->set_camera_pos_in_path(frame->get_path_to(camera_pos_in));
+							frame->set_camera_pos_out_path(frame->get_path_to(camera_pos_out));
+							frame->set_parallax_pos_path(frame->get_path_to(parallax_pos));
+							frame->set_parallax_pos_in_path(frame->get_path_to(parallax_pos_in));
+							frame->set_parallax_pos_out_path(frame->get_path_to(parallax_pos_out));
+							camera_pos->set_position(half_frame + frame_anchor_offset);
+							camera_pos_in->set_position(half_frame + frame_anchor_offset);
+							camera_pos_out->set_position(half_frame + frame_anchor_offset);
+							parallax_pos->set_position(half_frame + frame_anchor_offset);
+							parallax_pos_in->set_position(half_frame + frame_anchor_offset);
+							parallax_pos_out->set_position(half_frame + frame_anchor_offset);
+						}
 					}
 				}
-				if (update_frame_params){
-					new_materials.init(p_options, frame);
-					frame->set_material(new_materials.frame_outline);
-					frame->set_line_texture(ResourceLoader::load("res://redot/textures/outline/16.png", "Texture"));
-					parent->move_child(node_2d, parent->get_child_count() - 1);
+				if(update_outline){
+					outline->set_render_mode(REDShapeRenderer::RENDER_LINE);
+					outline->set_color(Color(0,0,0,1));
+					outline->set_texture(ResourceLoader::load("res://redot/textures/outline/16.png", "Texture"));
+					//outline->set_material(materials.frame_outline);
 				}
-				else{
-					new_materials = materials;
-				}
-				Node *node = mode == FOLDER_FRAME_EXTERNAL ? node_external : node_2d;
-				if (node != nullptr)
-					offset += load_folder(context, new_scene_path, final_iter+1, new_materials, node, new_parent_pos, new_parent_offset, p_options, new_force_save, counter+1, new_folder_level, clipper);
+				if (new_parent != nullptr)
+					offset += load_folder(context, new_scene_path, final_iter+1, materials, new_parent, new_parent_pos, new_parent_offset, p_options, new_force_save, counter+1, new_folder_level, clipper);
 				else
 					ERR_PRINTS("Error can't create node " + folder_name);
 			} break;
@@ -1173,6 +1115,7 @@ int ResourceImporterPSD::load_folder(_psd_context *context, const String &scene_
 	}
 	return count + offset;
 }
+
 Error ResourceImporterPSD::import(const String &p_source_file, const String &p_save_path, const Map<StringName, Variant> &p_options, List<String> *r_platform_variants, List<String> *r_gen_files, Variant *r_metadata) {
 	bool b_import = p_options["main/import"];
 	if (!b_import)
