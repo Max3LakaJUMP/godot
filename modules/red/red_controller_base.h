@@ -5,6 +5,7 @@
 #include "scene/2d/camera_2d.h"
 #include "core/node_path.h"
 
+#include "red_engine.h"
 class REDPage;
 class REDFrame;
 class REDIssue;
@@ -24,9 +25,11 @@ public:
 		CAMERA_MOVING,
 	};
 	enum Orientation{
+		ORIENTATION_MAXIMUM,
+		ORIENTATION_MINIMUM,
 		ORIENTATION_HORIZONTAL,
 		ORIENTATION_VERTICAL,
-		ORIENTATION_HYBRID
+		ORIENTATION_HYBRID,
 	};
 private:
 	REDIssue *issue;
@@ -43,19 +46,21 @@ private:
 	bool camera_mode;
 	bool camera_smooth;
 	bool b_can_control;
-	bool b_tween_created;
 	Vector2 camera_zoom_min;
 	Vector2 camera_zoom_max;
-	
-	
-	float zoom_k;
-	float zoom_k_target;
-	float orientation_k;
-	int target_id;
-	Vector2 frame_expand;
+
+	Vector2 mouse_pos;
 	Vector2 mouse_offset_k;
 
-	Vector2 mouse_offset;
+	Bouncer2D mouse_offset;
+	Bouncer zoom_k;
+	Bouncer orientation_k;
+	mutable Bouncer2D camera_zoom;
+	mutable Bouncer2D frame_pos_local;
+	mutable Bouncer2D frame_parallax;
+
+	int target_id;
+	Vector2 frame_expand;
 
 	Vector2 frame_pos_global;
 
@@ -64,23 +69,12 @@ private:
 	bool frame_timer_connected;
 	bool frame_next_timer_connected;
 	bool frame_prev_timer_connected;
+	float camera_speed;
 	
-	
-	
-	mutable Vector2 frame_parallax_zoom;
-	mutable Vector2 frame_pos_local;
-	mutable Vector2 mouse_offset_target;
-	mutable Vector2 frame_parallax;
 	mutable float screen_multiplayer;
 	mutable float screen_multiplayer_start;
-	mutable bool size_dirty;
-	mutable bool target_pos_local_dirty;
-	mutable bool target_zoom_dirty;
-	mutable bool target_parallax_dirty;
-	mutable bool target_mouse_dirty;
 
 	Vector2 old_camera_zoom;
-
 	CameraState camera_state;
 	ControllerDirrection dirrection;
 	ControllerDirrection last_dirrection;
@@ -89,28 +83,21 @@ private:
 	void _input(const Ref<InputEvent> &p_event);
 
 protected:
-	void _camera_moved(const Transform2D &p_transform, const Point2 &p_screen_offset);
+	void _camera_moved();
 	static void _bind_methods();
 	void _notification(int p_what);
 
 public:
-	void set_zoom_k_target(const float p_val);
+	Size2 get_viewport_size();
+	void set_camera_speed(float p_camera_speed);
+	float get_camera_speed() const;
 
 	void set_reset_camera_on_frame_change(bool p_reset_camera);
 	bool is_reset_camera_on_frame_change() const;
 
-	void set_frame_scale(const Vector2 &p_scale_factor);
-
 	void set_frame_expand(const Vector2 &p_frame_expand);
 	Vector2 get_frame_expand() const;
 
-	//void update_camera();
-	//void update_camera_pos();
-
-	//void unload_page(REDPage *page) const;
-	//REDPage *load_page(const int &i, bool is_prev=false, int state=0);
-	//void unload_pages();
-	//void load_pages();
 	void set_mouse_offset_k(const Vector2 &p_max_mouse_offset);
 	Vector2 get_mouse_offset_k() const;
 	bool to_prev_page();
@@ -124,8 +111,12 @@ public:
 	void to_prev();
 
 	void _mouse_moved(const Vector2 &p_mouse_pos);
-	void zoom_in(const float &p_val=0.25f);
-	void zoom_out(const float &p_val=0.25f);
+	void _update_frame_parallax();
+	void _update_camera_zoom();
+	void _update_frame_local_pos();
+	void _update_mouse_pos();
+	void zoom_in(float p_val=0.25f);
+	void zoom_out(float p_val=0.25f);
 	void set_issue(REDIssue *p_issue);
 	void set_issue_by_path(const NodePath &p_issue_path);
 	REDIssue *get_issue() const;
@@ -135,7 +126,6 @@ public:
 	REDPage *get_page() const;
 	void set_frame(int p_id, bool to_next=true);
 	REDFrame *get_frame() const;
-	void set_state(int p_id);
 
 	void set_camera_path(const NodePath &p_camera_path);
 	NodePath get_camera_path() const;
@@ -147,8 +137,6 @@ public:
 	
 	void set_camera_mode(bool b);
 	bool get_camera_mode() const;
-	void set_zoom_k(const float p_zoom);
-	float get_zoom_k() const;
 
 	void set_camera_zoom_min(const Vector2 &p_zoom);
 	Vector2 get_camera_zoom_min() const;
@@ -160,8 +148,6 @@ public:
 
 	Vector2 clamp_camera_zoom(const Vector2 &p_zoom) const;
 	Vector2 get_global_camera_zoom() const;
-	Vector2 get_mouse_offset() const;
-	void set_mouse_offset(const Vector2 &p_mouse_pos);
 
 	bool can_control() const;
 
@@ -171,31 +157,22 @@ public:
 	void _frame_start();
 	void _frame_end();
 
-	void update_camera();
-	void update_camera_pos();
-	void update_camera_zoom();
-	void update_camera_parallax();
 	void update_camera_to_frame(const bool first_frame=false);
 
 	void zoom_reset();
 
-	Vector2 get_target_pos_local() const;
-	Vector2 get_target_pos_global() const;
-	Vector2 get_target_zoom() const;
-	Vector2 get_target_camera_zoom() const;
-	Vector2 get_target_mouse() const;
-	Vector2 get_target_parallax() const;
-	Vector2 get_target_parallax_zoom() const;
+	Vector2 get_camera_global_pos() const;
+	Vector2 get_camera_zoom() const;
+	Vector2 get_mouse_offset() const;
+	Vector2 get_parallax_offset() const;
+	Vector2 get_parallax_zoom() const;
 
-	void _target_pos_moved();
-	void _target_parallax_moved();
-	void _frame_zoom_changed();
-	void set_orientation_k(float p_orientation_k);
 	void set_orientation(const Orientation p_orientation);
 	Orientation get_orientation() const;
 	float get_screen_multiplayer() const;
 	virtual void _window_resized();
-	void size_changed();
+	void _update_orientation();
+	void rotate_camera();
 	REDControllerBase();
 };
 

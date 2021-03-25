@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  canvas.h                                                             */
+/*  line_2d_editor_plugin.h                                              */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,18 +28,36 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef JSCN_H
-#define JSCN_H
+#ifndef SCENE_EXPORT_EDITOR_PLUGIN_H
+#define SCENE_EXPORT_EDITOR_PLUGIN_H
 
-#include "core/resource.h"
+#include "editor/plugins/abstract_polygon_2d_editor.h"
+#include "scene/2d/line_2d.h"
+#include "scene/gui/menu_button.h"
+#include "maya.h"
 
-class JSCN : public Resource {
+class REDToolsEditorPlugin : public EditorPlugin {
 
-	GDCLASS(JSCN, Resource);
+	GDCLASS(REDToolsEditorPlugin, EditorPlugin);
+	Ref<Maya> maya;
+
+	MenuButton *red_menu;
+
+protected:
+	static void _bind_methods();
 
 public:
-	JSCN();
-	~JSCN();
+	void start_server();
+	void red_clicked(const int id);
+	void to_maya();
+
+	Vector<int> triangulate(const PoolVector2Array &points, const Array &polygons);
+	void selection_to_normals();
+	
+	void create_mediapipe();
+	void attach_transform();
+	
+	REDToolsEditorPlugin(EditorNode *p_node);
 };
 
-#endif // JSCN_H
+#endif // SCENE_EXPORT_EDITOR_PLUGIN_H

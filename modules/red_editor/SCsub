@@ -1,24 +1,19 @@
 # SCsub
 Import('env')
+Import("env_modules")
 import os
-from compat import isbasestring
-module_env = env.Clone()
+module_env = env_modules.Clone()
 
 if env["tools"]:
-    libpsd_sources = []
-    for file in os.listdir(os.path.join(Dir('.').abspath, "libpsd", "src")):
-        if file.endswith(".c"):
-            libpsd_sources.append(os.path.join("libpsd", "src", file))
-    for path in ["libpsd/include", "facegen"]:
-        module_env.Prepend(CPPPATH=[path])
-        env.Prepend(CPPPATH=[path])
-	
-	
-    env_thirdparty = module_env.Clone()
-    env_thirdparty.disable_warnings()
-    env_thirdparty.add_source_files(env.modules_sources, libpsd_sources)
-    module_env.add_source_files(env.modules_sources, "*.cpp")
-	
+    # libpsd
+    libpsd_env = module_env.Clone()
+    libpsd_env.disable_warnings()
+    libpsd_dir = "#thirdparty/libpsd/"
+    libpsd_include = [libpsd_dir + "include"]
+    libpsd_env.Append(CPPPATH=libpsd_include)
+    libpsd_lib = libpsd_env.add_library("libpsd", Glob(libpsd_dir + 'src/*.c'))
+  
+    # mediapipe
     # inserted = False
     # for idx, linklib in enumerate(env["LIBS"]):
     #   if isbasestring(linklib): # first system lib such as "X11", otherwise SCons lib object
@@ -30,10 +25,14 @@ if env["tools"]:
     # lib = env_thirdparty.add_library("psd", libpsd_sources)
     # print(lib)
     # module_env.Prepend(LIBS=["facegen.lib"])
+    
+    # module
+    env.Append(LIBS=[libpsd_lib])
+    module_env.Append(CPPPATH=libpsd_include + ["facegen"])
 
+    module_env.add_source_files(env.modules_sources, "reya/*.cc")
+    module_env.add_source_files(env.modules_sources, "*.cpp")
+    module_env.add_source_files(env.modules_sources, "*.c")
 
 else:
     module_env.add_source_files(env.modules_sources, "register_types.cpp")
-
-
-

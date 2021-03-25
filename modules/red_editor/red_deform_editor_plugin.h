@@ -28,16 +28,16 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef RED_TRANSFORM_EDITOR_PLUGIN_H
-#define RED_TRANSFORM_EDITOR_PLUGIN_H
+#ifndef RED_DEFORM_EDITOR_PLUGIN_H
+#define RED_DEFORM_EDITOR_PLUGIN_H
 
 #include "editor/plugins/abstract_polygon_2d_editor.h"
 
-class REDTransform;
+class REDDeform;
 class CanvasItemEditor;
 	
-class REDTransformEditor : public HBoxContainer {
-	GDCLASS(REDTransformEditor, HBoxContainer);
+class REDDeformEditor : public HBoxContainer {
+	GDCLASS(REDDeformEditor, HBoxContainer);
 public:
 	enum Menu {
 		MENU_OPTION_MAKE_REST,
@@ -50,13 +50,12 @@ public:
 		MOVING,
 		ROTATING
 	} edit_state;
-	friend class REDTransformEditorPlugin;
+	friend class REDDeformEditorPlugin;
 private:
-	REDTransform *node;
+	REDDeform *node;
 	CanvasItemEditor *canvas_item_editor;
-	Vector3 edited_point;
-	Vector3 pre_move_edit;
-	Vector3 pre_rotate_edit;
+	Vector2 edited_point;
+	Vector2 pre_move_edit;
 
 	MenuButton *options;
 protected:
@@ -65,17 +64,15 @@ protected:
 	static void _bind_methods();
 	void _node_removed(Node *p_node);
 
-	virtual REDTransform *_get_node() const;
+	virtual REDDeform *_get_node() const;
 	virtual void _set_node(Node *p_node);
-	bool custom_pos_is_near(const Vector2 &p_pos) const;
+	bool _wind_direction_is_near(const Vector2 &p_pos) const;
 	virtual Vector3 _get_custom_position() const;
-	virtual void _set_custom_position(const Vector3 &p_polygon) const;
-	virtual Vector3 _get_custom_rotation() const;
-	virtual void _set_custom_rotation(const Vector3 &p_polygon) const;
-	virtual void _action_set_custom_position(const Vector3 &p_previous, const Vector3 &p_polygon);
-	virtual void _action_set_custom_position(const Vector3 &p_polygon);
-	virtual void _action_set_custom_rotation(const Vector3 &p_previous, const Vector3 &p_polygon);
-	virtual void _action_set_custom_rotation(const Vector3 &p_polygon);
+	virtual Vector2 _get_wind_rotation() const;
+	virtual Vector3 _get_wind_direction() const;
+	virtual void _set_wind_rotation(const Vector2 &p_rotation) const;
+	virtual void _action_set_wind_rotation(const Vector2 &p_previous, const Vector2 &p_rotation);
+	virtual void _action_set_wind_rotation(const Vector2 &p_rotation);
 	virtual void _commit_action();
 	
 public:
@@ -84,20 +81,20 @@ public:
 	void forward_canvas_draw_over_viewport(Control *p_overlay);
 	void edit(Node *p_polygon);
 	void _menu_option(int p_option);
-	REDTransformEditor(EditorNode *p_editor);
+	REDDeformEditor(EditorNode *p_editor);
 };
 
-class REDTransformEditorPlugin : public EditorPlugin {
+class REDDeformEditorPlugin : public EditorPlugin {
 
-	GDCLASS(REDTransformEditorPlugin, EditorPlugin);
+	GDCLASS(REDDeformEditorPlugin, EditorPlugin);
 
-	REDTransformEditor *transform_editor;
+	REDDeformEditor *deform_editor;
 	EditorNode *editor;
 	String klass;
 
 public:
-	virtual bool forward_canvas_gui_input(const Ref<InputEvent> &p_event) { return transform_editor->forward_gui_input(p_event); }
-	virtual void forward_canvas_draw_over_viewport(Control *p_overlay) { transform_editor->forward_canvas_draw_over_viewport(p_overlay); }
+	virtual bool forward_canvas_gui_input(const Ref<InputEvent> &p_event) { return deform_editor->forward_gui_input(p_event); }
+	virtual void forward_canvas_draw_over_viewport(Control *p_overlay) { deform_editor->forward_canvas_draw_over_viewport(p_overlay); }
 
 	bool has_main_screen() const { return false; }
 	virtual String get_name() const { return klass; }
@@ -105,8 +102,8 @@ public:
 	virtual bool handles(Object *p_object) const;
 	virtual void make_visible(bool p_visible);
 
-	REDTransformEditorPlugin(EditorNode *p_node);
-	~REDTransformEditorPlugin();
+	REDDeformEditorPlugin(EditorNode *p_node);
+	~REDDeformEditorPlugin();
 };
 
-#endif // RED_TRANSFORM_EDITOR_PLUGIN_H
+#endif // RED_DEFORM_EDITOR_PLUGIN_H

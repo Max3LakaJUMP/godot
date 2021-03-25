@@ -918,6 +918,7 @@ ShaderCompilerGLES3::ShaderCompilerGLES3() {
 	actions[VS::SHADER_CANVAS_ITEM].renames["DEPTH"] = "depth";
 	actions[VS::SHADER_CANVAS_ITEM].renames["MAX_DEPTH"] = "max_depth";
 	actions[VS::SHADER_CANVAS_ITEM].renames["TRANSFORM_MASK"] = "transform_mask";
+	actions[VS::SHADER_CANVAS_ITEM].renames["DEFORM_MASK"] = "deform_mask";
 	actions[VS::SHADER_CANVAS_ITEM].renames["WORLD_POS"] = "world_pos";
 
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["COLOR"] = "#define COLOR_USED\n";
@@ -933,6 +934,7 @@ ShaderCompilerGLES3::ShaderCompilerGLES3() {
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["DEPTH"] = "#define DEPTH_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["MAX_DEPTH"] = "#define DEPTH_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["TRANSFORM_MASK"] = "#define TRANSFORM_MASK_USED\n";
+	actions[VS::SHADER_CANVAS_ITEM].usage_defines["DEFORM_MASK"] = "#define DEFORM_MASK_USED\n";
 	actions[VS::SHADER_CANVAS_ITEM].usage_defines["WORLD_POS"] = "#define WORLD_POS_USED\n";
 
 	actions[VS::SHADER_CANVAS_ITEM].render_mode_defines["skip_vertex_transform"] = "#define SKIP_TRANSFORM_USED\n";

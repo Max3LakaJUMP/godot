@@ -406,7 +406,7 @@ public:
 	/*DEFORM API */
 
 	virtual RID deform_create() = 0;
-	virtual void deform_set_wind_rotation(RID p_deform, float p_wind_rotation) = 0;
+	virtual void deform_set_wind_rotation(RID p_deform, const Vector2 &p_wind_rotation) = 0;
 	virtual void deform_set_wind_offset(RID p_deform, float p_wind_offset) = 0;
 	virtual void deform_set_wind_time(RID p_deform, float p_wind_time) = 0;
 	virtual void deform_set_wind_strength(RID p_deform, float p_wind_strength) = 0;

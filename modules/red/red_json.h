@@ -49,6 +49,11 @@ class REDJSON {
 		TK_MAX
 	};
 
+	enum PoolType {
+		TK_ARRAY,
+		TK_POOL_VECTOR2_ARRAY
+	};
+
 	enum Expecting {
 
 		EXPECT_OBJECT,
@@ -58,9 +63,13 @@ class REDJSON {
 	};
 
 	struct Token {
-
 		TokenType type;
 		Variant value;
+	};
+
+	struct DoubleToken {
+		TokenType type;
+		float value;
 	};
 
 	static const char *tk_name[TK_MAX];
@@ -71,7 +80,11 @@ class REDJSON {
 	static Error _parse_value(Variant &value, Token &token, const CharType *p_str, int &index, int p_len, int &line, String &r_err_str);
 	static Error _parse_array(Array &array, const CharType *p_str, int &index, int p_len, int &line, String &r_err_str);
 	static Error _parse_object(Dictionary &object, const CharType *p_str, int &index, int p_len, int &line, String &r_err_str);
-
+	static Error _parse_pool_int(PoolVector<int> &pool, const CharType *p_str, int &index, int p_len, int &line, String &r_err_str);
+	static Error _parse_pool_real(PoolRealArray &pool, const CharType *p_str, int &index, int p_len, int &line, String &r_err_str);
+	static Error _parse_pool_vector2(PoolVector<Vector2> &array, const CharType *p_str, int &index, int p_len, int &line, String &r_err_str);
+	static Error _parse_pool_color(PoolVector<Color> &pool, const CharType *p_str, int &index, int p_len, int &line, String &r_err_str);
+	static Error _parse_double(const CharType *p_str, int &index, int p_len, DoubleToken &r_token, int &line, String &r_err_str);
 public:
 	static String print(const Variant &p_var, const String &p_indent = "", bool p_sort_keys = true, bool globalize_path = false);
 	static Error parse(const String &p_json, Variant &r_ret, String &r_err_str, int &r_err_line);

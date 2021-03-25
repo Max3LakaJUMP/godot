@@ -10,24 +10,27 @@
 #include "red_frame.h"
 #include "red_bubble.h"
 #include "red.h"
-#include "red_line.h"
-//#include "red_polygon.h"
+#include "red_shape_renderer.h"
+#include "red_clipper.h"
 #include "red_controller.h"
 #include "red_controller_base.h"
 #include "red_shape.h"
 #include "red_parallax_folder.h"
 #include "red_target.h"
-#include "red_transform.h"
+#include "root_bone_2d.h"
 #include "red_deform.h"
 
 void register_red_types() {
-	ClassDB::register_class<REDTransform>();
-	ClassDB::register_virtual_class<REDShape>();
-	//ClassDB::register_class<REDPolygon>();
+	ClassDB::register_class<REDShapeRenderer>();
+	ClassDB::register_class<REDClipper>();
+	ClassDB::register_class<RootBone2D>();
+	ClassDB::register_class<REDShape>();
+	//ClassDB::register_virtual_class<REDBase>();
+	//ClassDB::register_virtual_class<REDElement>();
+	//ClassDB::register_virtual_class<REDFolder>();
 	ClassDB::register_class<REDDeform>();
-	ClassDB::register_class<REDLine>();
-	ClassDB::register_class<REDStory>();
-	ClassDB::register_class<REDVolume>();
+	// ClassDB::register_class<REDStory>();
+	// ClassDB::register_class<REDVolume>();
 	ClassDB::register_class<REDIssue>();
 	ClassDB::register_class<REDPage>();
 	ClassDB::register_class<REDFrame>();

@@ -30,7 +30,7 @@ bool REDIssue::get_autostart() const {
 	return autostart;
 }
 
-REDPage *REDIssue::get_page (int p_id){
+REDPage *REDIssue::get_page(int p_id){
     ERR_FAIL_COND_V(pages.size() == 0, nullptr)
     int last_id = pages.size() - 1;
     p_id = MAX(MIN(p_id, last_id), 0);
@@ -45,7 +45,7 @@ void REDIssue::resize_instanced_list(int p_size){
     }
 }
 
-void REDIssue::set_page (int p_id, bool is_prev, const Vector2 &p_zoom){
+void REDIssue::set_page(int p_id, bool is_prev, const Vector2 &p_zoom){
     int count = get_page_scenes_count();
     ERR_FAIL_INDEX(p_id, count)
     int last_id = count - 1;
@@ -78,8 +78,10 @@ Ref<PackedScene> REDIssue::get_page_scene (int p_id){
 void REDIssue::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY: {
-            if(autostart)
-                run();
+            // if(autostart){
+            //     call_deferred("run");
+            // }
+            run();
 		} break;
 	}
 }
@@ -88,9 +90,9 @@ void REDIssue::run() {
     if (Engine::get_singleton()->is_editor_hint())
         return;
     RED *r = red::red(this);
-    ERR_FAIL_NULL(r);
+    ERR_FAIL_NULL_MSG(r, "Can't get red singleton");
     REDControllerBase *controller = r->get_controller();
-    ERR_FAIL_NULL(controller);
+    ERR_FAIL_NULL_MSG(controller, "Can't get controller in red singleton");
     controller->set_issue(this);
 }
 

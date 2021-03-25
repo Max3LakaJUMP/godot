@@ -28,34 +28,39 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef SCENE_EXPORT_EDITOR_PLUGIN_H
-#define SCENE_EXPORT_EDITOR_PLUGIN_H
+#ifndef RED_SHAPE_EDITOR_PLUGIN_H
+#define RED_SHAPE_EDITOR_PLUGIN_H
 
 #include "editor/plugins/abstract_polygon_2d_editor.h"
-#include "scene/2d/line_2d.h"
-#include "scene/gui/menu_button.h"
 
-class SceneExportEditorPlugin : public EditorPlugin {
+class REDShape;
 
-	GDCLASS(SceneExportEditorPlugin, EditorPlugin);
-	MenuButton *red_menu;
+class REDShapeEditor : public AbstractPolygon2DEditor {
+
+	GDCLASS(REDShapeEditor, AbstractPolygon2DEditor);
+
+	REDShape *node;
+
 protected:
-	static void _bind_methods();
-
+	virtual Node2D *_get_node() const;
+	virtual void _set_node(Node *p_line);
+	virtual bool _is_line() const;
+	virtual Vector2 _get_offset(int p_idx) const;
+	virtual Variant _get_polygon(int p_idx) const;
+	virtual void _set_polygon(int p_idx, const Variant &p_polygon) const;
+	virtual void _action_set_polygon(int p_idx, const Variant &p_previous, const Variant &p_polygon);
+	virtual void _action_add_polygon(const Variant &p_polygon);
+	virtual void _action_set_polygon(int p_idx, const Variant &p_polygon);
 public:
-	SceneExportEditorPlugin(EditorNode *p_node);
-	void red_clicked(const int id);
-
-	void to_maya();
-	Dictionary scene_to_dict(Node *root);
-	Dictionary node_to_dict(Node *node);
-	Error save_json(Dictionary &p_data, String &p_path);
-	
-	Vector<int> triangulate(const PoolVector2Array &points, const Array &polygons);
-	void selection_to_normals();
-	
-	void create_mediapipe();
-	void attach_transform();
+	REDShapeEditor(EditorNode *p_editor);
 };
 
-#endif // SCENE_EXPORT_EDITOR_PLUGIN_H
+class REDShapeEditorPlugin : public AbstractPolygon2DEditorPlugin {
+
+	GDCLASS(REDShapeEditorPlugin, AbstractPolygon2DEditorPlugin);
+
+public:
+	REDShapeEditorPlugin(EditorNode *p_node);
+};
+
+#endif // RED_SHAPE_EDITOR_PLUGIN_H

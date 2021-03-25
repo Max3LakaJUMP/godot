@@ -489,7 +489,7 @@ public:
 	// float deform_get_uv_origin(RID p_deform) const {return 0.0;}
 	// float deform_get_waves_count(RID p_deform) const {return 0.0;}
 	// float deform_get_elasticity(RID p_deform) const {return 0.0;}
-	void deform_set_wind_rotation(RID p_deform, float p_rotation) {}
+	void deform_set_wind_rotation(RID p_deform, const Vector2 &p_wind_rotation) {}
 	void deform_set_wind_offset(RID p_deform, float p_wind_offset) {}
 	void deform_set_wind_time(RID p_deform, float p_wind_time) {}
 	void deform_set_wind_strength(RID p_deform, float p_wind_strength) {}

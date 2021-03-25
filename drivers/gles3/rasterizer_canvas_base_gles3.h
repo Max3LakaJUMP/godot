@@ -95,8 +95,8 @@ public:
 		Transform2D extra_matrix;
 		Transform2D final_transform;
 		bool using_skeleton;
-		Transform2D skeleton_transform;
-		Transform2D skeleton_transform_inverse;
+		Transform skeleton_transform;
+		Transform skeleton_transform_inverse;
 
 		bool using_custom_transform;
 		Transform custom_transform;

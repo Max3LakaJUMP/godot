@@ -3696,7 +3696,7 @@ RID RasterizerStorageGLES2::deform_create() {
 	return deform_owner.make_rid(deform);
 }
 
-void RasterizerStorageGLES2::deform_set_wind_rotation(RID p_deform, float p_wind_rotation){
+void RasterizerStorageGLES2::deform_set_wind_rotation(RID p_deform, const Vector2 &p_wind_rotation){
 	Deform *deform = deform_owner.getornull(p_deform);
 	ERR_FAIL_COND(!deform);
 	deform->wind_rotation = p_wind_rotation;
@@ -3939,7 +3939,9 @@ Transform2D RasterizerStorageGLES2::skeleton_bone_get_transform_2d(RID p_skeleto
 	ERR_FAIL_COND_V(!skeleton, Transform2D());
 
 	ERR_FAIL_INDEX_V(p_bone, skeleton->size, Transform2D());
-	ERR_FAIL_COND_V(!skeleton->use_2d, Transform2D());
+	if(!skeleton->use_2d)
+		return Variant(skeleton_bone_get_transform(p_skeleton, p_bone));
+	// ERR_FAIL_COND_V(!skeleton->use_2d, Transform2D());
 
 	const float *bone_data = skeleton->bone_data.ptr();
 

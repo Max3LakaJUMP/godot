@@ -33,10 +33,13 @@
 
 #include "scene/2d/node_2d.h"
 
+class REDFrame;
+
 class REDParallaxFolder : public Node2D {
 
 	GDCLASS(REDParallaxFolder, Node2D);
-
+	REDFrame *frame;
+	
 	bool shrink;
 	bool expand;
 

@@ -1,50 +1,25 @@
-/*************************************************************************/
-/*  line_2d_editor_plugin.cpp                                            */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
-
-#include "scene_export_editor_plugin.h"
+#include "red_tools_editor_plugin.h"
 #include "editor/editor_node.h"
+#include "editor/editor_data.h"
 #include "core/io/json.h"
 #include "core/bind/core_bind.h"
 #include "modules/red/red_engine.h"
-#include "modules/red/red_transform.h"
-//#include "modules/red/red_polygon.h"
+#include "modules/red/root_bone_2d.h"
 #include "modules/red/red_json.h"
 #include "modules/red_editor/red_render_data.h"
 #include "mediapipe.h"
 #include "modules/red/red_deform.h"
 
-SceneExportEditorPlugin::SceneExportEditorPlugin(EditorNode *p_node) {
+REDToolsEditorPlugin::REDToolsEditorPlugin(EditorNode *p_node) {
+	maya.instance();
+	maya->set_server_port(6000);
+	maya->set_maya_port(6001);
 	red_menu = memnew(MenuButton);
 	red_menu->set_text("RED");
 	PopupMenu *popup = red_menu->get_popup();
-	popup->add_item("To Maya");
+	popup->add_check_shortcut(ED_SHORTCUT("maya/server", TTR("Maya server")));
+	popup->add_check_shortcut(ED_SHORTCUT("maya/sender", TTR("Maya sender")));
+	popup->add_item("Send scene");
 	popup->add_item("Render normals");
 	popup->add_item("Mediapipe");
 	popup->add_item("Attach transform");
@@ -52,18 +27,38 @@ SceneExportEditorPlugin::SceneExportEditorPlugin(EditorNode *p_node) {
 	add_control_to_container(CONTAINER_CANVAS_EDITOR_MENU, red_menu);
 }
 
-void SceneExportEditorPlugin::red_clicked(const int id) {
+void REDToolsEditorPlugin::red_clicked(const int id) {
 	switch (id){
-	case 0:
+	case 0:{
+		PopupMenu *popup = red_menu->get_popup();
+		int idx = popup->get_item_index(0);
+		bool current = !popup->is_item_checked(idx);
+		popup->set_item_checked(idx, current);
+		if(current)
+			maya->start_server();
+		else
+			maya->stop_server();
+	} break;
+	case 1:{
+		PopupMenu *popup = red_menu->get_popup();
+		int idx = popup->get_item_index(1);
+		bool current = !popup->is_item_checked(idx);
+		popup->set_item_checked(idx, current);
+		if(current)
+			maya->start_sender();
+		else
+			maya->stop_sender();
+	} break;
+	case 2:
 		to_maya();
 		break;
-	case 1:
+	case 3:
 		selection_to_normals();
 		break;
-	case 2:
+	case 4:
 		create_mediapipe();
 		break;
-	case 3:
+	case 5:
 		attach_transform();
 		break;
 	default:
@@ -71,237 +66,21 @@ void SceneExportEditorPlugin::red_clicked(const int id) {
 	}
 }
 
-void SceneExportEditorPlugin::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("red_clicked", "id"), &SceneExportEditorPlugin::red_clicked);
-	ClassDB::bind_method(D_METHOD("to_maya"), &SceneExportEditorPlugin::to_maya);
-	ClassDB::bind_method(D_METHOD("selection_to_normals"), &SceneExportEditorPlugin::selection_to_normals);
-	ClassDB::bind_method(D_METHOD("create_mediapipe"), &SceneExportEditorPlugin::selection_to_normals);
-	ClassDB::bind_method(D_METHOD("attach_transform"), &SceneExportEditorPlugin::attach_transform);
+void REDToolsEditorPlugin::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("red_clicked", "id"), &REDToolsEditorPlugin::red_clicked);
+	ClassDB::bind_method(D_METHOD("to_maya"), &REDToolsEditorPlugin::to_maya);
+	ClassDB::bind_method(D_METHOD("selection_to_normals"), &REDToolsEditorPlugin::selection_to_normals);
+	ClassDB::bind_method(D_METHOD("create_mediapipe"), &REDToolsEditorPlugin::selection_to_normals);
+	ClassDB::bind_method(D_METHOD("attach_transform"), &REDToolsEditorPlugin::attach_transform);
 }
 
-void SceneExportEditorPlugin::to_maya() {
+void REDToolsEditorPlugin::to_maya() {
 	Node *root = get_tree()->get_edited_scene_root();
 	ERR_FAIL_COND_MSG(!root, "No root node")
-	String scene_path = root->get_filename();
-	String json_path = scene_path.get_basename() + ".json";
-	
-	Dictionary dict = scene_to_dict(root);
-
-	save_json(dict, json_path);
-
-	String json_global_path = "\'" + red::globalize(json_path) + "\'";
-
-	List<String> arr;
-
-	//print_line("python(\\\"rsptf = " + json_global_path + "\\\");");
-	//print_line("python(\\\"cmds.loadModule(load=\'redmaya.redot\')\\\");");
-	//print_line("python(\\\"redmaya.redot.godot.load(rsptf)\\\");");
-
-	arr.push_back("python(\\\"rsptf = " + json_global_path + "\\\");");
-	arr.push_back("python(\\\"cmds.loadModule(load=\'redmaya.redot.godot\')\\\");");
-	arr.push_back("python(\\\"redmaya.redot.godot.load(rsptf)\\\");");
-	OS::get_singleton()->execute(red::globalize(String("res://redot/apps/commandPort.exe")), arr, true);
+	maya->send_scene(root);
 }
 
-Dictionary SceneExportEditorPlugin::scene_to_dict(Node *root){
-	Dictionary result;
-	result["name"] = root->get_filename().get_file().get_basename();
-	result["path"] = root->get_filename().get_base_dir();
-	//result["path_file"] = root->get_filename().get_basename() + ".json";
-	result["project_path"] = ProjectSettings::get_singleton()->get_resource_path();
-	
-	//result["abs_path"] = red::globalize(root->get_filename().get_basename());
-	//result["abs_path_file"] = red::globalize(root->get_filename().get_basename()) + ".json";
-	result["format"] = "scene";
-	result["mode"] = "2D";
-	result["version"] = 1.0;
-
-	result["root"] = node_to_dict(root);
-	return result;
-}
-
-Dictionary SceneExportEditorPlugin::node_to_dict(Node *node){
-	List<PropertyInfo> plist;
-	Dictionary serialized;
-	Variant name_property;
-	String cl = node->get_class();
-
-	ClassDB::get_property_list(cl, &plist, false, node);
-	if (ClassDB::get_property(node, "name", name_property)){
-		serialized["name"] = name_property;
-	}
-	serialized["type"] = cl;
-
-	for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
-		String name = E->get().name;
-		if (name == "name" || name == "owner" || name == "_import_path" || 
-			name == "custom_multiplayer" || name == "multiplayer" || 
-			name == "global_scale" || name == "global_position" || 
-			name == "global_rotation_degrees" || name == "global_rotation" || 
-			name == "transform" || name == "global_transform" ||
-			name == "current_animation" || name == "assigned_animation") 
-			continue;
-		Variant property;
-		if (ClassDB::get_property(node, name, property))
-			if (name == "texture"){
-				RES r = property;
-				if (r.is_valid())
-					serialized[name] = r->get_path();
-			}else if (name == "material"){
-				Ref<ShaderMaterial> r = property;
-				if (r.is_valid())
-					serialized[name] = r->get_shader()->get_path();
-			}else if (name == "bones"){
-				/*if (cl=="REDPolygon"){
-					REDPolygon *polygon = (REDPolygon*)node;
-					Array bones;
-					for (int i = 0; i < polygon->get_bone_count(); i++){
-						Dictionary bone;
-						bone["path"] = polygon->get_bone_path(i);
-						bone["weights"] = polygon->get_bone_weights(i);
-						bones.push_back(bone);
-					}
-					serialized["bones"] = bones;
-
-				} else */
-				if (cl=="Polygon2D"){
-					Polygon2D *polygon = (Polygon2D*)node;
-					Array bones;
-					for (int i = 0; i < polygon->get_bone_count(); i++){
-						Dictionary bone;
-						bone["path"] = polygon->get_bone_path(i);
-						bone["weights"] = polygon->get_bone_weights(i);
-						bones.push_back(bone);
-					}
-					serialized["bones"] = bones;
-				}
-			}else {
-				serialized[name] = property;
-			}
-			
-	}
-	
-	if (node->is_class("AnimationPlayer")){
-		AnimationPlayer *player = (AnimationPlayer*)node;
-		
-		Array animations;
-		List<StringName> animation_names;
-		player->get_animation_list(&animation_names);
-		animations.resize(animation_names.size());
-		int animation_i=0;
-		for (List<StringName>::Element *E = animation_names.front(); E; E = E->next()) {
-			String animation_name = E->get();
-			Ref<Animation> animation = player->get_animation(animation_name);
-			Dictionary animation_dict;
-			int track_count = animation->get_track_count();
-			
-			animation_dict["name"] = animation_name;
-
-			List<PropertyInfo> animation_plist;
-			ClassDB::get_property_list("Animation", &animation_plist, false, animation.ptr());
-			for (List<PropertyInfo>::Element *E = animation_plist.front(); E; E = E->next()) {
-				String name = E->get().name;
-				if (name == "resource_local_to_scene" || name == "resource_path" || name == "resource_name") continue;
-				Variant property;
-				if (ClassDB::get_property(animation.ptr(), name, property))
-					animation_dict[name] = property;
-			}
-
-			Array tracks;
-			tracks.resize(track_count);
-			for (int track_i = 0; track_i < track_count; track_i++){
-				Dictionary track;
-				int keys_count = animation->track_get_key_count(track_i);
-				track["path"] = animation->track_get_path(track_i);
-				track["length"] = keys_count;
-				track["type"] = animation->track_get_type(track_i);
-				track["interpolation_type"] = animation->track_get_interpolation_type(track_i);
-				Array keys;
-				keys.resize(keys_count);
-				for (int key_i = 0; key_i < keys_count; key_i++){
-					Variant value = animation->track_get_key_value(track_i, key_i);
-					Dictionary key;
-					key["value"] = value;
-					key["time"] = animation->track_get_key_time (track_i, key_i);
-					key["transition"] = animation->track_get_key_transition(track_i, key_i);
-					keys[key_i] = key;
-				}
-				track["keys"] = keys;
-				tracks[track_i] = track;
-			}
-			animation_dict["tracks"] = tracks;
-			animations[animation_i] = animation_dict;
-			animation_i++;
-		}
-		serialized["animations"] = animations;
-	}
-
-	/*
-	if (node->is_class("AnimationPlayer")){
-		AnimationPlayer *player = (AnimationPlayer*)node;
-		Array layers;
-		List<String> layer_names;
-		player->get_animation_list(layer_names);
-		int layers_count = layers.size();
-		layers.resize(layers_count);
-		for (int i = 0; i < layers_count; i++){
-			String layer_name = layer_names[i];
-			Ref<Animation> animation = player->get_animation(layer_name);
-			Dictionary layer;
-			Array keys;
-			int track_count = animation->get_track_count();
-			for (int track_i = 0; track_i < track_count; track_i++){
-				Animation::TrackType type = animation->track_get_type(track_i);
-				int keys_count = keys.size();
-				for (int key_i = 0; key_i < keys_count; key_i++){
-					Variant variant_value = animation->track_get_key_value(track_i, key_i);
-					Dictionary key;
-
-					key["layer"] = layer_name;
-					key["track"] = layer_name;
-					key["type"] = layer_name;
-					key["layer"] = layer_name;
-					key["interpolation_type"] = layer_name;
-					key["transition"] = layer_name;
-					key["value"] = layer_name;
-					key["time"] = layer_name;
-				}
-				serialized["layers"][-1]["keys"].append(key)
-			}
-			layer["name"] = layer_name;
-			layer["keys"] = keys;
-			layers[i] = layer;
-		}
-		
-		serialized["layers"] = layers;
-	}*/
-
-	int count = node->get_child_count();
-	Array children;
-	children.resize(count);
-	for (int i = 0; i < count; i++){
-		Node *child = node->get_child(i);
-		children[i] = node_to_dict(child);
-	}
-	serialized["children"] = children;
-	return serialized;
-}
-
-Error SceneExportEditorPlugin::save_json(Dictionary &p_data, String &p_path){
-	Error err;
-	FileAccess *f = FileAccess::open(p_path, FileAccess::WRITE, &err);
-	if (err)
-		return err;
-
-	REDJSON *parser = memnew(REDJSON);
-	f->store_string(parser->print(p_data, "    ", false, true));
-		memdelete(parser);
-	memdelete(f);
-
-	return OK;
-}
-
-Vector<int> SceneExportEditorPlugin::triangulate(const PoolVector2Array &points, const Array &polygons){
+Vector<int> REDToolsEditorPlugin::triangulate(const PoolVector2Array &points, const Array &polygons){
 	Vector<int> total_indices;
 	for (int i = 0; i < polygons.size(); i++) {
 		PoolVector<int> src_indices = polygons[i];
@@ -333,7 +112,7 @@ Vector<int> SceneExportEditorPlugin::triangulate(const PoolVector2Array &points,
 	return total_indices;
 }
 
-void SceneExportEditorPlugin::selection_to_normals(){
+void REDToolsEditorPlugin::selection_to_normals(){
 	List<Node *> selection = EditorInterface::get_singleton()->get_selection()->get_selected_node_list();
 	bool delete_after_render = selection.size() > 1;
 	for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
@@ -524,7 +303,7 @@ void SceneExportEditorPlugin::selection_to_normals(){
 	}
 }
 
-void SceneExportEditorPlugin::create_mediapipe() {
+void REDToolsEditorPlugin::create_mediapipe() {
 	List<Node *> selection = EditorInterface::get_singleton()->get_selection()->get_selected_node_list();
 	String scene_path = "res://redot/polygons/faces/default_face.tscn";
 	Ref<PackedScene> face_scene = ResourceLoader::load(scene_path);
@@ -565,14 +344,14 @@ void SceneExportEditorPlugin::create_mediapipe() {
 	}
 }
 
-void SceneExportEditorPlugin::attach_transform() {
-	REDTransform *apply_transform = nullptr;
+void REDToolsEditorPlugin::attach_transform() {
+	RootBone2D *apply_transform = nullptr;
 	REDDeform *apply_deform = nullptr;
 	{
 		List<Node *> selection = EditorInterface::get_singleton()->get_selection()->get_selected_node_list();
 		for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
 			if (!apply_transform)
-				apply_transform = Object::cast_to<REDTransform>(E->get());
+				apply_transform = Object::cast_to<RootBone2D>(E->get());
 			if (!apply_deform)
 				apply_deform = Object::cast_to<REDDeform>(E->get());
 			if(apply_transform && apply_deform)
@@ -587,8 +366,8 @@ void SceneExportEditorPlugin::attach_transform() {
 		if (!apply_polygon)
 			continue;
 		if(apply_transform)
-			apply_polygon->set_custom_transform(apply_polygon->get_path_to(apply_transform));
+			apply_polygon->set_root_bone_path(apply_polygon->get_path_to(apply_transform));
 		if(apply_deform)
-			apply_polygon->set_deform(apply_polygon->get_path_to(apply_deform));
+			apply_polygon->set_deform_path(apply_polygon->get_path_to(apply_deform));
 	}
 }

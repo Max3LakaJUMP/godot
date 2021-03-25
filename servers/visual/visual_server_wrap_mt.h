@@ -242,7 +242,7 @@ public:
 	/*DEFORM API */
 	
 	FUNCRID(deform)
-	FUNC2(deform_set_wind_rotation, RID, float)
+	FUNC2(deform_set_wind_rotation, RID, const Vector2 &)
 	FUNC2(deform_set_wind_offset, RID, float)
 	FUNC2(deform_set_wind_time, RID, float)
 	FUNC2(deform_set_wind_strength, RID, float)

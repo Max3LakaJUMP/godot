@@ -956,7 +956,7 @@ public:
 
 	/*DEFORM API */
 	struct Deform : RID_Data {
-		float wind_rotation;
+		Vector2 wind_rotation;
 		float wind_offset;
 		float wind_time;
 		float wind_strength;
@@ -967,7 +967,7 @@ public:
 	};
 	mutable RID_Owner<Deform> deform_owner;
 	virtual RID deform_create();
-	virtual void deform_set_wind_rotation(RID p_deform, float p_rotation);
+	virtual void deform_set_wind_rotation(RID p_deform, const Vector2 &p_wind_rotation);
 	virtual void deform_set_wind_offset(RID p_deform, float p_rotation);
 	virtual void deform_set_wind_time(RID p_deform, float p_wind_time);
 	virtual void deform_set_wind_strength(RID p_deform, float p_wind_strength);

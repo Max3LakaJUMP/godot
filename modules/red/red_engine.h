@@ -18,12 +18,203 @@ class REDFrame;
 class REDControllerBase;
 class Polygon2D;
 
+// struct Edge{
+// 	Vector3 start;
+// 	Vector3 end;
+
+// 	bool operator==(const Edge &p_edge) const {
+// 		return (start == p_edge.start && end == p_edge.end) || (start == p_edge.end && end == p_edge.start);
+// 	}
+// }
+
+class Bouncer{
+private:
+	float target;
+	bool process_lock;
+public:
+	enum State{
+		BOUNCER_PROCESS,
+		BOUNCER_ENDING,
+		BOUNCER_ENDED
+	} state;
+	float speed;
+	float bounces;
+	
+	float current;
+	float velocity;
+
+	bool set_target(float p_target, bool force=false) {
+		if(!force && Math::is_equal_approx(current, p_target) && Math::is_equal_approx(target, p_target))
+			return false;
+		target = p_target;
+		state = BOUNCER_PROCESS;
+		return true;
+	};
+
+	float get_target() const {
+		return target;
+	};
+
+	bool is_active(){
+		return state != BOUNCER_ENDED;
+	};
+
+	bool process(float delta){
+		if(state == BOUNCER_ENDED){
+			return false;
+		}
+		if(state == BOUNCER_ENDING){
+			state = BOUNCER_ENDED;
+			return false;
+		}
+		if(Math::is_equal_approx(current, target)){
+			state = BOUNCER_ENDING;
+			current = target;
+			velocity = 0;
+			return true;
+		}
+		float delta_velocity = 0.5f / (1.f + 4.f * MAX(bounces, 0.f));
+		float delta_speed = MIN(delta * speed * 4.f, 0.5f);
+		velocity = velocity + delta_velocity * ((1.0 + 4.0 * bounces) * (target - current) - velocity);
+		current = current + delta_speed * velocity;
+		return true;
+	};
+
+	Bouncer(){
+		speed = 1.f;
+		bounces = 1.f;
+		
+		current = 0.0;
+		velocity = 0.0;
+		target = 0.0;
+		state = BOUNCER_ENDED;
+	};
+};
+
+class Bouncer2D{
+private:
+	Vector2 target;
+	bool process_lock;
+public:
+	enum State{
+		BOUNCER_PROCESS,
+		BOUNCER_ENDING,
+		BOUNCER_ENDED
+	} state;
+	float speed;
+	float bounces;
+	Vector2 max_offset;
+
+	Vector2 current;
+	Vector2 velocity;
+
+	bool set_target(const Vector2 &p_target, bool force=false) {
+		if(!force && Math::is_equal_approx(current.x, p_target.x) && 
+			Math::is_equal_approx(current.y, p_target.y) && 
+			Math::is_equal_approx(target.x, p_target.x) && 
+			Math::is_equal_approx(target.y, p_target.y))
+			return false;
+		target = p_target;
+		state = BOUNCER_PROCESS;
+		return true;
+	};
+
+	bool is_active(){
+		return state != BOUNCER_ENDED;
+	};
+
+	Vector2 get_target() const {
+		return target;
+	};
+
+	bool process(float delta){
+		if(state == BOUNCER_ENDED){
+			return false;
+		}
+		if(state == BOUNCER_ENDING){
+			state = BOUNCER_ENDED;
+			return false;
+		}
+		if(Math::is_equal_approx(current.x, target.x) && Math::is_equal_approx(current.y, target.y)){
+			state = BOUNCER_ENDING;
+			current = target;
+			velocity = Vector2();
+			return true;
+		}
+		float delta_velocity = 1.0f / (1.f + 4.f * MAX(bounces, 0.f));
+		float delta_speed = MIN(delta * speed * 4.f, 0.5f);
+		velocity = velocity.linear_interpolate((1.0 + 4.0 * bounces) * (target - current), delta_velocity);
+		current = current + delta_speed * velocity;
+		// {
+		// 	float max_offset_k = CLAMP((ABS(current.x) / MAX(max_offset.x, 0.0001)), 0.f, 1.f);
+		// 	// current.x = current.x + max_offset_k * (SGN(current.x) * max_offset.x - current.x);
+		// 	print_line(Variant(current.x));
+		// 	print_line(Variant(max_offset_k));
+		// 	print_line(Variant(SGN(current.x) * max_offset.x - current.x));
+		// }
+		// {
+		// 	float max_offset_k = CLAMP((ABS(current.y) / MAX(max_offset.y, 0.0001)), 0.f, 1.f);
+		// 	current.y = current.y + max_offset_k * (SGN(current.y) * max_offset.y - current.y);
+		// }
+		// if(ABS(current.x) > max_offset.width){
+		// 	current.x = SGN(current.x) * max_offset.width;
+		// 	velocity.x = 0.0;
+		// }
+		// if(ABS(current.y) > max_offset.height){
+		// 	current.y = SGN(current.y) * max_offset.height;
+		// 	velocity.y = 0.0;
+		// }
+		return true;
+	};
+
+	Bouncer2D(){
+		max_offset = Vector2(1000000000, 1000000000);
+		speed = 1.f;
+		bounces = 1.f;
+		
+		current = Vector2();
+		velocity = Vector2();
+		target = Vector2();
+		state = BOUNCER_ENDED;
+	};
+};
+
 class TransformC : public Transform{
+public:
+	// enum ROTATION_ORDER{
+	// 	DEFAULT_ROTATION,
+	// 	ZYX
+	// };
+private:
 	bool _xform_dirty;
 	Vector3 rotation;
 	Vector3 scale;
+	// ROTATION_ORDER rotation_order;
 public:
+	// void set_rotation_order(const ROTATION_ORDER &p_rotation_order) {
+	// 	rotation_order = p_rotation_order;
+	// 	_xform_dirty = true;
+	// }
+
+	// void get_rotation_order() const{
+	// 	return rotation_order;
+	// }
+
 	void _update_xform_values() {
+
+		// switch (ROTATION_ORDER)
+		// {
+		// case ROTATION_ORDER::ZYX:{
+		// 	Basis m = basis.orthonormalized();
+		// 	real_t det = m.determinant();
+		// 	if (det < 0)
+		// 		m.scale(Vector3(-1, -1, -1));
+		// 	rotation = m.get_euler_zyx();
+		// } break;
+		// default:
+			// rotation = get_basis().get_rotation();
+		// 	break;
+		// }	
 		rotation = get_basis().get_rotation();
 		scale = get_basis().get_scale();
 		_xform_dirty = false;
@@ -39,7 +230,17 @@ public:
 		if (_xform_dirty)
 			((TransformC *)this)->_update_xform_values();
 		rotation = p_radians;
+		// switch (ROTATION_ORDER)
+		// {
+		// case ROTATION_ORDER::ZYX:{
+		// 	basis.set_euler_zyx(rotation);
+		// } break;
+		// default:
+		// 	basis.set_euler(rotation);
+		// 	break;
+		// }	
 		basis.set_euler_scale(rotation, scale);
+
 	}
 
 	Vector3 get_rotation() const {
@@ -58,7 +259,12 @@ public:
 			temp.x = CMP_EPSILON;
 		if (temp.y == 0)
 			temp.y = CMP_EPSILON;
-		basis.scale(temp / scale);
+		if (temp.z == 0)
+			temp.z = CMP_EPSILON;
+		// basis.orthonormalize();
+		// basis.scale(temp);
+		basis.set_euler_scale(rotation, temp);
+		// basis.scale(temp / scale);
 		scale = p_scale;
 	}
 
@@ -82,6 +288,8 @@ public:
 	TransformC() {
 		rotation = Vector3(0, 0, 0);
 		scale = Vector3(1, 1, 1);
+
+		// rotation_order = DEFAULT_ROTATION;
 	}
 };
 
@@ -94,21 +302,41 @@ enum t {
 	FRAME
 };
 
+enum TesselateMode {
+	CUBIC = 0,
+	QUADRATIC_BEZIER,
+	CUBIC_BEZIER
+};
+
+template <class T>
+T *find_parent_type(Node *node, int max_iter=10) {
+	Node *parent = node->get_parent();
+	for (int i = 0; i < max_iter; i++){
+		T *n = Object::cast_to<T>(parent);
+		if (n){
+			return n;
+		}
+		parent = parent->get_parent();
+	}
+	return nullptr;
+}
+
+PoolByteArray to_ascii(const String &input_string);
+Vector2 cubic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, const Vector2 &p3, float t);
+Vector2 quadratic_bezier(const Vector2 &p0, const Vector2 &p1, const Vector2 &p2, float t);
+Vector<Vector2> tesselate(const Vector<Vector2> &low_res, const int smooth_factor=1, const TesselateMode &p_interpolation=TesselateMode::CUBIC);
+
 Ref<BitMap> read_bitmap(Ref<Image> p_img, float p_threshold=0.1f, Size2 max_size=Size2(128.0f, 128.0f));
 PoolColorArray get_normals(PoolVector2Array vtxs);
-Vector<Polygon2D*> bitmap_to_polygon2d(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=1.0, float epsilon=4.0, bool single=false, bool normals_to_colors=false, Rect2 &crop_rect=Rect2());
+Vector<Polygon2D*> bitmap_to_polygon2d(Ref<BitMap> mask_bitmap, Size2 &polygon_size, float polygon_grow=1.0, float epsilon=4.0, bool single=false, bool normals_to_colors=false, const Rect2 &crop_rect=Rect2());
 Ref<Image> merge_images(Ref<Image> main_image, Vector<Ref<Image> > &additional_images, Vector<Vector2> &offsets);
 Vector<Vector2> ramer_douglas_peucker(const Vector<Vector2> &p_point_list, double epsilon=2.0, bool is_closed=false);
-Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> bitmap_mask, Size2 &polygon_size, float polygon_grow=0, float epsilon=4.0, bool single=true, Rect2 &crop_rect=Rect2());
+Vector<PoolVector<Vector2> > bitmap_to_polygon(Ref<BitMap> mask_bitmap, Size2 &polygon_size, float polygon_grow=0, float epsilon=4.0, bool single=true, const Rect2 &crop_rect=Rect2());
 
 PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> new_polygon, PoolVector<Vector2> old_uv, Size2 poly_size, Size2 uv_size);
 Rect2 get_rect(PoolVector<Vector2> polygon, Vector2 offset = Vector2());
 Size2 get_full_size(PoolVector<Vector2> &polygon, PoolVector<Vector2> &uv);
 
-void print(const float number);
-void print(const String number);
-String str(const int number);
-String str(const float number);
 Node *get_singleton(const Node *n);
 RED *red(const Node *n);
 Vector2 get_zoom(const Node *n);
@@ -132,13 +360,13 @@ Dictionary dict(Vector2 &p_vector2, float &p_z);
 Dictionary dict(Color &p_color);
 
 Array arr(PoolVector<Vector2> &p_value);	
-
+PoolVector<int> pool_int_array(Array &p_arr);
 PoolVector<Vector2> pool_vector2_array(Array &p_arr);
 PoolVector<Color> pool_color_array(Array &p_arr);
 PoolVector<float> pool_real_array(Array &p_arr);
 
-String globalize(String &p_path);
-String localize(String &p_path);
+String globalize(const String &p_path);
+String localize(const String &p_path);
 template <class T>
 T *create_node(Node *parent, const String &name="", Node *owner=nullptr, bool force=false){
 	if (parent){
@@ -163,6 +391,18 @@ T *create_node(Node *parent, const String &name="", Node *owner=nullptr, bool fo
 		return node;
 	}
 	ERR_FAIL_V(nullptr);
+}
+
+template <class T>
+Vector<T> vector(const PoolVector<T> p_array) {
+	int count = p_array.size();
+	PoolVector<T>::Read r = p_array.read();
+	Vector<T> result;
+	result.resize(count);
+	for (int i = 0; i < count; i++) {
+		result.write[i] = r[i];
+	}
+	return result;
 }
 
 template <class T>

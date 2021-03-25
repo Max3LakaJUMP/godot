@@ -69,11 +69,13 @@ static inline void swap(T &a, T &b) {
 	b = tmp;
 }
 
-static float calculate_total_distance(const Vector<Vector2> &points) {
+static float calculate_total_distance(const Vector<Vector2> &points, bool closed) {
 	float d = 0.f;
 	for (int i = 1; i < points.size(); ++i) {
 		d += points[i].distance_to(points[i - 1]);
 	}
+	if(closed)
+		d += points[0].distance_to(points[points.size()-1]);
 	return d;
 }
 
@@ -107,6 +109,7 @@ LineBuilder::LineBuilder() {
 	_interpolate_color = false;
 	_last_index[0] = 0;
 	_last_index[1] = 0;
+    closed = false;
 }
 
 void LineBuilder::clear_output() {
@@ -153,21 +156,36 @@ void LineBuilder::build() {
 							 retrieve_curve ||
 							 texture_mode == Line2D::LINE_TEXTURE_TILE ||
 							 texture_mode == Line2D::LINE_TEXTURE_STRETCH;
+	bool use_width_list = width_list.size() == points.size();
 	if (distance_required) {
-		total_distance = calculate_total_distance(points);
-		//Adjust totalDistance.
-		// The line's outer length will be a little higher due to begin and end caps
-		if (begin_cap_mode == Line2D::LINE_CAP_BOX || begin_cap_mode == Line2D::LINE_CAP_ROUND) {
-			if (retrieve_curve)
-				total_distance += width * curve->interpolate_baked(0.f) * 0.5f;
-			else
-				total_distance += width * 0.5f;
-		}
-		if (end_cap_mode == Line2D::LINE_CAP_BOX || end_cap_mode == Line2D::LINE_CAP_ROUND) {
-			if (retrieve_curve)
-				total_distance += width * curve->interpolate_baked(1.f) * 0.5f;
-			else
-				total_distance += width * 0.5f;
+		total_distance = calculate_total_distance(points, closed);
+		if (!closed){
+			//Adjust totalDistance.
+			// The line's outer length will be a little higher due to begin and end caps
+			if (begin_cap_mode == Line2D::LINE_CAP_BOX || begin_cap_mode == Line2D::LINE_CAP_ROUND) {
+				if (retrieve_curve)
+					if (use_width_list)
+						total_distance += width * curve->interpolate_baked(0.f) * width_list[0] * 0.5f;
+					else
+						total_distance += width * curve->interpolate_baked(0.f) * 0.5f;
+				else
+					if (use_width_list)
+						total_distance += width * width_list[0] * 0.5f;
+					else
+						total_distance += width * 0.5f;
+			}
+			if (end_cap_mode == Line2D::LINE_CAP_BOX || end_cap_mode == Line2D::LINE_CAP_ROUND) {
+				if (retrieve_curve)
+					if (use_width_list)
+						total_distance += width * curve->interpolate_baked(1.f) * width_list[width_list.size() - 1] * 0.5f;
+					else
+						total_distance += width * curve->interpolate_baked(1.f) * 0.5f;
+				else
+					if (use_width_list)
+						total_distance += width * width_list[width_list.size() - 1] * 0.5f;
+					else
+						total_distance += width * 0.5f;
+			}
 		}
 	}
 	if (_interpolate_color)
@@ -180,31 +198,32 @@ void LineBuilder::build() {
 
 	if (retrieve_curve)
 		width_factor = curve->interpolate_baked(0.f);
-
+	if (use_width_list)
+		width_factor *= width_list[0];
 	pos_up0 += u0 * hw * width_factor;
 	pos_down0 -= u0 * hw * width_factor;
+	if (!closed) {
+		// Begin cap
+		if (begin_cap_mode == Line2D::LINE_CAP_BOX) {
+			// Push back first vertices a little bit
+			pos_up0 -= f0 * hw * width_factor;
+			pos_down0 -= f0 * hw * width_factor;
 
-	// Begin cap
-	if (begin_cap_mode == Line2D::LINE_CAP_BOX) {
-		// Push back first vertices a little bit
-		pos_up0 -= f0 * hw * width_factor;
-		pos_down0 -= f0 * hw * width_factor;
-
-		current_distance0 += hw * width_factor;
-		current_distance1 = current_distance0;
-	} else if (begin_cap_mode == Line2D::LINE_CAP_ROUND) {
-		if (texture_mode == Line2D::LINE_TEXTURE_TILE) {
-			uvx0 = width_factor * 0.5f / tile_aspect;
-		} else if (texture_mode == Line2D::LINE_TEXTURE_STRETCH) {
-			uvx0 = width * width_factor / total_distance;
+			current_distance0 += hw * width_factor;
+			current_distance1 = current_distance0;
+		} else if (begin_cap_mode == Line2D::LINE_CAP_ROUND) {
+			if (texture_mode == Line2D::LINE_TEXTURE_TILE) {
+				uvx0 = width_factor * 0.5f / tile_aspect;
+			} else if (texture_mode == Line2D::LINE_TEXTURE_STRETCH) {
+				uvx0 = width * width_factor / total_distance;
+			}
+			new_arc(pos0, pos_up0 - pos0, -Math_PI, color0, Rect2(0.f, 0.f, uvx0 * 2, 1.f));
+			current_distance0 += hw * width_factor;
+			current_distance1 = current_distance0;
 		}
-		new_arc(pos0, pos_up0 - pos0, -Math_PI, color0, Rect2(0.f, 0.f, uvx0 * 2, 1.f));
-		current_distance0 += hw * width_factor;
-		current_distance1 = current_distance0;
+
+		strip_begin(pos_up0, pos_down0, color0, uvx0);
 	}
-
-	strip_begin(pos_up0, pos_down0, color0, uvx0);
-
 	/*
 	 *  pos_up0 ------------- pos_up1 --------------------
 	 *     |                     |
@@ -219,10 +238,67 @@ void LineBuilder::build() {
 	// (not the same implementation but visuals help a lot)
 
 	// For each additional segment
-	for (int i = 1; i < len - 1; ++i) {
+	for (int i = closed ? 0 : 1; i < len + 1; ++i) {
+		width_factor = 1.f;
+		Vector2 pos2;
+        if(i == 0){
+            // calc start for closed
+            pos0 = points[points.size()-1];
+            pos1 = points[0];
+            pos2 = points[1];
+            f0 = (pos1 - pos0).normalized();
+            u0 = rotate90(f0);
+            color1 = color0;
+        }if(i < len - 1){
+            pos1 = points[i];
+            pos2 = points[i + 1];
+            if (distance_required) {
+                current_distance1 += pos0.distance_to(pos1);
+            }
+            if (_interpolate_color) {
+                color1 = gradient->get_color_at_offset(current_distance1 / total_distance);
+            }
+            if (retrieve_curve) {
+                width_factor = curve->interpolate_baked(current_distance1 / total_distance);
+            }
+			if (use_width_list)
+                width_factor *= width_list[i];
+        }else if(i == len - 1){
+            // Last (or only) segment
+            pos1 = points[points.size() - 1];
+            if (distance_required) {
+                current_distance1 += pos0.distance_to(pos1);
+            }
+            if (_interpolate_color) {
+                color1 = gradient->get_color(gradient->get_points_count() - 1);
+            }
+            if (retrieve_curve) {
+                width_factor = curve->interpolate_baked(1.f);
+            }
+			if (use_width_list)
+                width_factor *= width_list[width_list.size() - 1];
+            if(closed)
+                pos2 = points[0];
+            else
+                break;
+        }else{
+            if(!closed)
+                break;
+            // Closed end segment
+            pos1 = points[0];
+            pos2 = points[1];
+            if (distance_required) {
+                current_distance1 += pos0.distance_to(pos1);
+            }
+            if (_interpolate_color)
+                color0 = gradient->get_color(0);
 
-		pos1 = points[i];
-		Vector2 pos2 = points[i + 1];
+            if (retrieve_curve) {
+                width_factor = curve->interpolate_baked(0.f);
+            }
+			if (use_width_list)
+                width_factor *= width_list[0];
+        }
 
 		Vector2 f1 = (pos2 - pos1).normalized();
 		Vector2 u1 = rotate90(f1);
@@ -230,16 +306,6 @@ void LineBuilder::build() {
 		// Determine joint orientation
 		const float dp = u0.dot(f1);
 		const Orientation orientation = (dp > 0.f ? UP : DOWN);
-
-		if (distance_required) {
-			current_distance1 += pos0.distance_to(pos1);
-		}
-		if (_interpolate_color) {
-			color1 = gradient->get_color_at_offset(current_distance1 / total_distance);
-		}
-		if (retrieve_curve) {
-			width_factor = curve->interpolate_baked(current_distance1 / total_distance);
-		}
 
 		Vector2 inner_normal0, inner_normal1;
 		if (orientation == UP) {
@@ -330,9 +396,9 @@ void LineBuilder::build() {
 		} else if (texture_mode == Line2D::LINE_TEXTURE_STRETCH) {
 			uvx1 = current_distance1 / total_distance;
 		}
-
-		strip_add_quad(pos_up1, pos_down1, color1, uvx1);
-
+        if(i > 0){
+            strip_add_quad(pos_up1, pos_down1, color1, uvx1);
+        }
 		// Swap vars for use in the next line
 		color0 = color1;
 		u0 = u1;
@@ -355,6 +421,11 @@ void LineBuilder::build() {
 			pos_up0 = pos1 + u1 * hw * width_factor;
 			pos_down0 = pos1 - u1 * hw * width_factor;
 		}
+        if(i == 0){
+            //if closed begin and continue to second point
+            strip_begin(pos_up0, pos_down0, color0, uvx0);
+            continue;
+        }
 		// From this point, bu0 and bd0 concern the next segment
 
 		// Add joint geometry
@@ -392,47 +463,36 @@ void LineBuilder::build() {
 				strip_begin(pos_up0, pos_down0, color1, uvx1);
 		}
 	}
-	// Last (or only) segment
-	pos1 = points[points.size() - 1];
+    if(!closed){
+		Vector2 pos_up1 = pos1 + u0 * hw * width_factor;
+		Vector2 pos_down1 = pos1 - u0 * hw * width_factor;
 
-	if (distance_required) {
-		current_distance1 += pos0.distance_to(pos1);
-	}
-	if (_interpolate_color) {
-		color1 = gradient->get_color(gradient->get_points_count() - 1);
-	}
-	if (retrieve_curve) {
-		width_factor = curve->interpolate_baked(1.f);
-	}
-
-	Vector2 pos_up1 = pos1 + u0 * hw * width_factor;
-	Vector2 pos_down1 = pos1 - u0 * hw * width_factor;
-
-	// End cap (box)
-	if (end_cap_mode == Line2D::LINE_CAP_BOX) {
-		pos_up1 += f0 * hw * width_factor;
-		pos_down1 += f0 * hw * width_factor;
-	}
-
-	if (texture_mode == Line2D::LINE_TEXTURE_TILE) {
-		uvx1 = current_distance1 / (width * tile_aspect);
-	} else if (texture_mode == Line2D::LINE_TEXTURE_STRETCH) {
-		uvx1 = current_distance1 / total_distance;
-	}
-
-	strip_add_quad(pos_up1, pos_down1, color1, uvx1);
-
-	// End cap (round)
-	if (end_cap_mode == Line2D::LINE_CAP_ROUND) {
-		// Note: color is not used in case we don't interpolate...
-		Color color = _interpolate_color ? gradient->get_color(gradient->get_points_count() - 1) : Color(0, 0, 0);
-		float dist = 0;
-		if (texture_mode == Line2D::LINE_TEXTURE_TILE) {
-			dist = width_factor / tile_aspect;
-		} else if (texture_mode == Line2D::LINE_TEXTURE_STRETCH) {
-			dist = width * width_factor / total_distance;
+		// End cap (box)
+		if (end_cap_mode == Line2D::LINE_CAP_BOX) {
+			pos_up1 += f0 * hw * width_factor;
+			pos_down1 += f0 * hw * width_factor;
 		}
-		new_arc(pos1, pos_up1 - pos1, Math_PI, color, Rect2(uvx1 - 0.5f * dist, 0.f, dist, 1.f));
+
+		if (texture_mode == Line2D::LINE_TEXTURE_TILE) {
+			uvx1 = current_distance1 / (width * tile_aspect);
+		} else if (texture_mode == Line2D::LINE_TEXTURE_STRETCH) {
+			uvx1 = current_distance1 / total_distance;
+		}
+
+		strip_add_quad(pos_up1, pos_down1, color1, uvx1);
+
+		// End cap (round)
+		if (end_cap_mode == Line2D::LINE_CAP_ROUND) {
+			// Note: color is not used in case we don't interpolate...
+			Color color = _interpolate_color ? gradient->get_color(gradient->get_points_count() - 1) : Color(0, 0, 0);
+			float dist = 0;
+			if (texture_mode == Line2D::LINE_TEXTURE_TILE) {
+				dist = width_factor / tile_aspect;
+			} else if (texture_mode == Line2D::LINE_TEXTURE_STRETCH) {
+				dist = width * width_factor / total_distance;
+			}
+			new_arc(pos1, pos_up1 - pos1, Math_PI, color, Rect2(uvx1 - 0.5f * dist, 0.f, dist, 1.f));
+		}
 	}
 }
 

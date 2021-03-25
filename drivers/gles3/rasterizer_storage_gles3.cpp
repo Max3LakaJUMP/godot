@@ -5386,7 +5386,7 @@ RID RasterizerStorageGLES3::deform_create() {
 	return deform_owner.make_rid(deform);
 }
 
-void RasterizerStorageGLES3::deform_set_wind_rotation(RID p_deform, float p_wind_rotation){
+void RasterizerStorageGLES3::deform_set_wind_rotation(RID p_deform, const Vector2 &p_wind_rotation){
 	Deform *deform = deform_owner.getornull(p_deform);
 	ERR_FAIL_COND(!deform);
 	deform->wind_rotation = p_wind_rotation;
@@ -5600,7 +5600,9 @@ Transform2D RasterizerStorageGLES3::skeleton_bone_get_transform_2d(RID p_skeleto
 
 	ERR_FAIL_COND_V(!skeleton, Transform2D());
 	ERR_FAIL_INDEX_V(p_bone, skeleton->size, Transform2D());
-	ERR_FAIL_COND_V(!skeleton->use_2d, Transform2D());
+	if(!skeleton->use_2d)
+		return Variant(skeleton_bone_get_transform(p_skeleton, p_bone));
+	// ERR_FAIL_COND_V(!skeleton->use_2d, Transform2D());
 
 	const float *texture = skeleton->skel_texture.ptr();
 
@@ -5622,8 +5624,8 @@ Transform2D RasterizerStorageGLES3::skeleton_bone_get_transform_2d(RID p_skeleto
 void RasterizerStorageGLES3::skeleton_set_base_transform_2d(RID p_skeleton, const Transform2D &p_base_transform) {
 
 	Skeleton *skeleton = skeleton_owner.getornull(p_skeleton);
-
-	ERR_FAIL_COND(!skeleton->use_2d);
+	ERR_FAIL_COND(!skeleton);
+	// ERR_FAIL_COND(!skeleton->use_2d);
 
 	skeleton->base_transform_2d = p_base_transform;
 }

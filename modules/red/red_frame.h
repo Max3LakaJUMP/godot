@@ -5,49 +5,12 @@
 #include "core/node_path.h"
 #include "scene/animation/animation_node_state_machine.h"
 
+class REDParallaxFolder;
+
 class REDFrame : public REDShape {
 	GDCLASS(REDFrame, REDShape);
-	// Clipper
-public:
-	enum Space{
-		CLIPPER_SPACE_WORLD,
-		CLIPPER_SPACE_LOCAL,
-		CLIPPER_SPACE_SCREEN
-	};
-private:
-	bool clip_enable;
-	bool clip_rect_enable;
-	bool split;
+	Vector<REDParallaxFolder*> parallax_folders;
 
-	Vector<float> multiple;
-	Vector<float> constant;
-	Vector<Vector2> screen_coords;
-	float split_angle;
-	Vector2 split_offset;
-	RID ci;
-	Space space;
-
-	mutable bool send_stencil_dirty;
-public:
-	RID get_ci() const;
-	void _update_stencil(const Vector<Vector2> &p_points) ;
-	void _send_stencil();
-	
-	void set_split(bool p_split);
-	bool get_split() const;
-	void set_split_angle(float p_split_angle);
-	float get_split_angle() const;
-	void set_split_offset(const Vector2 &p_split_offset);
-	Vector2 get_split_offset() const;
-	void set_clip_enable(bool p_clip);
-	bool get_clip_enable() const;
-	void set_clip_rect_enable(bool p_clip_rect_enable);
-	bool get_clip_rect_enable() const;
-	void set_space(Space p_space);
-	Space get_space() const;
-
-
-private:
 	bool start_immediate;
 	int old_z_index;
 	
@@ -102,6 +65,9 @@ private:
 	Anchor anchor;
 
 public:
+	void parallax_folders_append(REDParallaxFolder *p_node);
+	void parallax_folders_pop(const REDParallaxFolder *p_node);
+	
 	void set_start_immediate(bool p_start_immediate);
 	bool is_start_immediate() const;
 
@@ -194,12 +160,12 @@ public:
 		FRAME_LOOP_END,
 	};
 
-	enum Status{
-		FRAME_STATE_STARTING,
-		FRAME_STATE_STARTED,
-		FRAME_STATE_ENDING,
-		FRAME_STATE_ENDED,
-	};
+	// enum Status{
+	// 	FRAME_STATE_STARTING,
+	// 	FRAME_STATE_STARTED,
+	// 	FRAME_STATE_ENDING,
+	// 	FRAME_STATE_ENDED,
+	// };
 
 	enum CameraState{
 		CAMERA_STATE_MOOVING_TO_FRAME,
@@ -210,28 +176,21 @@ public:
 //Frame managment
 private:
 	FrameLoop target_loop;
-	Status status;
+	// Status status;
 	CameraState camera_state;
 
     bool reinit_tree;
-
-	bool b_start_loop;
-    bool b_starting;
-    bool b_started;
-    bool b_ending;
-    bool b_ended;
-	bool b_end_loop;
     
 	bool focused;
 	bool deformate_on_activation;
     bool b_active;
     int id;
     NodePath anim_tree;
-    Vector<String> states;
+	PoolStringArray states;
 
-    String start_transition;
-    String end_transition;
-    String end_state;
+    // String start_transition;
+    // String end_transition;
+    // String end_state;
 	
 protected:
 	void _notification(int p_what);
@@ -242,7 +201,7 @@ public:
     void to_prev();
     void to_next();
 
-	void animation_changed(StringName old_name, StringName new_name);
+	// void animation_changed(StringName old_name, StringName new_name);
    	void set_reinit_tree(bool p_reinit_tree);
     int get_states_count() const;
 	
@@ -258,17 +217,21 @@ public:
     void set_anim_tree(const NodePath &new_anim_tree);
     NodePath get_anim_tree() const;
 	Ref<AnimationNodeStateMachinePlayback> get_playback() const;
-	void set_start_transition (const String &p_start_transition);
-	String get_start_transition ();
-	void set_end_transition (const String &p_end_transition);
-	String get_end_transition ();
-	void set_end_state (const String &p_end_state);
-	String get_end_state ();
-	//void set_state (int p_id);
+	// void set_start_transition (const String &p_start_transition);
+	// String get_start_transition ();
+	// void set_end_transition (const String &p_end_transition);
+	// String get_end_transition ();
+	// void set_end_state (const String &p_end_state);
+	// String get_end_state ();
+	void set_state(int p_id, const String &state_name);
 	String get_state (int p_id);
-	String get_state ();
-    void set_states(const Array &new_states);
-    Array get_states() const;
+
+	void set_current_state_id(int p_id);
+	int get_current_state_id();
+	void set_current_state_name(const String &p_current_state);
+	String get_current_state_name ();
+    void set_states(const PoolStringArray &new_states);
+    PoolStringArray get_states() const;
 	/*
 	bool is_start_loop() const;
 	bool is_starting() const;
@@ -293,5 +256,4 @@ public:
 };
 
 VARIANT_ENUM_CAST(REDFrame::Anchor);
-VARIANT_ENUM_CAST(REDFrame::Space);
 #endif // RED_FRAME_H
