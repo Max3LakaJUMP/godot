@@ -1,41 +1,10 @@
-/*************************************************************************/
-/*  line_2d_editor_plugin.cpp                                            */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
-
 #include "red_tools_editor_plugin.h"
 #include "editor/editor_node.h"
 #include "editor/editor_data.h"
 #include "core/io/json.h"
 #include "core/bind/core_bind.h"
 #include "modules/red/red_engine.h"
-#include "modules/red/red_transform.h"
-//#include "modules/red/red_polygon.h"
+#include "modules/red/root_bone_2d.h"
 #include "modules/red/red_json.h"
 #include "modules/red_editor/red_render_data.h"
 #include "mediapipe.h"
@@ -376,13 +345,13 @@ void REDToolsEditorPlugin::create_mediapipe() {
 }
 
 void REDToolsEditorPlugin::attach_transform() {
-	REDTransform *apply_transform = nullptr;
+	RootBone2D *apply_transform = nullptr;
 	REDDeform *apply_deform = nullptr;
 	{
 		List<Node *> selection = EditorInterface::get_singleton()->get_selection()->get_selected_node_list();
 		for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
 			if (!apply_transform)
-				apply_transform = Object::cast_to<REDTransform>(E->get());
+				apply_transform = Object::cast_to<RootBone2D>(E->get());
 			if (!apply_deform)
 				apply_deform = Object::cast_to<REDDeform>(E->get());
 			if(apply_transform && apply_deform)
@@ -397,8 +366,8 @@ void REDToolsEditorPlugin::attach_transform() {
 		if (!apply_polygon)
 			continue;
 		if(apply_transform)
-			apply_polygon->set_custom_transform(apply_polygon->get_path_to(apply_transform));
+			apply_polygon->set_root_bone_path(apply_polygon->get_path_to(apply_transform));
 		if(apply_deform)
-			apply_polygon->set_deform(apply_polygon->get_path_to(apply_deform));
+			apply_polygon->set_deform_path(apply_polygon->get_path_to(apply_deform));
 	}
 }

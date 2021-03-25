@@ -14,7 +14,7 @@
 #include "modules/red/red_frame.h"
 #include "modules/red/red_page.h"
 #include "modules/red/red_target.h"
-#include "modules/red/red_transform.h"
+#include "modules/red/root_bone_2d.h"
 #include "modules/red/red_parallax_folder.h"
 #include "core/bind/core_bind.h"
 #include "core/variant.h"
@@ -76,31 +76,41 @@ Variant Maya::property_to_dict(Node *node, const String &property_name){
 					if(bone_path.is_empty() || !skeleton->has_node(bone_path))
 						continue;
 					Node *node = skeleton->get_node(bone_path);
-					REDTransform *transform = Object::cast_to<REDTransform>(node);
-					if(transform){
+					Bone2D *bone_2d = Object::cast_to<Bone2D>(node);
+					if(bone_2d){
 						Dictionary bone;
 						bone["path"] = bone_path;
 						bone["weights"] = polygon->get_bone_weights(i);
-						bone["position"] = transform->get_rest_position();
-						bone["rotation"] = transform->get_rest_rotation_degrees();
-						bone["scale"] = transform->get_rest_scale();
+						bone["rest_position"] = bone_2d->get_rest_position();
+						bone["rest_rotation"] = bone_2d->get_rest_rotation();
+						bone["rest_scale"] = bone_2d->get_rest_scale();
 						bones.push_back(bone);
-					}else{
-						Bone2D *bone2d = Object::cast_to<Bone2D>(node);
-						if(bone2d){
-							Transform2D rest = bone2d->get_rest();
-							Vector2 origin = rest.get_origin();
-							float rotation = rest.get_rotation();
-							Vector2 scale = rest.get_scale();
-							Dictionary bone;
-							bone["path"] = bone_path;
-							bone["weights"] = polygon->get_bone_weights(i);
-							bone["position"] = Vector3(origin.x, origin.y, 0.f);
-							bone["rotation"] = Vector3(0.f, 0.f, rotation);
-							bone["scale"] = Vector3(scale.x, scale.y, 1.f);
-							bones.push_back(bone);
-						}
 					}
+					// RootBone2D *transform = Object::cast_to<RootBone2D>(node);
+					// if(transform){
+					// 	Dictionary bone;
+					// 	bone["path"] = bone_path;
+					// 	bone["weights"] = polygon->get_bone_weights(i);
+					// 	bone["position"] = transform->get_rest_position();
+					// 	bone["rotation"] = transform->get_rest_rotation_degrees();
+					// 	bone["scale"] = transform->get_rest_scale();
+					// 	bones.push_back(bone);
+					// }else{
+					// 	Bone2D *bone2d = Object::cast_to<Bone2D>(node);
+					// 	if(bone2d){
+					// 		Transform2D rest = bone2d->get_rest();
+					// 		Vector2 origin = rest.get_origin();
+					// 		float rotation = rest.get_rotation();
+					// 		Vector2 scale = rest.get_scale();
+					// 		Dictionary bone;
+					// 		bone["path"] = bone_path;
+					// 		bone["weights"] = polygon->get_bone_weights(i);
+					// 		bone["position"] = Vector3(origin.x, origin.y, 0.f);
+					// 		bone["rotation"] = Vector3(0.f, 0.f, rotation);
+					// 		bone["scale"] = Vector3(scale.x, scale.y, 1.f);
+					// 		bones.push_back(bone);
+					// 	}
+					// }
 				}
 				out = bones;
 			}
@@ -341,29 +351,39 @@ void Maya::dict_to_property(Node *node, const String &property_name, const Varia
 							if(bone_path_real.is_empty() || !skeleton->has_node(bone_path_real))
 								continue;
 							Node *node = skeleton->get_node(bone_path_real);
-							REDTransform *transform = Object::cast_to<REDTransform>(node);
-							if(transform){
-								if(bone.has("position") && bone.has("rotation") && bone.has("scale")){
-									Vector3 position = bone["position"];
-									Vector3 rotation = bone["rotation"];
-									Vector3 scale = bone["scale"];
+							Bone2D *bone_2d = Object::cast_to<Bone2D>(node);
+							if(bone_2d && bone.has("position") && bone.has("rotation") && bone.has("scale")){
+									Vector3 position = bone["rest_position"];
+									Vector3 rotation = bone["rest_rotation"];
+									Vector3 scale = bone["rest_scale"];
 									Transform rest;
 									rest.basis.set_euler_scale(rotation, scale);
 									rest.set_origin(position);
-									transform->set_rest3d(rest);
-								}
-							}else{
-								Bone2D *bone2d = Object::cast_to<Bone2D>(node);
-								if(bone2d && bone.has("position") && bone.has("rotation") && bone.has("scale")){
-									Vector3 position = bone["position"];
-									Vector3 rotation = bone["rotation"];
-									Vector3 scale = bone["scale"];
-									Transform2D rest;
-									rest.set_rotation_and_scale(rotation.z, Vector2(scale.x, scale.y));
-									rest.set_origin(Vector2(position.x, position.y));
-									bone2d->set_rest(rest);
-								}
+									bone_2d->set_rest(rest);
 							}
+							// RootBone2D *transform = Object::cast_to<RootBone2D>(node);
+							// if(transform){
+							// 	if(bone.has("position") && bone.has("rotation") && bone.has("scale")){
+							// 		Vector3 position = bone["position"];
+							// 		Vector3 rotation = bone["rotation"];
+							// 		Vector3 scale = bone["scale"];
+							// 		Transform rest;
+							// 		rest.basis.set_euler_scale(rotation, scale);
+							// 		rest.set_origin(position);
+							// 		transform->set_rest3d(rest);
+							// 	}
+							// }else{
+							// 	Bone2D *bone2d = Object::cast_to<Bone2D>(node);
+							// 	if(bone2d && bone.has("position") && bone.has("rotation") && bone.has("scale")){
+							// 		Vector3 position = bone["position"];
+							// 		Vector3 rotation = bone["rotation"];
+							// 		Vector3 scale = bone["scale"];
+							// 		Transform2D rest;
+							// 		rest.set_rotation_and_scale(rotation.z, Vector2(scale.x, scale.y));
+							// 		rest.set_origin(Vector2(position.x, position.y));
+							// 		bone2d->set_rest(rest);
+							// 	}
+							// }
 							break;
 						}
 					}
@@ -377,22 +397,22 @@ void Maya::dict_to_property(Node *node, const String &property_name, const Varia
 			(old_type == Variant::INT && new_type == Variant::REAL) || 
 			(old_type == Variant::REAL && new_type == Variant::INT)){
 		// if(node->get(property_name) != new_value){
+		// node->set(property_name, new_value);
 		node->set(property_name, new_value);
+		node->_change_notify(property_name.utf8().get_data());
 		// }
 	}else if (old_type == Variant::NODE_PATH && new_type == Variant::STRING){
 		node->set(property_name, NodePath(new_value));
+		node->_change_notify(property_name.utf8().get_data());
 	}else if(echo){
 		print_line("Ignored " + property_name + " property");
 		print_line(Variant(old_type));
 		print_line(Variant(new_type));
 	}
-	// if(property_name == "polygon" || property_name == "polygons"){
-	// 	VS::get_singleton()->draw();
-	// }
 }
 
 void Maya::dict_to_animation_player(AnimationPlayer *player, const Dictionary &serialized){
-	Array animations = serialized["animations"]; //animations
+	Array animations = serialized["animations"];
 	int animations_count = animations.size();
 	for (int i = 0; i < animations_count; i++){
 		Dictionary animation_dict = animations[i];
@@ -503,8 +523,8 @@ Node *Maya::dict_to_node(const Dictionary &serialized, Node *root){
 			node = red::create_node<REDParallaxFolder>(parent, name);
 		else if (type == "REDTarget")
 			node = red::create_node<REDTarget>(parent, name);
-		else if (type == "REDTransform")
-			node = red::create_node<REDTransform>(parent, name);
+		else if (type == "RootBone2D")
+			node = red::create_node<RootBone2D>(parent, name);
 		else if (type == "AnimationPlayer")
 			node = red::create_node<AnimationPlayer>(parent, name);
 		else if (type == "Skeleton2D")
@@ -916,7 +936,6 @@ void Maya::_server_process() {
 }
 
 void Maya::start_sender(){
-	// sending = true;
 	if (!maya_tcp_client->is_connected_to_host() || maya_tcp_client->get_status() != StreamPeerTCP::STATUS_CONNECTED){
 		maya_tcp_client->disconnect_from_host();
 		maya_tcp_client->connect_to_host(IP_Address("127.0.0.1"), maya_port);
@@ -932,7 +951,6 @@ void Maya::start_sender(){
 }
 
 void Maya::stop_sender(){
-	print_line("stop_sender");
 	maya_tcp_client->disconnect_from_host();
 	if(sender_timer)
 		sender_timer->stop();
@@ -1006,16 +1024,15 @@ void Maya::send_text(const String &command) {
 }
 
 void Maya::_send_text(const String &command) {
-	const int max_pocket_size = 262143; // 128 kb is max
 	int bytes = command.size();
 	int current_bytes = 0;
 	
 	// print_line("total: " + String(Variant(bytes_length)));
-	char msg_body[max_pocket_size];
+	char msg_body[MAX_POCKET_SIZE];
 	for(int bytes_send = 0; bytes_send < bytes; bytes_send += current_bytes){
 		current_bytes = bytes - bytes_send;
-		if(current_bytes > max_pocket_size){
-			current_bytes = max_pocket_size;
+		if(current_bytes > MAX_POCKET_SIZE){
+			current_bytes = MAX_POCKET_SIZE;
 		}
 		for (int i = 0; i < current_bytes; i++)
 			msg_body[i] = command[bytes_send + i];
@@ -1026,54 +1043,6 @@ void Maya::_send_text(const String &command) {
 		// }
 		// print_line("current: " + String(Variant(current_bytes_send)));
 	}
-
-	
-	// for(int packet_num = 0; packet_num < packets_count; packet_num ++){
-	// 	current_bytes_send = bytes_length - bytes_send;
-	// 	if(current_bytes_send > max_pocket_size - 5){
-	// 		current_bytes_send = max_pocket_size - 5;
-	// 	}
-	// 	for(int i = 0; i < current_bytes_send; i++){
-	// 		msg_body[i] = command[bytes_send + i];
-	// 	}
-	// 	// if(packet_num == packets_count - 1){
-	// 	// 	msg_body[current_bytes_send] = '\0';
-	// 	// 	// msg_body[current_bytes_send + 1] = 'e';
-	// 	// 	// msg_body[current_bytes_send + 2] = 'n';
-	// 	// 	// msg_body[current_bytes_send + 3] = 'd';
-	// 	// 	// msg_body[current_bytes_send + 4] = NULL;
-	// 	// 	current_bytes_send += 1;
-	// 	// }
-	// 	// std::memcpy(msg_body, &command[bytes_send], current_bytes_send);
-	// 	maya_tcp_client->put_u32(current_bytes_send);
-	// 	maya_tcp_client->put_data((uint8_t*)msg_body, current_bytes_send);
-		
-	// 	bytes_send += current_bytes_send;
-	// }
-
-
-	
-
-	// if(pocket_size > max_pocket_size){
-	// 	float pockets_count_f = command.size() / max_pocket_size;
-	// 	int pockets_count = pocket_size % max_pocket_size == 0 ? command.size() / max_pocket_size : command.size() / max_pocket_size + 1;
-	// 	int start = 0;
-	// 	for (int i = 0; i < pockets_count; i++){
-	// 		String command_chunk = command.substr(start, max_pocket_size - 1);
-	// 		start += command_chunk.size();
-	// 		CharString cs = command_chunk.ascii();
-	// 		maya_tcp_client->put_u32(cs.size());
-	// 		maya_tcp_client->put_data((const uint8_t *)cs.get_data(), cs.length());
-	// 		print_line(String("Send chank size: ") + Variant(command_chunk.size()));
-	// 		print_line(String("Receive u32: ") + Variant(maya_tcp_client->get_u32()));
-	// 	}
-	// 	return;
-	// }
-
-	// ERR_FAIL_COND_MSG(pocket_size > max_pocket_size, "packet is too big! >256 kb")
-	// maya_tcp_client->put_string(command);
-
-	// maya_tcp_client->get_u32();
 }
 
 bool Maya::check_serialized(const Array &serialized) const{
@@ -1111,7 +1080,6 @@ int Maya::get_maya_port(){
 
 // Core
 void Maya::_bind_methods() {
-	// Send
 	ClassDB::bind_method(D_METHOD("send_node_properties", "nodes", "properties", "use_file"), &Maya::send_node_properties);
 	ClassDB::bind_method(D_METHOD("send_nodes_properties", "nodes", "properties", "use_file"), &Maya::send_nodes_properties);
 	ClassDB::bind_method(D_METHOD("send_node", "use_file"), &Maya::send_node);

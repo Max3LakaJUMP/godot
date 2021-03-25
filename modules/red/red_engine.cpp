@@ -499,22 +499,6 @@ Size2 get_full_size(PoolVector<Vector2> &polygon, PoolVector<Vector2> &uv) {
 	return item_rect.size;
 }
 
-void print(const float number) {
-	print_line(red::str(number));
-}
-
-void print(const String number) {
-	print_line(number);
-}
-
-String str(const float number) {
-	return String(std::to_string(number).c_str());
-}
-
-String str(const int number) {
-	return String(std::to_string(number).c_str());
-}
-
 RED *red(const Node *n) {
 	Node *r = n->get_tree()->get_root()->get_node(NodePath("red"));
 	if (r == NULL)

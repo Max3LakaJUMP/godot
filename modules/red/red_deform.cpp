@@ -1,33 +1,3 @@
-/*************************************************************************/
-/*  node_2d.cpp                                                          */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
-
 #include "red_deform.h"
 
 #include "core/message_queue.h"
@@ -48,13 +18,23 @@ void REDDeform::_notification(int p_what) {
 	}
 }
 
-float REDDeform::get_wind_rotation() const{
+void REDDeform::set_wind_rotation(const Vector2 &p_wind_rotation){
+	wind_rotation = p_wind_rotation;
+	VisualServer::get_singleton()->deform_set_wind_rotation(ci, p_wind_rotation);
+	_change_notify("wind_rotation");
+	_change_notify("wind_rotation_degrees");
+}
+
+Vector2 REDDeform::get_wind_rotation() const{
 	return wind_rotation;
 }
 
-void REDDeform::set_wind_rotation(float p_wind_rotation){
-	wind_rotation = p_wind_rotation;
-	VisualServer::get_singleton()->deform_set_wind_rotation(ci, p_wind_rotation);
+void REDDeform::set_wind_rotation_degrees(const Vector2 &p_wind_rotation){
+	set_wind_rotation(Vector2(Math::deg2rad(p_wind_rotation.x), Math::deg2rad(p_wind_rotation.y)));
+}
+
+Vector2 REDDeform::get_wind_rotation_degrees() const{
+	return Vector2(Math::rad2deg(wind_rotation.x), Math::rad2deg(wind_rotation.y));
 }
 
 float REDDeform::get_wind_offset() const{
@@ -141,6 +121,8 @@ void REDDeform::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_wind_rotation", "wind_rotation"), &REDDeform::set_wind_rotation);
 	ClassDB::bind_method(D_METHOD("get_wind_rotation"), &REDDeform::get_wind_rotation);
+	ClassDB::bind_method(D_METHOD("set_wind_rotation_degrees", "wind_rotation_degrees"), &REDDeform::set_wind_rotation_degrees);
+	ClassDB::bind_method(D_METHOD("get_wind_rotation_degrees"), &REDDeform::get_wind_rotation_degrees);
 	ClassDB::bind_method(D_METHOD("set_wind_offset", "wind_offset"), &REDDeform::set_wind_offset);
 	ClassDB::bind_method(D_METHOD("get_wind_offset"), &REDDeform::get_wind_offset);
 
@@ -160,7 +142,8 @@ void REDDeform::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_scale_strength"), &REDDeform::get_scale_strength);
 	
 	ADD_GROUP("wind", "wind_");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_rotation", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater"), "set_wind_rotation", "get_wind_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "wind_rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_wind_rotation", "get_wind_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "wind_rotation_degrees", PROPERTY_HINT_RANGE, "-360,360,0.1,or_lesser,or_greater"), "set_wind_rotation_degrees", "get_wind_rotation_degrees");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_offset", PROPERTY_HINT_RANGE, "0,1,0.1,or_lesser,or_greater"), "set_wind_offset", "get_wind_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_time", PROPERTY_HINT_RANGE, "0,10,0.1, or_lesser,or_greater"), "set_wind_time", "get_wind_time");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "wind_strength", PROPERTY_HINT_RANGE, "0,1000"), "set_wind_strength", "get_wind_strength");
@@ -174,7 +157,9 @@ void REDDeform::_bind_methods() {
 
 REDDeform::REDDeform() {
 	ci = VS::get_singleton()->deform_create();
-	wind_rotation = 90.0f;
+	wind_rotation = Vector2(0, Math_PI * 0.5);
+
+	// wind_rotation = 90.0f;
 	wind_offset = 0.0f;
 
 	wind_time = 1.0f;

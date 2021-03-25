@@ -305,7 +305,7 @@ public:
 	/*DEFORM API */
 	
 	BIND0R(RID, deform_create)
-	BIND2(deform_set_wind_rotation, RID, float)
+	BIND2(deform_set_wind_rotation, RID, const Vector2 &)
 	BIND2(deform_set_wind_offset, RID, float)
 	BIND2(deform_set_wind_time, RID, float)
 	BIND2(deform_set_wind_strength, RID, float)

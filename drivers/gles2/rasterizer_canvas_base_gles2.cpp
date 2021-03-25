@@ -407,14 +407,14 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 	
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::WORLD_MATRIX, state.uniforms.world_matrix);
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::INV_WORLD_MATRIX, state.uniforms.inv_world_matrix);
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_SIZE, state.depth_size);
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_OFFSET, state.depth_offset);
 	if (state.using_custom_transform) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX, state.custom_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::OLD_CUSTOM_MATRIX, state.old_custom_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX_ROOT, state.custom_transform_root);
 		//state.canvas_shader.set_uniform(CanvasShaderGLES2::CUSTOM_MATRIX_ROOT_INVERSE, state.custom_transform_root.affine_inverse());
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::SOFT_BODY, state.soft_body);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_SIZE, state.depth_size);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_OFFSET, state.depth_offset);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::DEPTH_POSITION, state.depth_position);
 	}
 	if (state.using_clipper) {

@@ -352,12 +352,12 @@ void RasterizerCanvasBaseGLES3::_set_texture_rect_mode(bool p_enable, bool p_nin
 	state.using_large_vertex = p_large_vertex;
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::WORLD_MATRIX, state.world_transform);
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::INV_WORLD_MATRIX, state.inv_world_transform);
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
+	state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
 	if (state.using_custom_transform) {
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::CUSTOM_MATRIX, state.custom_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::OLD_CUSTOM_MATRIX, state.old_custom_transform);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SOFT_BODY, state.soft_body);
-		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_SIZE, state.depth_size);
-		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_OFFSET, state.depth_offset);
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::DEPTH_POSITION, state.depth_position);
 	}
 	if (state.using_clipper) {
@@ -1009,6 +1009,7 @@ void RasterizerCanvasBaseGLES3::canvas_light_shadow_buffer_update(RID p_buffer, 
 
 	glBindVertexArray(0);
 }
+
 void RasterizerCanvasBaseGLES3::reset_canvas() {
 
 	if (storage->frame.current_rt) {

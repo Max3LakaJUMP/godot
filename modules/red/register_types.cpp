@@ -17,13 +17,13 @@
 #include "red_shape.h"
 #include "red_parallax_folder.h"
 #include "red_target.h"
-#include "red_transform.h"
+#include "root_bone_2d.h"
 #include "red_deform.h"
 
 void register_red_types() {
 	ClassDB::register_class<REDShapeRenderer>();
 	ClassDB::register_class<REDClipper>();
-	ClassDB::register_class<REDTransform>();
+	ClassDB::register_class<RootBone2D>();
 	ClassDB::register_class<REDShape>();
 	//ClassDB::register_virtual_class<REDBase>();
 	//ClassDB::register_virtual_class<REDElement>();

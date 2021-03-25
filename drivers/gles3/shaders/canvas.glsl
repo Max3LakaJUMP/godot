@@ -57,14 +57,14 @@ layout(std140) uniform CanvasItemData { //ubo:0
 	highp mat4 projection_matrix;
 	highp float time;
 };
+uniform highp float depth_size;
+uniform highp float depth_offset;
 #ifdef USE_CUSTOM_TRANSFORM
 uniform highp mat4 custom_matrix;
 uniform highp mat4 old_custom_matrix;
 uniform highp mat4 custom_matrix_root;
 uniform highp mat4 custom_matrix_root_inverse;
 uniform highp float soft_body;
-uniform highp float depth_size;
-uniform highp float depth_offset;
 uniform highp float depth_position;
 #endif
 #if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
@@ -211,25 +211,54 @@ vec2 wind(float t, vec2 direction, vec2 wave)
 
 	return result;
 }
-vec3 wind(float t, vec3 direction, vec2 wave)
-{
+vec3 wind(float t, vec3 direction, vec2 wave, vec2 uv, vec2 scale_center) {
+	// float s = sin(t);
+	// float c = cos(t);
+	// vec3 wind_val;
+	// wind_val.x = ((c - s) * 0.5 - 0.5) * direction.x;
+	// wind_val.y = ((s - c) * 0.5 - 0.5) * direction.y;
+	// wind_val.z = ((c - s) * 0.5 - 0.5) * direction.z;
+	// wind_val.x += ((c - s) * 0.5 - 0.5) * (uv.x - scale_center.x) * direction.z * direction.z * direction.z;
+	// wind_val.y += ((s - c) * 0.5 - 0.5) * (uv.y - scale_center.y) * direction.z * direction.z * direction.z;
+	// return wind_val;
+	float t2 = t * 0.5 + wave.x + wave.y;
+	t = t + wave.x + wave.y;
+	float s = sin(t);
+	float c = cos(t);
+	float sy = sin(t - 3.14 * 0.25);
+	float cy = cos(t - 3.14 * 0.25);
+	float s2 = sin(t2);
+	float c2 = cos(t2);
+	// direction.y += abs(direction.x) * 0.5;
+	// direction.z = 0.0;
+	// direction = normalize(direction);
+	float is_side = abs(dot(direction, vec3(1, 0, 0)));
 	float wind_from_top = dot(direction, vec3(0, 1, 0));
-	float wind_from_bellow = -1 * wind_from_top;
-	float vertical = abs(wind_from_top);
+	float wind_from_bellow = -1.0 * wind_from_top;
+	float is_vertical = abs(wind_from_top);
 	wind_from_top = max(wind_from_top, 0.0);
 	wind_from_bellow = max(wind_from_bellow, 0.0);
 
-	vec3 wind_top;
-	wind_top.x = sin(t * 0.5 + wave.x + 3.14) * 0.5;
-	wind_top.y = (cos(t + 3.14 + wave.y) * 0.5 - 0.5 * wind_from_bellow) * (-direction.y);
-	wind_top.z = sin(t * 0.5 + wave.x + 3.14) * 0.5;
 	vec3 wind_side;
-	wind_side.x = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.x);
-	wind_side.y = (sin(t + wave.y) * 0.5 - 0.5);
-	wind_side.z = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.z);
-	// wind_side.z = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.x);
-	vec3 result = mix(wind_side, wind_top, vertical);
-
+	wind_side.x = ((c - s) * 0.5 - 0.5) * direction.x;
+	wind_side.y = (-(sy - cy) * 0.5 - 0.5) * abs(direction.x);
+	wind_side.z = ((c - s) * 0.5 - 0.5) * direction.z;
+	// wind_side.x = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.x);
+	// wind_side.y = (sin(t + wave.y) * 0.5 - 0.5);
+	// wind_side.z = (sin(t + wave.x) * 0.5 - 0.5) * (-direction.z);
+	//is_side = sin((is_side - 0.5) * 3.14) * 0.5 + 0.5;
+	vec3 wind_v;
+	wind_v.x = (c2 - s2) * 0.25;
+	wind_v.y = ((s - c) * 0.5 - 0.5) * direction.y;
+	wind_v.z = (c2 - s2) * 0.25;
+	// wind_v.x = sin(t * 0.5 + wave.x + 3.14) * 0.5;
+	// wind_v.y = (cos(t + 3.14 + wave.y) * 0.5 - 0.5 * wind_from_bellow) * (-direction.y);
+	// wind_v.z = sin(t * 0.5 + wave.x + 3.14) * 0.5;
+	// vec3 result = mix(wind_side, wind_v, is_vertical);
+	vec3 result = wind_side + wind_v;
+	// result.y = mix(wind_v.y, wind_side.y, is_side);
+	result.x += -((c - s) * 0.5 - 0.5) * (uv.x - scale_center.x) * direction.z * direction.z * direction.z * 0.5;
+	result.y += -((c - s) * 0.5 - 0.5) * (uv.y - scale_center.y) * direction.z * direction.z * direction.z * 0.5;
 	return result;
 }
 #endif
@@ -272,55 +301,91 @@ void main() {
 	outvec.xy /= color_texpixel_size;
 #endif
 
+#if defined(DEPTH_USED)
+	float depth = color.a;
+	float max_depth = 0.0001;
+	outvec.z = (depth - depth_offset) * depth_size;
+#endif
+#if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
+	float transform_mask = 1.0;
+#endif
+#if defined(USE_DEFORM) || defined(DEFORM_MASK_USED)
+	float deform_mask = 1.0;
+#endif
 
 #ifdef USE_SKELETON
 
 	if (bone_weights != vec4(0.0)) { //must be a valid bone
 		//skeleton transform
-
 		ivec4 bone_indicesi = ivec4(bone_indices);
+#ifdef USE_SKELETON_3D
+		highp mat3x4 bone_transform = mat3x4(0.0);
+		for (int i = 0; i < 4; i++) {
+			ivec2 tex_ofs = ivec2(bone_indicesi[i] % 256, (bone_indicesi[i] / 256) * 3);
 
-		ivec2 tex_ofs = ivec2(bone_indicesi.x % 256, (bone_indicesi.x / 256) * 2);
-
-		highp mat2x4 m;
-		m = mat2x4(
+			highp mat3x4 b = mat3x4(
 					texelFetch(skeleton_texture, tex_ofs, 0),
-					texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
-			bone_weights.x;
+					texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0),
+					texelFetch(skeleton_texture, tex_ofs + ivec2(0, 2), 0));
 
-		tex_ofs = ivec2(bone_indicesi.y % 256, (bone_indicesi.y / 256) * 2);
+			bone_transform += b * bone_weights[i];
+		}
+		mat4 bone_matrix = skeleton_transform * transpose(mat4(	bone_transform[0], 
+																bone_transform[1], 
+																bone_transform[2],
+																vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_inverse;
+#else
+		highp mat2x4 bone_transform = mat2x4(0.0);
+		for (int i = 0; i < 4; i++) {
+			ivec2 tex_ofs = ivec2(bone_indicesi[i] % 256, (bone_indicesi[i] / 256) * 2);
 
-		m += mat2x4(
-					 texelFetch(skeleton_texture, tex_ofs, 0),
-					 texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
-			 bone_weights.y;
+			highp mat2x4 b = mat2x4(
+					texelFetch(skeleton_texture, tex_ofs, 0),
+					texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0));
+			bone_transform += b * bone_weights[i];
+		}
+		mat4 bone_matrix = skeleton_transform * transpose(mat4(	bone_transform[0], 
+																bone_transform[1], 
+																vec4(0.0, 0.0, 1.0, 0.0), 
+																vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_inverse;
+#endif
 
-		tex_ofs = ivec2(bone_indicesi.z % 256, (bone_indicesi.z / 256) * 2);
+		// ivec4 bone_indicesi = ivec4(bone_indices);
 
-		m += mat2x4(
-					 texelFetch(skeleton_texture, tex_ofs, 0),
-					 texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
-			 bone_weights.z;
+		// ivec2 tex_ofs = ivec2(bone_indicesi.x % 256, (bone_indicesi.x / 256) * 2);
 
-		tex_ofs = ivec2(bone_indicesi.w % 256, (bone_indicesi.w / 256) * 2);
+		// highp mat2x4 m;
+		// m = mat2x4(
+		// 			texelFetch(skeleton_texture, tex_ofs, 0),
+		// 			texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
+		// 	bone_weights.x;
 
-		m += mat2x4(
-					 texelFetch(skeleton_texture, tex_ofs, 0),
-					 texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
-			 bone_weights.w;
+		// tex_ofs = ivec2(bone_indicesi.y % 256, (bone_indicesi.y / 256) * 2);
 
-		mat4 bone_matrix = skeleton_transform * transpose(mat4(m[0], m[1], vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_inverse;
+		// m += mat2x4(
+		// 			 texelFetch(skeleton_texture, tex_ofs, 0),
+		// 			 texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
+		// 	 bone_weights.y;
+
+		// tex_ofs = ivec2(bone_indicesi.z % 256, (bone_indicesi.z / 256) * 2);
+
+		// m += mat2x4(
+		// 			 texelFetch(skeleton_texture, tex_ofs, 0),
+		// 			 texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
+		// 	 bone_weights.z;
+
+		// tex_ofs = ivec2(bone_indicesi.w % 256, (bone_indicesi.w / 256) * 2);
+
+		// m += mat2x4(
+		// 			 texelFetch(skeleton_texture, tex_ofs, 0),
+		// 			 texelFetch(skeleton_texture, tex_ofs + ivec2(0, 1), 0)) *
+		// 	 bone_weights.w;
+
+		// mat4 bone_matrix = skeleton_transform * transpose(mat4(m[0], m[1], vec4(0.0, 0.0, 1.0, 0.0), vec4(0.0, 0.0, 0.0, 1.0))) * skeleton_transform_inverse;
 
 		outvec = bone_matrix * outvec;
 	}
 
-#endif
-#if defined(DEPTH_USED)
-	float depth = 0.0;
-	float max_depth = 0.001;
-#endif
-#if defined(USE_CUSTOM_TRANSFORM) || defined(TRANSFORM_MASK_USED)
-	float transform_mask = 1.0;
 #endif
 
 #define extra_matrix extra_matrix_instance
@@ -366,109 +431,107 @@ VERTEX_SHADER_CODE
 	outvec = extra_matrix * outvec;
 
 	#ifdef USE_CUSTOM_TRANSFORM
-		#if defined(DEPTH_USED)
-			outvec.z = (depth - depth_offset) * depth_size;
-		#endif
+
 		vec4 outvec_physics = outvec + transform_mask * (old_custom_matrix * outvec - outvec);
 		outvec = outvec + transform_mask * (custom_matrix * outvec - outvec);
 		// max offset
 		// vec3 origin_diff = (outvec_physics.xyz - outvec.xyz);
 		// outvec_physics.xyz = origin_diff * min(100.0 / length(origin_diff), 1.0) + outvec.xyz;
 	#endif
-		#if defined(USE_DEFORM)
+	#if defined(USE_DEFORM)
+	{
+		vec2 uv_rot = rotate(uv_interp - 0.5, -object_rotation) + 0.5;
+		float o = max(uv_origin, 0);
+		float k = min(uv_origin, 0);
+		deform_mask = clamp(sqrt(1.0 + (1 + k) * ((uv_rot.y - o) / (1.0 - o) - 1.0)), 0.0, 1.0) * deform_mask;
+		//vec2 uv_rot = rotate_uv((uv - 0.5) * 1.25 + 0.5, -object_rotation);
+		//deform_mask = clamp(sqrt(1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0)), 0.0, 1.0) * deform_mask;
+		// deform_mask = clamp((1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0)) * deform_mask, 0.0, 1.0);
+		
+		highp vec2 wave;
+		wave.x = (uv_rot.x * elasticity.x) * 6.28;
+		wave.y = ((1.0 - deform_mask) * elasticity.y) * 6.28; // wave.y = ((1.0 - uv_rot.y) * elasticity.y) * 6.28;
+		float t = time * 6.28;
+
+		highp vec3 wind_direction = mat3(deform_wind_matrix) * vec3(0.0, 0.0, 1.0);
+
+		// physics
+		#ifdef USE_CUSTOM_TRANSFORM
+		highp vec3 cycle_physics = vec3(0,0,0);
 		{
-			vec2 uv_rot = rotate_uv((uv_interp - 0.5) * 1.25 + 0.5, -object_rotation);
-			
-			float t = time * 6.28;
-			highp vec2 wave;
-			wave.x = ((1.0 - uv_rot.y) * elasticity.y) * 6.28;
-			wave.y = (uv_rot.x * elasticity.x) * 6.28;
-			float deform_mask = 1.0 + uv_origin * ((uv_rot.y - uv_origin) / (1.0 - uv_origin) - 1.0);
-			deform_mask = clamp(deform_mask * color.g, 0.0, 1.0);
-			
-			// physics
-			#ifdef USE_CUSTOM_TRANSFORM
-			highp vec3 cycle_physics = vec3(0,0,0);
-			{
-				highp vec3 physics_direction = mat3(deform_object_matrix) * (outvec_physics.xyz - outvec.xyz);
-				highp float physics_offset = length(physics_direction);
-				if (physics_offset > 0.001){
-					physics_direction = normalize(physics_direction);
-					highp vec3 physics_target = physics_direction;
-					float pty = physics_target.y * 0.5;
-					physics_target.y = mix(pty - 0.5, pty, abs(dot(physics_target, vec3(0, 1, 0))));
-					cycle_physics = wind(t + time_offset + 0.785, physics_direction, wave);
-					cycle_physics = (cycle_physics * 0.25 + physics_target) * physics_offset * soft_body;
-					cycle_physics = mat3(deform_object_matrix_inverse) * cycle_physics;
-				}
-			}
-			#endif
-			// #ifdef USE_CUSTOM_TRANSFORM
-			// highp vec2 cycle_physics = vec2(0,0);
-			// {
-			// 	highp float physics_offset = length(outvec_physics.xy - outvec.xy);
-			// 	if (physics_offset > 0.001){
-			// 		highp vec2 physics_direction = normalize(object_matrix * (outvec_physics.xy - outvec.xy));
-			// 		highp vec2 physics_target = physics_direction;
-			// 		physics_target.y = physics_target.y * 0.5 - 0.5;
-			// 		cycle_physics = (physics_target + wind(2.0 * t + time_offset, physics_direction, wave) * 0.25) * physics_offset * soft_body;
-			// 	}
-			// }
-			// #endif
-			// wind
-			highp vec3 cycle_wind = vec3(0, 0, 0);
-			{
-				highp vec3 wind_direction = mat3(deform_wind_matrix) * vec3(0.0, 1.0, 0.0);
-				highp vec3 wind_target = wind_direction;
-				wind_target.y = sin(wind_target.y * 1.57) * 0.5 - 0.5;
-				// cycle_wind = (wind(t / wind_time + time_offset, wind_direction, wave) + wind_target * wind_offset) * wind_strength;
-				cycle_wind = wind(t / wind_time + time_offset, wind_direction, wave);
-				cycle_wind = (cycle_wind + wind_target * wind_offset) * wind_strength;
-				cycle_wind = mat3(deform_object_matrix_inverse) * cycle_wind;
-			}
-			// highp vec2 cycle_wind = vec2(0,0);
-			// {
-			// 	highp vec2 wind_direction = mat2(deform_wind_matrix) * vec2(0.0, 1.0);
-			// 	highp vec2 wind_target = wind_direction;
-			// 	wind_target.y = wind_target.y * 0.5 - 0.5;
-			// 	cycle_wind = (wind(t / wind_time + time_offset, wind_direction, wave) + wind_target * wind_offset) * wind_strength;
-			// }
-			// scale
-			highp vec2 cycle_scale = (sin(t / scale_time + time_offset) * (uv_rot - scale_center)) * scale_strength;
-			// apply
-			#ifdef USE_CUSTOM_TRANSFORM
-			outvec.xyz += ((cycle_wind.xyz + vec3(cycle_scale, 0)) * wind_strength_object.x + cycle_physics.xyz) * deform_mask;
-			#else
-			outvec.xyz += ((cycle_wind.xyz + vec3(cycle_scale, 0)) * wind_strength_object.x) * deform_mask;
-			#endif
-			// outvec = deform_object_matrix * outvec;
-			// #ifdef USE_CUSTOM_TRANSFORM
-			// outvec.xy += ((cycle_wind + cycle_scale) * wind_strength_object + cycle_physics) * deform_mask;
-			// #else
-			// outvec.xy += ((cycle_wind + cycle_scale) * wind_strength_object) * deform_mask;
-			// #endif
-			// outvec = deform_object_matrix_inverse * outvec;
-			
-			// gravity
-			// vec2 object_direction = object_matrix * vec2(0,1);
-			// float object_is_facing_top = (dot(object_direction, vec2(0,-1)) * 0.5 + 0.5) * 
-			// 							 (dot(mat2(cos(object_rotation), sin(object_rotation), -sin(object_rotation), cos(object_rotation))*vec2(0,1), vec2(0,1)) * 0.5 + 0.5);
-			// float gravity = 50.0;
-			// outvec.y = outvec.y + object_is_facing_top * gravity * deform_mask;
-			//// Old1
-			// outvec.xy = rotate(outvec.xy, -object_rotation);
-			// outvec.xy = outvec.xy + cycle_wind * soft_body * ph_strength * deform_mask;
-			// outvec.xy = rotate(outvec.xy, object_rotation);
-			//// Old2
-			// vec4 force = soft_body * deform_mask * deform_mask * (outvec_physics - outvec);
-			// outvec.xyz = outvec.xyz + force.xyz;
+			highp vec3 physics_direction = mat3(deform_object_matrix) * (outvec_physics.xyz - outvec.xyz);
+			cycle_physics = physics_direction * soft_body;
+			cycle_physics = mat3(deform_object_matrix_inverse) * cycle_physics;
 		}
-		#else
-			#if defined(USE_CUSTOM_TRANSFORM)
-				outvec = outvec + soft_body * (outvec_physics - outvec);
-			#endif
 		#endif
-	#if defined(USE_CUSTOM_TRANSFORM) && defined(DEPTH_USED)
+		// highp vec2 cycle_physics = vec2(0,0);
+		// {
+		// 	highp float physics_offset = length(outvec_physics.xy - outvec.xy);
+		// 	if (physics_offset > 0.001){
+		// 		highp vec2 physics_direction = normalize(object_matrix * (outvec_physics.xy - outvec.xy));
+		// 		highp vec2 physics_target = physics_direction;
+		// 		physics_target.y = physics_target.y * 0.5 - 0.5;
+		// 		cycle_physics = (physics_target + wind(2.0 * t + time_offset, physics_direction, wave) * 0.25) * physics_offset * soft_body;
+		// 	}
+		// }
+		// #endif
+		// wind
+		highp vec3 cycle_wind = vec3(0, 0, 0);
+		{
+			highp vec3 wind_target = wind_direction;
+			wind_target *= -1.0;
+			wind_target.y = sin(wind_target.y * 1.57) * 0.5 - 0.25;// - 0.5;
+			cycle_wind = wind(t / wind_time + time_offset, wind_direction, wave, uv_rot, scale_center);
+			cycle_wind = (cycle_wind + wind_target * wind_offset) * wind_strength;
+			cycle_wind = mat3(deform_object_matrix_inverse) * cycle_wind;
+			cycle_wind.xy *= wind_strength_object;
+		}
+		// highp vec2 cycle_wind = vec2(0,0);
+		// {
+		// 	highp vec2 wind_direction = mat2(deform_wind_matrix) * vec2(0.0, 1.0);
+		// 	highp vec2 wind_target = wind_direction;
+		// 	wind_target.y = wind_target.y * 0.5 - 0.5;
+		// 	cycle_wind = (wind(t / wind_time + time_offset, wind_direction, wave) + wind_target * wind_offset) * wind_strength;
+		// }
+		// scale
+		highp vec2 cycle_scale = (sin(t / scale_time + time_offset) * (uv_rot - scale_center)) * scale_strength;
+		// apply
+		#ifdef USE_CUSTOM_TRANSFORM
+		outvec.xy += ((cycle_wind.xy + cycle_scale) * wind_strength_object.x + cycle_physics.xy) * deform_mask;
+		#else
+		outvec.xy += ((cycle_wind.xy + cycle_scale) * wind_strength_object.x) * deform_mask;
+		#endif
+		// outvec.xyz += ((cycle_wind.xyz + vec3(cycle_scale, 0)) * wind_strength_object.x + cycle_physics.xyz) * deform_mask;
+		// #else
+		// outvec.xyz += ((cycle_wind.xyz + vec3(cycle_scale, 0)) * wind_strength_object.x) * deform_mask;
+		// #endif
+		// outvec = deform_object_matrix * outvec;
+		// outvec.xy += ((cycle_wind + cycle_scale) * wind_strength_object + cycle_physics) * deform_mask;
+		// #else
+		// outvec.xy += ((cycle_wind + cycle_scale) * wind_strength_object) * deform_mask;
+		// #endif
+		// outvec = deform_object_matrix_inverse * outvec;
+		
+		// gravity
+		// vec2 object_direction = object_matrix * vec2(0,1);
+		// float object_is_facing_top = (dot(object_direction, vec2(0,-1)) * 0.5 + 0.5) * 
+		// 							 (dot(mat2(cos(object_rotation), sin(object_rotation), -sin(object_rotation), cos(object_rotation))*vec2(0,1), vec2(0,1)) * 0.5 + 0.5);
+		// float gravity = 50.0;
+		// outvec.y = outvec.y + object_is_facing_top * gravity * deform_mask;
+		//// Old1
+		// outvec.xy = rotate(outvec.xy, -object_rotation);
+		// outvec.xy = outvec.xy + cycle_wind * soft_body * ph_strength * deform_mask;
+		// outvec.xy = rotate(outvec.xy, object_rotation);
+		//// Old2
+		// vec4 force = soft_body * deform_mask * deform_mask * (outvec_physics - outvec);
+		// outvec.xyz = outvec.xyz + force.xyz;
+	}
+	#else 
+	#if defined(USE_CUSTOM_TRANSFORM)
+		outvec = outvec + soft_body * (outvec_physics - outvec);
+	#endif
+	#endif
+	#if defined(DEPTH_USED)
 		outvec.z *= max_depth;
 	#endif
 	#if defined(WORLD_POS_USED) || defined(USE_CLIPPER)
@@ -838,30 +901,31 @@ FRAGMENT_SHADER_CODE
 
 #ifdef USE_CLIPPER
 {
+	vec2 current_pos = vec2(world_pos.x, world_pos.y);
 	bool oddNodes = false;
-	bool previous = clipper_calc4.z > world_pos.y;
-	bool current = clipper_calc1.z > world_pos.y;
+	bool previous = clipper_calc4.z > current_pos.y;
+	bool current = clipper_calc1.z > current_pos.y;
 	if (current != previous){
-		if (world_pos.y * clipper_calc1.x + clipper_calc1.y < world_pos.x)
+		if (current_pos.y * clipper_calc1.x + clipper_calc1.y < current_pos.x)
 			oddNodes =! oddNodes;
 	}
 	previous = current;
-	current = clipper_calc2.z > world_pos.y;
+	current = clipper_calc2.z > current_pos.y;
 	if (current != previous){
-		if (world_pos.y * clipper_calc2.x + clipper_calc2.y < world_pos.x)
+		if (current_pos.y * clipper_calc2.x + clipper_calc2.y < current_pos.x)
 			oddNodes =! oddNodes;
 	}
 
 	previous = current;
-	current = clipper_calc3.z > world_pos.y;
+	current = clipper_calc3.z > current_pos.y;
 	if (current != previous){
-		if (world_pos.y * clipper_calc3.x + clipper_calc3.y < world_pos.x)
+		if (current_pos.y * clipper_calc3.x + clipper_calc3.y < current_pos.x)
 			oddNodes =! oddNodes;
 	}
 	previous = current;
-	current = clipper_calc4.z > world_pos.y;
+	current = clipper_calc4.z > current_pos.y;
 	if (current != previous){
-		if (world_pos.y * clipper_calc4.x + clipper_calc4.y < world_pos.x)
+		if (current_pos.y * clipper_calc4.x + clipper_calc4.y < current_pos.x)
 			oddNodes =! oddNodes;
 	}
 	if (!oddNodes){

@@ -87,7 +87,8 @@ public:
 		// 	basis.set_euler(rotation);
 		// 	break;
 		// }	
-		basis.set_euler(rotation);
+		basis.set_euler_scale(rotation, scale);
+
 	}
 
 	Vector3 get_rotation() const {
@@ -106,7 +107,12 @@ public:
 			temp.x = CMP_EPSILON;
 		if (temp.y == 0)
 			temp.y = CMP_EPSILON;
-		basis.scale(p_scale * temp / scale);
+		if (temp.z == 0)
+			temp.z = CMP_EPSILON;
+		// basis.orthonormalize();
+		// basis.scale(temp);
+		basis.set_euler_scale(rotation, temp);
+		// basis.scale(temp / scale);
 		scale = p_scale;
 	}
 
@@ -179,10 +185,6 @@ PoolVector<Vector2> new_uv(PoolVector<Vector2> old_polygon, PoolVector<Vector2> 
 Rect2 get_rect(PoolVector<Vector2> polygon, Vector2 offset = Vector2());
 Size2 get_full_size(PoolVector<Vector2> &polygon, PoolVector<Vector2> &uv);
 
-void print(const float number);
-void print(const String number);
-String str(const int number);
-String str(const float number);
 Node *get_singleton(const Node *n);
 RED *red(const Node *n);
 Vector2 get_zoom(const Node *n);

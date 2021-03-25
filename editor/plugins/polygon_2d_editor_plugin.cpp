@@ -1158,8 +1158,8 @@ void Polygon2DEditor::_uv_draw() {
 				for (int i = 0; i < skeleton->get_bone_count(); i++) {
 
 					Bone2D *bone = skeleton->get_bone(i);
-					if (bone->get_rest() == Transform2D(0, 0, 0, 0, 0, 0))
-						continue; //not set
+					// if (bone->get_rest() == Transform2D(0, 0, 0, 0, 0, 0))
+					// 	continue; //not set
 
 					bool current = bone_path == skeleton->get_path_to(bone);
 
@@ -1173,7 +1173,7 @@ void Polygon2DEditor::_uv_draw() {
 
 						found_child = true;
 
-						Transform2D bone_xform = node->get_global_transform().affine_inverse() * (skeleton->get_global_transform() * bone->get_skeleton_rest());
+						Transform2D bone_xform = node->get_global_transform().affine_inverse() * (skeleton->get_global_transform() * Variant(bone->get_skeleton_rest()));
 						Transform2D endpoint_xform = bone_xform * n->get_transform();
 
 						Color color = current ? Color(1, 1, 1) : Color(0.5, 0.5, 0.5);
@@ -1183,7 +1183,7 @@ void Polygon2DEditor::_uv_draw() {
 
 					if (!found_child) {
 						//draw normally
-						Transform2D bone_xform = node->get_global_transform().affine_inverse() * (skeleton->get_global_transform() * bone->get_skeleton_rest());
+						Transform2D bone_xform = node->get_global_transform().affine_inverse() * (skeleton->get_global_transform() * Variant(bone->get_skeleton_rest()));
 						Transform2D endpoint_xform = bone_xform * Transform2D(0, Vector2(bone->get_default_length(), 0));
 
 						Color color = current ? Color(1, 1, 1) : Color(0.5, 0.5, 0.5);
